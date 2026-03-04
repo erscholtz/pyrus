@@ -62,9 +62,29 @@ fn main() {
     //     }
     // }
 
-    let layout = setup_layout(&mut hlir_module);
-    println!("Layout:");
-    println!("{:?}", layout);
+    let mut layout = setup_layout(&hlir_module);
+
+    // A4 page size in points (1 inch = 72 points)
+    let page_width = 595.0;
+    let page_height = 842.0;
+    layout.compute_layout(page_width, page_height);
+
+    // Print computed layouts for each element
+    println!("\n=== Computed Layouts ===");
+    for (idx, metadata) in hlir_module.element_metadata.iter().enumerate() {
+        if let Some(computed) = layout.get_element_layout(idx) {
+            println!(
+                "Element {} (type: {:?}, id: {:?}): x={:.1}, y={:.1}, w={:.1}, h={:.1}",
+                idx,
+                metadata.element_type,
+                metadata.id,
+                computed.x,
+                computed.y,
+                computed.width,
+                computed.height
+            );
+        }
+    }
 
     let now = Instant::now();
     let time = now - last;

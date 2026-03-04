@@ -1,3 +1,3 @@
 mod layout_engine;
 
-pub use layout_engine::setup_layout;
+pub use layout_engine::{ComputedLayout, LayoutEngine, setup_layout};
