@@ -2,8 +2,7 @@ use std::collections::HashMap;
 use taffy::style::AvailableSpace;
 use taffy::{LengthPercentage, LengthPercentageAuto, NodeId, Rect, Size, Style, TaffyTree};
 
-use crate::ast::DocElement;
-use crate::hlir::{FuncId, HLIRModule, Id, Op, StyleAttributes};
+use crate::hlir::{FuncId, HLIRModule, HlirElement, Id, Op, StyleAttributes};
 
 pub fn setup_layout(hlir_module: &HLIRModule) -> LayoutEngine {
     let layout = LayoutEngine::build_from_hlir_module(hlir_module);
@@ -68,12 +67,15 @@ impl LayoutEngine {
 
     fn process_op(&mut self, op: &Op, hlir_module: &HLIRModule, parent_node: NodeId) {
         match op {
-            Op::DocElementEmit {
-                index,
-                attributes_ref,
-            } => {
+            Op::HlirElementEmit { index } => {
                 // Document element - has metadata and computed styles
-                self.create_node_from_metadata(*index, *attributes_ref, hlir_module, parent_node);
+                let element = hlir_module.elements.get(*index).expect("element not found");
+                let attributes_ref = match element {
+                    HlirElement::Section { attributes, .. } => *attributes,
+                    HlirElement::List { attributes, .. } => *attributes,
+                    HlirElement::Text { attributes, .. } => *attributes,
+                };
+                self.create_node_from_metadata(*index, attributes_ref, hlir_module, parent_node);
             }
             Op::Call { func, .. } => {
                 // Template function call - element is in function's returned_element_ref
@@ -128,9 +130,19 @@ impl LayoutEngine {
             None => return,
         };
 
-        // Extract attributes directly from DocElement (no CSS resolution for templates yet)
-        let attributes = extract_attributes_from_doc_element(element);
-        let style = Self::attr_to_style(&attributes);
+        // Get attributes_ref from the element and look up computed styles
+        let attributes_ref = match element {
+            HlirElement::Section { attributes, .. } => *attributes,
+            HlirElement::List { attributes, .. } => *attributes,
+            HlirElement::Text { attributes, .. } => *attributes,
+        };
+
+        let attributes = match hlir_module.attributes.find_node(attributes_ref) {
+            Some(node) => &node.computed,
+            None => return,
+        };
+
+        let style = Self::attr_to_style(attributes);
 
         let node_id = match self.tree.new_leaf(style) {
             Ok(id) => id,
@@ -153,27 +165,19 @@ impl LayoutEngine {
 
     fn process_element_children(
         &mut self,
-        element: &DocElement,
+        element: &HlirElement,
         hlir_module: &HLIRModule,
         parent_node: NodeId,
     ) {
-        // For template elements, children are in the DocElement itself
-        // But we don't have ops for them - they're already in elements vector
-        // For now, just handle sections and lists
-        match element {
-            DocElement::Section { elements, .. }
-            | DocElement::List {
-                items: elements, ..
-            } => {
-                for child in elements {
-                    // Find this child's index in hlir_module.elements
-                    // This is O(n) but works for now
-                    if let Some(idx) = find_element_index(hlir_module, child) {
-                        self.create_node_from_element(idx, hlir_module, parent_node);
-                    }
-                }
-            }
-            _ => {}
+        // HlirElement stores children as indices into hlir_module.elements
+        let children = match element {
+            HlirElement::Section { children, .. } => children,
+            HlirElement::List { children, .. } => children,
+            HlirElement::Text { .. } => return, // No children
+        };
+
+        for child_idx in children {
+            self.create_node_from_element(*child_idx, hlir_module, parent_node);
         }
     }
 
@@ -264,62 +268,4 @@ impl LayoutEngine {
                 })
             })
     }
-}
-
-/// Extract StyleAttributes from a DocElement's inline attributes
-fn extract_attributes_from_doc_element(element: &DocElement) -> StyleAttributes {
-    use crate::ast::Expression;
-
-    let attrs = match element {
-        DocElement::Text { attributes, .. } => attributes,
-        DocElement::Section { attributes, .. } => attributes,
-        DocElement::List { attributes, .. } => attributes,
-        DocElement::Image { attributes, .. } => attributes,
-        DocElement::Table { attributes, .. } => attributes,
-        DocElement::Code { attributes, .. } => attributes,
-        DocElement::Link { attributes, .. } => attributes,
-        DocElement::Call { .. } => return StyleAttributes::default(),
-    };
-
-    let mut result = StyleAttributes::default();
-
-    // Extract id
-    if let Some(Expression::StringLiteral(id)) = attrs.get("id") {
-        result.id = Some(id.clone());
-    }
-
-    // Extract class
-    if let Some(Expression::StringLiteral(class)) = attrs.get("class") {
-        result.class = class.split_whitespace().map(String::from).collect();
-    }
-
-    // Extract margin
-    if let Some(expr) = attrs.get("margin") {
-        result.margin = expr.to_string().parse().ok();
-    }
-
-    // Extract padding
-    if let Some(expr) = attrs.get("padding") {
-        result.padding = expr.to_string().parse().ok();
-    }
-
-    // Extract other style properties into the style map
-    for (key, value) in attrs {
-        if !matches!(key.as_str(), "id" | "class" | "margin" | "padding") {
-            result.style.insert(key.clone(), value.to_string());
-        }
-    }
-
-    result
-}
-
-/// Find the index of an element in hlir_module.elements by comparing content
-fn find_element_index(hlir_module: &HLIRModule, target: &DocElement) -> Option<usize> {
-    // This is a hack - we compare by debug representation
-    // In a proper implementation, we'd have stable IDs
-    let target_dbg = format!("{:?}", target);
-    hlir_module
-        .elements
-        .iter()
-        .position(|e| format!("{:?}", e) == target_dbg)
 }

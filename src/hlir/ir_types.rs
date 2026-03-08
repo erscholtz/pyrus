@@ -74,9 +74,8 @@ pub enum Op {
     Return {
         doc_element_ref: usize,
     },
-    DocElementEmit {
+    HlirElementEmit {
         index: usize,
-        attributes_ref: usize,
     },
     StringConcat {
         result: Id,
@@ -149,8 +148,25 @@ pub struct HLIRModule {
     pub functions: HashMap<Id, Func>,
     pub attributes: AttributeTree,
     pub css_rules: Vec<StyleRule>, // Parsed CSS rules (unapplied)
-    pub elements: Vec<DocElement>,
+    pub elements: Vec<HlirElement>,
     pub element_metadata: Vec<ElementMetadata>, // Parallel to elements, for CSS matching
+}
+
+#[derive(Debug, Clone)]
+pub enum HlirElement {
+    Section {
+        children: Vec<usize>,
+        attributes: usize,
+    },
+    List {
+        children: Vec<usize>,
+        attributes: usize,
+    },
+    Text {
+        content: String,
+        attributes: usize,
+    },
+    // TODO code, images, etc
 }
 
 #[derive(Debug, Clone)]

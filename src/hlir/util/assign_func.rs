@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::hlir::hlir::HLIRPass;
-use crate::hlir::ir_types::{FuncBlock, HLIRModule, Id, Op, ValueId};
+use crate::hlir::ir_types::{AttributeNode, FuncBlock, HLIRModule, HlirElement, Id, Op, ValueId};
 
 use crate::ast::ArgType;
 
@@ -27,7 +27,8 @@ impl HLIRPass {
                     self.add_symbol(name.clone(), Id::Value(id));
                 }
                 crate::ast::Statement::Return { doc_element } => {
-                    hlirmodule.elements.push(doc_element.clone());
+                    let hlir_element = self.convert_doc_element_to_hlir(doc_element, hlirmodule);
+                    hlirmodule.elements.push(hlir_element);
                     let element_id = hlirmodule.elements.len() - 1;
                     ir_body.ops.push(Op::Return {
                         doc_element_ref: element_id,

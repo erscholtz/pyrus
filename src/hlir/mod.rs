@@ -6,7 +6,7 @@ mod ir_types;
 mod util;
 
 pub use ir_types::{
-    ElementMetadata, Func, FuncId, HLIRModule, Id, Literal, Op, StyleAttributes, Type,
+    ElementMetadata, Func, FuncId, HLIRModule, HlirElement, Id, Literal, Op, StyleAttributes, Type,
 };
 pub use util::assign_func;
 pub use util::assign_vars;

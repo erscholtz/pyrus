@@ -6,8 +6,7 @@ use printpdf::{
     BuiltinFont, Mm, Op, PdfDocument, PdfFontHandle, PdfPage, PdfSaveOptions, Point, Pt, TextItem,
 };
 
-use crate::ast::DocElement;
-use crate::hlir::{FuncId, HLIRModule, Id, Op as HlirOp};
+use crate::hlir::{FuncId, HLIRModule, HlirElement, Id, Op as HlirOp};
 
 pub struct PdfRenderer;
 
@@ -17,20 +16,14 @@ impl PdfRenderer {
     }
 
     pub fn render(&self, hlir: HLIRModule) -> Result<(), std::io::Error> {
-        // Create document
         let mut doc = PdfDocument::new("Document");
 
-        // Create page with operations
-
         let pages = self.setup_pages(hlir);
-
         let pdf_bytes = doc
             .with_pages(pages)
             .save(&PdfSaveOptions::default(), &mut Vec::new());
 
-        // Ensure generated directory exists
         fs::create_dir_all("generated")?;
-
         let file = File::create("generated/output.pdf")?;
         let mut writer = BufWriter::new(file);
         writer.write_all(&pdf_bytes)?;
@@ -73,9 +66,9 @@ impl PdfRenderer {
             .expect("document function not found");
         for op in &document.body.ops {
             match op {
-                HlirOp::DocElementEmit { index, .. } => {
+                HlirOp::HlirElementEmit { index } => {
                     let element = hlir.elements.get(*index).expect("element not found");
-                    self.format_hlir_to_pdf_op(element.clone(), &mut pdf_ops, &mut point);
+                    self.format_hlir_to_pdf_op(element.clone(), &hlir, &mut pdf_ops, &mut point);
                 }
                 HlirOp::Call { result, func, args } => {
                     let func = hlir.functions.get(&func).expect("func not found");
@@ -85,7 +78,12 @@ impl PdfRenderer {
                             .elements
                             .get(*returned_element_ref)
                             .expect("element not found");
-                        self.format_hlir_to_pdf_op(element.clone(), &mut pdf_ops, &mut point);
+                        self.format_hlir_to_pdf_op(
+                            element.clone(),
+                            &hlir,
+                            &mut pdf_ops,
+                            &mut point,
+                        );
                     }
                 }
                 _ => {}
@@ -94,9 +92,15 @@ impl PdfRenderer {
         pdf_ops
     }
 
-    fn format_hlir_to_pdf_op(&self, element: DocElement, pdf_ops: &mut Vec<Op>, point: &mut Point) {
+    fn format_hlir_to_pdf_op(
+        &self,
+        element: HlirElement,
+        hlir: &HLIRModule,
+        pdf_ops: &mut Vec<Op>,
+        point: &mut Point,
+    ) {
         match element {
-            DocElement::Text { content, .. } => {
+            HlirElement::Text { content, .. } => {
                 pdf_ops.push(Op::StartTextSection);
                 pdf_ops.push(Op::SetTextCursor { pos: *point });
                 pdf_ops.push(Op::SetFont {
@@ -109,17 +113,20 @@ impl PdfRenderer {
                 pdf_ops.push(Op::EndTextSection);
                 point.y -= Pt(12.0);
             }
-            DocElement::List { items, attributes } => {
-                for item in items {
-                    self.format_hlir_to_pdf_op(item, pdf_ops, point);
+            HlirElement::List { children, .. } => {
+                for child_idx in children {
+                    if let Some(child) = hlir.elements.get(child_idx) {
+                        self.format_hlir_to_pdf_op(child.clone(), hlir, pdf_ops, point);
+                    }
                 }
             }
-            DocElement::Section { elements, .. } => {
-                for element in elements {
-                    self.format_hlir_to_pdf_op(element, pdf_ops, point);
+            HlirElement::Section { children, .. } => {
+                for child_idx in children {
+                    if let Some(child) = hlir.elements.get(child_idx) {
+                        self.format_hlir_to_pdf_op(child.clone(), hlir, pdf_ops, point);
+                    }
                 }
             }
-            _ => {}
         }
     }
 }

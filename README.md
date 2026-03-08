@@ -37,11 +37,11 @@ cargo test
 
 The compiler pipeline is currently implemented through HLIR (High-Level IR):
 
-1. ✅ Lexer — Tokenizes source code
-2. ✅ Parser — Builds AST
-3. ✅ HLIR — First intermediate representation
-4. 🔄 Layout Engine — Taffy integration (in progress)
-5. 🔄 Backend — PDF rendering (basic implementation)
+- [x] Lexer — Tokenizes source code
+- [x] Parser — Builds AST
+- [x] HLIR — First intermediate representation
+- [ ] Layout Engine — Taffy integration (in progress)
+- [ ] Backend — PDF rendering (basic implementation)
 
 ## Future Work: MLIR Backend
 
