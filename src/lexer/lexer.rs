@@ -1,88 +1,24 @@
-use std::collections::HashMap;
+use crate::lexer::tokens::TokenKind;
 
-#[repr(u8)]
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub enum TokenKind {
-    // Single-char symbols
-    LeftParen,
-    RightParen, // ()
-    LeftBrace,
-    RightBrace, // {}
-    LeftBracket,
-    RightBracket, // []
-    Comma,
-    Dot,
-    Semicolon,
-    Colon,
-    Bang,
-    Plus,
-    Minus,
-    Star,
-    Slash,
-    Percent,
-    Equals,
-    Dollarsign,
-    Hash,
-
-    // Literals
-    Identifier,
-    Int,
-    Float,
-    StringLiteral,
-    Text,
-    Image,
-    List,
-    Table,
-    Section,
-    Link,
-
-    // Keywords
-    Template,
-    Document,
-    Style,
-    Func,
-    Let,
-    Const,
-    If,
-    Else,
-    For,
-    While,
-    Return,
-
-    // End
-    Eof,
-}
-
-impl std::fmt::Display for TokenKind {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
-    }
-}
-
-fn make_keyword_lookup_table() -> HashMap<&'static str, TokenKind> {
-    use TokenKind::*;
-
-    HashMap::from([
-        ("template", Template),
-        ("document", Document),
-        ("style", Style),
-        ("func", Func),
-        ("let", Let),
-        ("const", Const),
-        ("if", If),
-        ("else", Else),
-        ("for", For),
-        ("while", While),
-        ("return", Return),
-        ("text", Text),
-        ("image", Image),
-        ("list", List),
-        ("section", Section),
-        ("image", Image),
-        ("table", Table),
-        ("link", Link),
-    ])
-}
+static KEYWORD_TABLE: phf::Map<&'static str, TokenKind> = phf::phf_map! {
+    "template" => TokenKind::Template,
+    "document" => TokenKind::Document,
+    "style" => TokenKind::Style,
+    "func" => TokenKind::Func,
+    "let" => TokenKind::Let,
+    "const" => TokenKind::Const,
+    "if" => TokenKind::If,
+    "else" => TokenKind::Else,
+    "for" => TokenKind::For,
+    "while" => TokenKind::While,
+    "return" => TokenKind::Return,
+    "text" => TokenKind::Text,
+    "image" => TokenKind::Image,
+    "list" => TokenKind::List,
+    "section" => TokenKind::Section,
+    "table" => TokenKind::Table,
+    "link" => TokenKind::Link,
+};
 
 static SYMBOL_LOOKUP_TABLE: [Option<TokenKind>; 256] = {
     let mut t = [None; 256];
@@ -112,10 +48,6 @@ static SYMBOL_LOOKUP_TABLE: [Option<TokenKind>; 256] = {
     t
 };
 
-// ------------ //
-// -- tokens -- //
-// ------------ //
-
 #[derive(Debug)]
 pub struct TokenStream {
     pub kinds: Vec<TokenKind>,
@@ -144,10 +76,6 @@ impl TokenStream {
         self.cols.push(col);
     }
 }
-
-// ----------- //
-// -- lexer -- //
-// ----------- //
 
 #[inline]
 fn is_ident_start(c: u8) -> bool {
@@ -193,7 +121,7 @@ pub fn lex(source: &str) -> TokenStream {
             }
             // check for let and const
             let ident_str = &source[start..i];
-            let kind = make_keyword_lookup_table()
+            let kind = KEYWORD_TABLE
                 .get(ident_str)
                 .copied()
                 .unwrap_or(TokenKind::Identifier);
@@ -232,13 +160,20 @@ pub fn lex(source: &str) -> TokenStream {
         // --- String literals ---
         if c == b'"' {
             i += 1; // skip opening quote
-            while i < len && bytes[i] != b'"' {
-                if bytes[i] == b'\\' && i + 1 < len {
-                    i += 1;
+            let mut escaped = false;
+            while i < len {
+                if escaped {
+                    escaped = false;
+                } else if bytes[i] == b'"' {
+                    break;
+                } else if bytes[i] == b'\\' {
+                    escaped = true;
                 }
                 i += 1;
             }
-            i += 1; // skip closing quote
+            if i < len {
+                i += 1; // Skip closing quote
+            }
             out.push(TokenKind::StringLiteral, start, i, line, col);
             col += (i - start) as u32;
             continue;
