@@ -21,7 +21,7 @@ style {
     }
 }
 "#;
-    let tokens = lex(source);
+    let tokens = lex(source).expect("Lexing failed");
     let ast = parse(tokens);
     let mut hlir = lower(&ast);
 
@@ -53,7 +53,7 @@ style {
     }
 }
 "#;
-    let tokens = lex(source);
+    let tokens = lex(source).expect("Lexing failed");
     let ast = parse(tokens);
     let mut hlir = lower(&ast);
     resolve_styles(&mut hlir);
@@ -79,7 +79,7 @@ style {
     }
 }
 "#;
-    let tokens = lex(source);
+    let tokens = lex(source).expect("Lexing failed");
     let ast = parse(tokens);
     let mut hlir = lower(&ast);
     resolve_styles(&mut hlir);
@@ -109,7 +109,7 @@ style {
     }
 }
 "#;
-    let tokens = lex(source);
+    let tokens = lex(source).expect("Lexing failed");
     let ast = parse(tokens);
     let mut hlir = lower(&ast);
     resolve_styles(&mut hlir);
@@ -139,7 +139,7 @@ style {
     }
 }
 "#;
-    let tokens = lex(source);
+    let tokens = lex(source).expect("Lexing failed");
     let ast = parse(tokens);
     let mut hlir = lower(&ast);
     resolve_styles(&mut hlir);
@@ -169,7 +169,7 @@ style {
     }
 }
 "#;
-    let tokens = lex(source);
+    let tokens = lex(source).expect("Lexing failed");
     let ast = parse(tokens);
     let mut hlir = lower(&ast);
     resolve_styles(&mut hlir);
@@ -203,7 +203,7 @@ style {
     }
 }
 "#;
-    let tokens = lex(source);
+    let tokens = lex(source).expect("Lexing failed");
     let ast = parse(tokens);
     let mut hlir = lower(&ast);
     resolve_styles(&mut hlir);
@@ -234,7 +234,7 @@ style {
     }
 }
 "#;
-    let tokens = lex(source);
+    let tokens = lex(source).expect("Lexing failed");
     let ast = parse(tokens);
     let mut hlir = lower(&ast);
     resolve_styles(&mut hlir);
@@ -266,7 +266,7 @@ style {
     }
 }
 "#;
-    let tokens = lex(source);
+    let tokens = lex(source).expect("Lexing failed");
     let ast = parse(tokens);
     let mut hlir = lower(&ast);
     resolve_styles(&mut hlir);
@@ -302,7 +302,7 @@ style {
     }
 }
 "#;
-    let tokens = lex(source);
+    let tokens = lex(source).expect("Lexing failed");
     let ast = parse(tokens);
     let mut hlir = lower(&ast);
     resolve_styles(&mut hlir);
@@ -340,7 +340,7 @@ style {
     }
 }
 "#;
-    let tokens = lex(source);
+    let tokens = lex(source).expect("Lexing failed");
     let ast = parse(tokens);
     let mut hlir = lower(&ast);
     resolve_styles(&mut hlir);
@@ -391,7 +391,7 @@ style {
     }
 }
 "#;
-    let tokens = lex(source);
+    let tokens = lex(source).expect("Lexing failed");
     let ast = parse(tokens);
     let mut hlir = lower(&ast);
     resolve_styles(&mut hlir);
@@ -428,7 +428,7 @@ style {
     }
 }
 "#;
-    let tokens = lex(source);
+    let tokens = lex(source).expect("Lexing failed");
     let ast = parse(tokens);
     let mut hlir = lower(&ast);
     resolve_styles(&mut hlir);
@@ -452,7 +452,7 @@ style {
     }
 }
 "#;
-    let tokens = lex(source);
+    let tokens = lex(source).expect("Lexing failed");
     let ast = parse(tokens);
     let mut hlir = lower(&ast);
     resolve_styles(&mut hlir);
@@ -479,7 +479,7 @@ style {
     }
 }
 "#;
-    let tokens = lex(source);
+    let tokens = lex(source).expect("Lexing failed");
     let ast = parse(tokens);
     let mut hlir = lower(&ast);
     resolve_styles(&mut hlir);
@@ -501,7 +501,7 @@ document {
 style {
 }
 "#;
-    let tokens = lex(source);
+    let tokens = lex(source).expect("Lexing failed");
     let ast = parse(tokens);
     let mut hlir = lower(&ast);
     resolve_styles(&mut hlir);
@@ -520,7 +520,7 @@ document {
     text { "Text" }
 }
 "#;
-    let tokens = lex(source);
+    let tokens = lex(source).expect("Lexing failed");
     let ast = parse(tokens);
     let mut hlir = lower(&ast);
 
@@ -573,7 +573,7 @@ style {
     }
 }
 "#;
-    let tokens = lex(source);
+    let tokens = lex(source).expect("Lexing failed");
     let ast = parse(tokens);
     let mut hlir = lower(&ast);
     resolve_styles(&mut hlir);
@@ -651,7 +651,7 @@ fn test_css_from_file() {
 
     let data =
         fs::read_to_string("tests/input/css_test.ink").expect("Should be able to read test file");
-    let tokens = lex(&data);
+    let tokens = lex(&data).expect("Lexing failed");
     let ast = parse(tokens);
     let mut hlir = lower(&ast);
 

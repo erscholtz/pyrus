@@ -25,7 +25,7 @@ fn main() {
 
     let data = fs::read_to_string("temp.ink").expect("Should be able to read test file");
 
-    let tokens = lexer::lex(&data);
+    let tokens = lexer::lex(&data).expect("Lexing failed");
     println!("{:?}", &tokens);
 
     let ast = parser::parse(tokens);

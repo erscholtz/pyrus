@@ -98,7 +98,7 @@ fn is_ident_continue(c: u8) -> bool {
     is_ident_start(c) || (c >= b'0' && c <= b'9')
 }
 
-pub fn lex(source: &str) -> TokenStream {
+pub fn lex(source: &str) -> Result<TokenStream, LexError> {
     let mut out = TokenStream::new(source.to_string());
     let bytes = source.as_bytes();
     let len = bytes.len();
@@ -238,13 +238,15 @@ pub fn lex(source: &str) -> TokenStream {
         }
 
         // --- Unknown character ---
-        eprintln!("Unknown character: {:?}", c as char);
-        i += 1;
-        col += 1;
+        return Err(LexError {
+            message: "Unknown character".to_string(),
+            line,
+            col,
+        });
     }
 
     // --- EOF ---
     out.push(TokenKind::Eof, len, len, line, col);
 
-    return out;
+    return Ok(out);
 }

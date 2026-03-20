@@ -3,8 +3,8 @@
 //! These tests define the expected behavior of the lowering pass and
 //! the validation pass that should catch errors.
 
-use pyrus::hlir::{FuncId, HLIRModule, Id, Op, Type};
 use pyrus::hlir::{lower, resolve_styles};
+use pyrus::hlir::{FuncId, HLIRModule, Id, Op, Type};
 use pyrus::lexer::lex;
 use pyrus::parser::parse;
 
@@ -18,7 +18,7 @@ fn test_lower_empty_document() {
 document {
 }
 "#;
-    let tokens = lex(source);
+    let tokens = lex(source).expect("Lexing failed");
     let ast = parse(tokens);
     let hlir = lower(&ast);
 
@@ -42,7 +42,7 @@ template {
 document {
 }
 "#;
-    let tokens = lex(source);
+    let tokens = lex(source).expect("Lexing failed");
     let ast = parse(tokens);
     let hlir = lower(&ast);
 
@@ -59,7 +59,7 @@ template {
 document {
 }
 "#;
-    let tokens = lex(source);
+    let tokens = lex(source).expect("Lexing failed");
     let ast = parse(tokens);
     let hlir = lower(&ast);
 
@@ -78,7 +78,7 @@ template {
 document {
 }
 "#;
-    let tokens = lex(source);
+    let tokens = lex(source).expect("Lexing failed");
     let ast = parse(tokens);
     let hlir = lower(&ast);
 
@@ -96,7 +96,7 @@ template {
 document {
 }
 "#;
-    let tokens = lex(source);
+    let tokens = lex(source).expect("Lexing failed");
     let ast = parse(tokens);
     let hlir = lower(&ast);
 
@@ -126,7 +126,7 @@ template {
 document {
 }
 "#;
-    let tokens = lex(source);
+    let tokens = lex(source).expect("Lexing failed");
     let ast = parse(tokens);
     let hlir = lower(&ast);
 
@@ -150,7 +150,7 @@ template {
 document {
 }
 "#;
-    let tokens = lex(source);
+    let tokens = lex(source).expect("Lexing failed");
     let ast = parse(tokens);
     let hlir = lower(&ast);
 
@@ -175,7 +175,7 @@ document {
     text { "Hello World" }
 }
 "#;
-    let tokens = lex(source);
+    let tokens = lex(source).expect("Lexing failed");
     let ast = parse(tokens);
     let hlir = lower(&ast);
 
@@ -194,7 +194,7 @@ document {
     }
 }
 "#;
-    let tokens = lex(source);
+    let tokens = lex(source).expect("Lexing failed");
     let ast = parse(tokens);
     let hlir = lower(&ast);
 
@@ -224,7 +224,7 @@ document {
     text (id="header", class="large bold") { "Title" }
 }
 "#;
-    let tokens = lex(source);
+    let tokens = lex(source).expect("Lexing failed");
     let ast = parse(tokens);
     let hlir = lower(&ast);
 
@@ -252,7 +252,7 @@ style {
     }
 }
 "#;
-    let tokens = lex(source);
+    let tokens = lex(source).expect("Lexing failed");
     let ast = parse(tokens);
     let hlir = lower(&ast);
 
@@ -275,7 +275,7 @@ document {
     header()
 }
 "#;
-    let tokens = lex(source);
+    let tokens = lex(source).expect("Lexing failed");
     let ast = parse(tokens);
     let hlir = lower(&ast);
 
@@ -307,7 +307,7 @@ document {
     greet("World")
 }
 "#;
-    let tokens = lex(source);
+    let tokens = lex(source).expect("Lexing failed");
     let ast = parse(tokens);
     let hlir = lower(&ast);
 
@@ -340,7 +340,7 @@ document {
     text { "Second" }
 }
 "#;
-    let tokens = lex(source);
+    let tokens = lex(source).expect("Lexing failed");
     let ast = parse(tokens);
     let hlir = lower(&ast);
 
@@ -369,7 +369,7 @@ template {
 document {
 }
 "#;
-    let tokens = lex(source);
+    let tokens = lex(source).expect("Lexing failed");
     let ast = parse(tokens);
     let hlir = lower(&ast);
 
@@ -405,7 +405,7 @@ template {
 document {
 }
 "#;
-    let tokens = lex(source);
+    let tokens = lex(source).expect("Lexing failed");
     let ast = parse(tokens);
     let hlir = lower(&ast);
 
@@ -421,7 +421,7 @@ document {
     nonexistent_func()
 }
 "#;
-    let tokens = lex(source);
+    let tokens = lex(source).expect("Lexing failed");
     let ast = parse(tokens);
     let hlir = lower(&ast);
 
@@ -441,7 +441,7 @@ document {
     needs_two(1)  // Missing second argument
 }
 "#;
-    let tokens = lex(source);
+    let tokens = lex(source).expect("Lexing failed");
     let ast = parse(tokens);
     let hlir = lower(&ast);
 
@@ -461,7 +461,7 @@ document {
     expects_int("string instead of int")
 }
 "#;
-    let tokens = lex(source);
+    let tokens = lex(source).expect("Lexing failed");
     let ast = parse(tokens);
     let hlir = lower(&ast);
 
@@ -480,7 +480,7 @@ template {
 document {
 }
 "#;
-    let tokens = lex(source);
+    let tokens = lex(source).expect("Lexing failed");
     let ast = parse(tokens);
     let hlir = lower(&ast);
 
@@ -499,7 +499,7 @@ template {
 document {
 }
 "#;
-    let tokens = lex(source);
+    let tokens = lex(source).expect("Lexing failed");
     let ast = parse(tokens);
     let hlir = lower(&ast);
 
@@ -517,7 +517,7 @@ template {
 document {
 }
 "#;
-    let tokens = lex(source);
+    let tokens = lex(source).expect("Lexing failed");
     let ast = parse(tokens);
     let hlir = lower(&ast);
 
@@ -535,7 +535,7 @@ template {
 document {
 }
 "#;
-    let tokens = lex(source);
+    let tokens = lex(source).expect("Lexing failed");
     let ast = parse(tokens);
     let hlir = lower(&ast);
 
@@ -552,7 +552,7 @@ template {
 document {
 }
 "#;
-    let tokens = lex(source);
+    let tokens = lex(source).expect("Lexing failed");
     let ast = parse(tokens);
     let hlir = lower(&ast);
 
@@ -572,7 +572,7 @@ document {
     text { "Hello" }
 }
 "#;
-    let tokens = lex(source);
+    let tokens = lex(source).expect("Lexing failed");
     let ast = parse(tokens);
     let hlir = lower(&ast);
 
@@ -596,7 +596,7 @@ document {
     text { "Last" }
 }
 "#;
-    let tokens = lex(source);
+    let tokens = lex(source).expect("Lexing failed");
     let ast = parse(tokens);
     let hlir = lower(&ast);
 
@@ -615,7 +615,7 @@ template {
 document {
 }
 "#;
-    let tokens = lex(source);
+    let tokens = lex(source).expect("Lexing failed");
     let ast = parse(tokens);
     let hlir = lower(&ast);
 
@@ -634,7 +634,7 @@ document {
     }
 }
 "#;
-    let tokens = lex(source);
+    let tokens = lex(source).expect("Lexing failed");
     let ast = parse(tokens);
     let hlir = lower(&ast);
 
