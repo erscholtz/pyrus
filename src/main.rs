@@ -25,10 +25,18 @@ fn main() {
 
     let data = fs::read_to_string("temp.ink").expect("Should be able to read test file");
 
-    let tokens = lexer::lex(&data).expect("Lexing failed");
+    let tokens = match lexer::lex(&data) {
+        Ok(tokens) => tokens,
+        Err(errors) => {
+            for error in errors {
+                println!("Lexing error: {}", error.message);
+            }
+            return;
+        }
+    };
     println!("{:?}", &tokens);
 
-    let ast = parser::parse(tokens);
+    let ast = parser::parse(tokens).expect("Should be able to parse tokens to AST");
     println!("{:#?}", ast);
 
     let mut hlir_module = hlir::lower(&ast);
@@ -63,20 +71,18 @@ fn main() {
     //     }
     // }
 
-    let mut layout = setup_layout(&hlir_module);
+    let layout = setup_layout(&hlir_module);
 
-    // A4 page size in points (1 inch = 72 points)
-    let page_width = 595.0;
-    let page_height = 842.0;
-    layout.compute_layout(page_width, page_height);
+    // Compute document flow layout (simple vertical stacking)
+    let computed_layouts = layout.compute_document_flow(&hlir_module);
 
     // Print computed layouts for each element
     println!("\n=== Computed Layouts ===");
-    for (idx, metadata) in hlir_module.element_metadata.iter().enumerate() {
-        if let Some(computed) = layout.get_element_layout(idx) {
+    for computed in &computed_layouts {
+        if let Some(metadata) = hlir_module.element_metadata.get(computed.element_index) {
             println!(
                 "Element {} (type: {:?}, id: {:?}): x={:.1}, y={:.1}, w={:.1}, h={:.1}",
-                idx,
+                computed.element_index,
                 metadata.element_type,
                 metadata.id,
                 computed.x,
@@ -89,7 +95,7 @@ fn main() {
 
     // Render to PDF using backend
     let backend = backend::Backend::new(backend::Renderer::Pdf);
-    if let Err(e) = backend.render(hlir_module) {
+    if let Err(e) = backend.render(hlir_module, &layout, &computed_layouts) {
         eprintln!("Failed to render PDF: {}", e);
     } else {
         println!("\nPDF rendered successfully to generated/output.pdf");

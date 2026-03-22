@@ -16,25 +16,25 @@ document {
 
 style {
     #header {
-        font-size = 24
-        color = "blue"
+        font-size: 24pt;
+        color: "blue";
     }
 
     .intro {
-        font-weight = "bold"
+        font-weight: "bold";
     }
 
     .bodytext {
-        font-size = 12
-        color = "black"
+        font-size: 12pt;
+        color: "black";
     }
 
     section {
-        margin = 20
-        padding = 10
+        margin: 20pt;
+        padding: 10pt;
     }
 
     .nested {
-        font-style = "italic"
+        font-style: "italic";
     }
 }

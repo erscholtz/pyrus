@@ -62,19 +62,19 @@ document { // document cannot have variable declared in it
 
 style {
     body {
-        font-family = "Helvetica"
-        color = "black"
-        margin = 1
+        font-family: "Helvetica";
+        color: "black";
+        margin: 1pt;
     }
 
     .intro, .more_complex_section {
-        font-size = 23          // overloaded font size
-        font-weight = "bold"    // overloaded entire section styling
+        font-size: 23pt;          /* overloaded font size */
+        font-weight: "bold";    /* overloaded entire section styling */
     }
 
     #listelement {
-        font-size = 18
-        font-weight = "normal"
+        font-size: 18pt;
+        font-weight: "normal";
     }
 }
 

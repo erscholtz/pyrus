@@ -67,6 +67,12 @@ pub struct LexError {
     pub col: u32,
 }
 
+impl LexError {
+    pub fn new(message: String, line: u32, col: u32) -> Self {
+        Self { message, line, col }
+    }
+}
+
 impl TokenStream {
     pub fn new(source: String) -> Self {
         Self {
@@ -98,7 +104,7 @@ fn is_ident_continue(c: u8) -> bool {
     is_ident_start(c) || (c >= b'0' && c <= b'9')
 }
 
-pub fn lex(source: &str) -> Result<TokenStream, LexError> {
+pub fn lex(source: &str) -> Result<TokenStream, Vec<LexError>> {
     let mut out = TokenStream::new(source.to_string());
     let bytes = source.as_bytes();
     let len = bytes.len();
@@ -193,17 +199,16 @@ pub fn lex(source: &str) -> Result<TokenStream, LexError> {
             }
             if i >= len {
                 // Unterminated string
-                out.errors.push(LexError {
-                    message: "Unterminated string literal".to_string(),
-                    line: string_start_line,
-                    col: string_start_col,
-                });
+                out.errors.push(LexError::new(
+                    format!("Unterminated string literal"),
+                    string_start_line,
+                    string_start_col,
+                ));
             } else {
                 i += 1; // Skip closing quote
                 col += 1;
             }
             out.push(TokenKind::StringLiteral, start, i, line, col);
-            col += (i - start) as u32;
             continue;
         }
 
@@ -238,11 +243,11 @@ pub fn lex(source: &str) -> Result<TokenStream, LexError> {
         }
 
         // --- Unknown character ---
-        return Err(LexError {
-            message: "Unknown character".to_string(),
+        out.errors.push(LexError::new(
+            format!("Unknown character: '{}'", c as char),
             line,
             col,
-        });
+        ));
     }
 
     // --- EOF ---

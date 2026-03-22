@@ -19,7 +19,7 @@ document {
 }
 "#;
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower(&ast);
 
     // Should have the implicit __document function
@@ -43,7 +43,7 @@ document {
 }
 "#;
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower(&ast);
 
     assert_eq!(hlir.globals.len(), 1, "Should have one global");
@@ -60,7 +60,7 @@ document {
 }
 "#;
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower(&ast);
 
     assert_eq!(hlir.globals.len(), 1);
@@ -79,7 +79,7 @@ document {
 }
 "#;
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower(&ast);
 
     assert_eq!(hlir.globals.len(), 3);
@@ -97,7 +97,7 @@ document {
 }
 "#;
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower(&ast);
 
     // Should have __document + greeting
@@ -127,7 +127,7 @@ document {
 }
 "#;
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower(&ast);
 
     let func = hlir
@@ -151,7 +151,7 @@ document {
 }
 "#;
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower(&ast);
 
     let func = hlir
@@ -176,7 +176,7 @@ document {
 }
 "#;
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower(&ast);
 
     assert_eq!(hlir.elements.len(), 1);
@@ -195,7 +195,7 @@ document {
 }
 "#;
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower(&ast);
 
     // Should have: 1 section + 2 text elements
@@ -225,7 +225,7 @@ document {
 }
 "#;
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower(&ast);
 
     let meta = &hlir.element_metadata[0];
@@ -245,15 +245,15 @@ document {
 }
 style {
     text {
-        font-size = 14
+        font-size: 14pt;
     }
     .highlight {
-        color = "red"
+        color: red;
     }
 }
 "#;
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower(&ast);
 
     assert_eq!(hlir.css_rules.len(), 2);
@@ -276,7 +276,7 @@ document {
 }
 "#;
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower(&ast);
 
     // Find __document function body
@@ -308,7 +308,7 @@ document {
 }
 "#;
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower(&ast);
 
     let doc_func = hlir
@@ -341,7 +341,7 @@ document {
 }
 "#;
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower(&ast);
 
     let doc_func = hlir
@@ -370,7 +370,7 @@ document {
 }
 "#;
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower(&ast);
 
     // The global should have been created with the right value
@@ -406,7 +406,7 @@ document {
 }
 "#;
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower(&ast);
 
     // This should fail validation - assigning String to Int variable
@@ -422,7 +422,7 @@ document {
 }
 "#;
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower(&ast);
 
     pyrus::hlir::validate(&hlir).expect("Should catch undefined function");
@@ -442,7 +442,7 @@ document {
 }
 "#;
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower(&ast);
 
     pyrus::hlir::validate(&hlir).expect("Should catch wrong argument count");
@@ -462,7 +462,7 @@ document {
 }
 "#;
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower(&ast);
 
     pyrus::hlir::validate(&hlir).expect("Should catch wrong argument type");
@@ -481,7 +481,7 @@ document {
 }
 "#;
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower(&ast);
 
     pyrus::hlir::validate(&hlir).expect("Should catch return type mismatch");
@@ -500,7 +500,7 @@ document {
 }
 "#;
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower(&ast);
 
     pyrus::hlir::validate(&hlir).expect("Should catch missing return");
@@ -518,7 +518,7 @@ document {
 }
 "#;
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower(&ast);
 
     pyrus::hlir::validate(&hlir).expect("Should catch duplicate symbol");
@@ -536,7 +536,7 @@ document {
 }
 "#;
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower(&ast);
 
     pyrus::hlir::validate(&hlir).expect("Should catch duplicate function");
@@ -553,7 +553,7 @@ document {
 }
 "#;
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower(&ast);
 
     pyrus::hlir::validate(&hlir).expect("Should catch binary op type error");
@@ -573,7 +573,7 @@ document {
 }
 "#;
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower(&ast);
 
     // This should succeed
@@ -597,7 +597,7 @@ document {
 }
 "#;
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower(&ast);
 
     // Elements should be in document order
@@ -616,7 +616,7 @@ document {
 }
 "#;
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower(&ast);
 
     assert!(hlir.globals.is_empty());
@@ -635,7 +635,7 @@ document {
 }
 "#;
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower(&ast);
 
     // Should have: outer section (0), inner section (1), text (2)

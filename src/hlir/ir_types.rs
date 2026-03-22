@@ -394,12 +394,12 @@ impl StyleAttributes {
         match property {
             "id" => self.id = Some(value),
             "margin" => {
-                if let Ok(v) = value.parse() {
+                if let Some(v) = Self::parse_css_length(&value) {
                     self.margin = Some(v);
                 }
             }
             "padding" => {
-                if let Ok(v) = value.parse() {
+                if let Some(v) = Self::parse_css_length(&value) {
                     self.padding = Some(v);
                 }
             }
@@ -547,6 +547,35 @@ impl StyleAttributes {
                 Some((key.trim().to_string(), value.trim().to_string()))
             })
             .collect()
+    }
+
+    fn parse_css_length(value: &str) -> Option<f32> {
+        let value = value.trim();
+        if value.is_empty() {
+            return None;
+        }
+
+        let num_end = value
+            .find(|c: char| !c.is_ascii_digit() && c != '.' && c != '-')
+            .unwrap_or(value.len());
+
+        let num_str = &value[..num_end];
+        let unit_str = &value[num_end..].trim().to_lowercase();
+
+        let num: f32 = num_str.parse().ok()?;
+
+        match unit_str.as_str() {
+            "pt" => Some(num),
+            "px" => Some(num * 0.75),    // 1px = 0.75pt
+            "mm" => Some(num * 2.83465), // 1mm = 2.83465pt
+            "cm" => Some(num * 28.3465), // 1cm = 28.3465pt
+            "in" => Some(num * 72.0),    // 1in = 72pt
+            "" => Some(num),             // No unit, assume points
+            _ => {
+                // Unknown unit, try to parse as number anyway
+                num_str.parse().ok()
+            }
+        }
     }
 }
 

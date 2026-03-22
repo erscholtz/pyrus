@@ -1,6 +1,6 @@
 use crate::parser::parser::Parser;
 
-use crate::ast::{KeyValue, Selector, StyleRule};
+use crate::ast::{Expression, KeyValue, Selector, StyleRule};
 use crate::lexer::TokenKind;
 
 impl Parser {
@@ -75,22 +75,65 @@ impl Parser {
                 }
                 TokenKind::Eof => break,
                 _ => {
+                    // Parse property name (can be hyphenated like "font-size")
                     let mut property: String = String::new();
-                    while self.current_token_kind() != TokenKind::Equals {
+                    while self.current_token_kind() != TokenKind::Colon {
                         property.push_str(&self.current_text().to_string());
                         self.advance();
                     }
-                    self.advance(); // skip equals
-                    let value = self.parse_expression();
-                    declarations.push({
-                        KeyValue {
-                            key: property,
-                            value: value,
-                        }
+                    self.advance(); // skip colon
+
+                    let value = self.parse_css_value();
+
+                    declarations.push(KeyValue {
+                        key: property.trim().to_string(),
+                        value,
                     });
                 }
             }
         }
         declarations
+    }
+
+    fn parse_css_value(&mut self) -> crate::ast::Expression {
+        let mut parts = Vec::new();
+
+        while self.idx < self.toks.kinds.len() {
+            match self.current_token_kind() {
+                TokenKind::Semicolon | TokenKind::RightBrace => break,
+                TokenKind::Eof => break,
+                _ => {
+                    parts.push(self.current_text().to_string());
+                    self.advance();
+                }
+            }
+        }
+
+        if parts.is_empty() {
+            return Expression::StringLiteral(String::new());
+        }
+
+        let mut result = String::new();
+        for (i, part) in parts.iter().enumerate() {
+            if i > 0 {
+                // Check if previous part ends with digit and current is a unit
+                let prev = &parts[i - 1];
+                let prev_ends_digit = prev
+                    .chars()
+                    .last()
+                    .map(|c| c.is_ascii_digit())
+                    .unwrap_or(false);
+                let is_unit =
+                    ["px", "pt", "mm", "cm", "in", "em", "rem", "%"].contains(&part.as_str());
+
+                if prev_ends_digit && is_unit {
+                } else {
+                    result.push(' ');
+                }
+            }
+            result.push_str(part);
+        }
+
+        Expression::StringLiteral(result)
     }
 }

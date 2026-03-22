@@ -16,13 +16,13 @@ document {
 }
 style {
     #header {
-        font-size = 24
-        color = "blue"
+        font-size: 24pt;
+        color: blue;
     }
 }
 "#;
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let mut hlir = lower(&ast);
 
     assert_eq!(hlir.element_metadata.len(), 1);
@@ -36,7 +36,7 @@ style {
     // Check computed styles
     assert_eq!(
         node.computed.style.get("font-size"),
-        Some(&"24".to_string())
+        Some(&"24pt".to_string())
     );
     assert_eq!(node.computed.style.get("color"), Some(&"blue".to_string()));
 }
@@ -49,12 +49,12 @@ document {
 }
 style {
     .intro {
-        font-weight = "bold"
+        font-weight: bold;
     }
 }
 "#;
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let mut hlir = lower(&ast);
     resolve_styles(&mut hlir);
 
@@ -75,12 +75,12 @@ document {
 }
 style {
     text {
-        font-size = 12
+        font-size: 12;
     }
 }
 "#;
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let mut hlir = lower(&ast);
     resolve_styles(&mut hlir);
 
@@ -105,12 +105,12 @@ document {
 }
 style {
     #mytext {
-        font-size = 24
+        font-size: 24;
     }
 }
 "#;
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let mut hlir = lower(&ast);
     resolve_styles(&mut hlir);
 
@@ -132,15 +132,15 @@ document {
 }
 style {
     #mytext {
-        font-size = 24
+        font-size: 24;
     }
     .intro {
-        font-size = 12
+        font-size: 12;
     }
 }
 "#;
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let mut hlir = lower(&ast);
     resolve_styles(&mut hlir);
 
@@ -162,15 +162,15 @@ document {
 }
 style {
     text {
-        font-size = 12
+        font-size: 12;
     }
     .intro {
-        font-size = 24
+        font-size: 24;
     }
 }
 "#;
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let mut hlir = lower(&ast);
     resolve_styles(&mut hlir);
 
@@ -196,15 +196,15 @@ document {
 }
 style {
     .intro {
-        font-size = 24
+        font-size: 24;
     }
     .intro {
-        color = "red"
+        color: red;;
     }
 }
 "#;
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let mut hlir = lower(&ast);
     resolve_styles(&mut hlir);
 
@@ -227,15 +227,15 @@ document {
 }
 style {
     .intro {
-        font-size = 12
+        font-size: 12;
     }
     .intro {
-        font-size = 24
+        font-size: 24;
     }
 }
 "#;
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let mut hlir = lower(&ast);
     resolve_styles(&mut hlir);
 
@@ -262,12 +262,12 @@ document {
 }
 style {
     .header, .footer {
-        font-weight = "bold"
+        font-weight: bold;;
     }
 }
 "#;
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let mut hlir = lower(&ast);
     resolve_styles(&mut hlir);
 
@@ -298,12 +298,12 @@ document {
 }
 style {
     section {
-        color = "blue"
+        color: blue;;
     }
 }
 "#;
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let mut hlir = lower(&ast);
     resolve_styles(&mut hlir);
 
@@ -336,12 +336,12 @@ document {
 }
 style {
     section {
-        margin = 20
+        margin: 20pt;
     }
 }
 "#;
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let mut hlir = lower(&ast);
     resolve_styles(&mut hlir);
 
@@ -384,15 +384,15 @@ document {
 }
 style {
     .large {
-        font-size = 24
+        font-size: 24;
     }
     .bold {
-        font-weight = "bold"
+        font-weight: bold;;
     }
 }
 "#;
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let mut hlir = lower(&ast);
     resolve_styles(&mut hlir);
 
@@ -424,12 +424,12 @@ document {
 }
 style {
     text {
-        margin = 15
+        margin: 15pt;
     }
 }
 "#;
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let mut hlir = lower(&ast);
     resolve_styles(&mut hlir);
 
@@ -448,12 +448,12 @@ document {
 }
 style {
     text {
-        padding = 10
+        padding: 10pt;
     }
 }
 "#;
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let mut hlir = lower(&ast);
     resolve_styles(&mut hlir);
 
@@ -475,12 +475,12 @@ document {
 }
 style {
     .nomatch {
-        font-size = 24
+        font-size: 24;
     }
 }
 "#;
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let mut hlir = lower(&ast);
     resolve_styles(&mut hlir);
 
@@ -502,7 +502,7 @@ style {
 }
 "#;
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let mut hlir = lower(&ast);
     resolve_styles(&mut hlir);
 
@@ -521,7 +521,7 @@ document {
 }
 "#;
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let mut hlir = lower(&ast);
 
     assert!(hlir.css_rules.is_empty());
@@ -551,30 +551,30 @@ document {
 }
 style {
     #header {
-        font-size = 32
-        color = "blue"
+        font-size: 32pt;
+        color: blue;;
     }
     .title {
-        font-weight = "bold"
+        font-weight: bold;;
     }
     section {
-        margin = 20
-        padding = 10
+        margin: 20pt;
+        padding: 10pt;
     }
     .content {
-        border = "1px solid"
+        border: 1px solid;
     }
     .body {
-        font-size = 14
+        font-size: 14pt;
     }
     .footer {
-        font-size = 10
-        color = "gray"
+        font-size: 10pt;
+        color: gray;;
     }
 }
 "#;
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let mut hlir = lower(&ast);
     resolve_styles(&mut hlir);
 
@@ -587,7 +587,7 @@ style {
     let header_node = hlir.attributes.find_node(header.attributes_ref).unwrap();
     assert_eq!(
         header_node.computed.style.get("font-size"),
-        Some(&"32".to_string())
+        Some(&"32pt".to_string())
     ); // From #header
     assert_eq!(
         header_node.computed.style.get("font-weight"),
@@ -621,7 +621,7 @@ style {
     let body_node = hlir.attributes.find_node(body.attributes_ref).unwrap();
     assert_eq!(
         body_node.computed.style.get("font-size"),
-        Some(&"14".to_string())
+        Some(&"14pt".to_string())
     );
 
     // Footer: class
@@ -633,7 +633,7 @@ style {
     let footer_node = hlir.attributes.find_node(footer.attributes_ref).unwrap();
     assert_eq!(
         footer_node.computed.style.get("font-size"),
-        Some(&"10".to_string())
+        Some(&"10pt".to_string())
     );
     assert_eq!(
         footer_node.computed.style.get("color"),
@@ -652,7 +652,7 @@ fn test_css_from_file() {
     let data =
         fs::read_to_string("tests/input/css_test.ink").expect("Should be able to read test file");
     let tokens = lex(&data).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let mut hlir = lower(&ast);
 
     // Check that we have the expected structure

@@ -6,7 +6,7 @@ use pyrus::parser::parse;
 fn test_parse_empty_document() {
     let source = "document { }";
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     assert!(ast.document.is_some());
     assert!(ast.template.is_none());
     assert!(ast.style.is_none());
@@ -19,7 +19,7 @@ fn test_parse_empty_document() {
 fn test_parse_empty_template() {
     let source = "template { }";
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     assert!(ast.template.is_some());
     assert!(ast.document.is_none());
     assert!(ast.style.is_none());
@@ -32,7 +32,7 @@ fn test_parse_empty_template() {
 fn test_parse_empty_style() {
     let source = "style { }";
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     assert!(ast.style.is_some());
     assert!(ast.template.is_none());
     assert!(ast.document.is_none());
@@ -42,7 +42,7 @@ fn test_parse_empty_style() {
 fn test_parse_all_blocks() {
     let source = "template { } document { } style { }";
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     assert!(ast.template.is_some());
     assert!(ast.document.is_some());
     assert!(ast.style.is_some());
@@ -52,7 +52,7 @@ fn test_parse_all_blocks() {
 fn test_parse_variable_assignment() {
     let source = "template { let x = \"hello\" }";
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let template = ast.template.unwrap();
     assert_eq!(template.statements.len(), 1);
 
@@ -72,7 +72,7 @@ fn test_parse_variable_assignment() {
 fn test_parse_const_assignment() {
     let source = "template { const PI = \"3.14\" }";
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let template = ast.template.unwrap();
     assert_eq!(template.statements.len(), 1);
 
@@ -92,7 +92,7 @@ fn test_parse_const_assignment() {
 fn test_parse_unary_negation() {
     let source = "template { let x = - 42 }";
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let template = ast.template.unwrap();
 
     match &template.statements[0] {
@@ -120,7 +120,7 @@ fn test_parse_unary_negation() {
 fn test_parse_binary_addition() {
     let source = "template { let sum = x + y }";
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let template = ast.template.unwrap();
 
     match &template.statements[0] {
@@ -155,7 +155,7 @@ fn test_parse_binary_addition() {
 fn test_parse_binary_subtraction() {
     let source = "template { let diff = a - b }";
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let template = ast.template.unwrap();
 
     match &template.statements[0] {
@@ -174,7 +174,7 @@ fn test_parse_binary_subtraction() {
 fn test_parse_binary_multiplication() {
     let source = "template { let product = a * b }";
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let template = ast.template.unwrap();
 
     match &template.statements[0] {
@@ -193,7 +193,7 @@ fn test_parse_binary_multiplication() {
 fn test_parse_binary_division() {
     let source = "template { let quotient = a / b }";
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let template = ast.template.unwrap();
 
     match &template.statements[0] {
@@ -212,7 +212,7 @@ fn test_parse_binary_division() {
 fn test_parse_binary_equals() {
     let source = "template { let result = a = b }";
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let template = ast.template.unwrap();
 
     match &template.statements[0] {
@@ -231,7 +231,7 @@ fn test_parse_binary_equals() {
 fn test_parse_string_literal() {
     let source = "template { let msg = \"Hello, World!\" }";
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let template = ast.template.unwrap();
 
     match &template.statements[0] {
@@ -247,7 +247,7 @@ fn test_parse_string_literal() {
 fn test_parse_string_with_escaped_quote() {
     let source = r#"template { let msg = "foo\"bar" }"#;
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let template = ast.template.unwrap();
 
     match &template.statements[0] {
@@ -281,7 +281,7 @@ fn test_lex_unterminated_string() {
 fn test_parse_integer_literal() {
     let source = "template { let num = 42 }";
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let template = ast.template.unwrap();
 
     match &template.statements[0] {
@@ -297,7 +297,7 @@ fn test_parse_integer_literal() {
 fn test_parse_float_literal() {
     let source = "template { let pi = 3.14 }";
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let template = ast.template.unwrap();
 
     match &template.statements[0] {
@@ -314,7 +314,7 @@ fn test_parse_return_statement() {
     // Return requires a document element (like text { ... }), not a plain string
     let source = "template { return text { done } }";
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let template = ast.template.unwrap();
 
     match &template.statements[0] {
@@ -331,7 +331,7 @@ fn test_parse_function_declaration() {
     // Function body needs proper document element in return
     let source = "template { func greet(name: string) { return text { Hello } } }";
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let template = ast.template.unwrap();
     assert_eq!(template.statements.len(), 1);
 
@@ -350,7 +350,7 @@ fn test_parse_function_declaration() {
 fn test_parse_function_call_no_args() {
     let source = "document { greet() }";
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let doc = ast.document.unwrap();
 
     match &doc.elements[0] {
@@ -366,7 +366,7 @@ fn test_parse_function_call_no_args() {
 fn test_parse_function_call_with_args() {
     let source = "document { print(\"hello\", \"world\") }";
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let doc = ast.document.unwrap();
 
     match &doc.elements[0] {
@@ -382,7 +382,7 @@ fn test_parse_function_call_with_args() {
 fn test_parse_default_set() {
     let source = "template { width = 100 }";
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let template = ast.template.unwrap();
 
     match &template.statements[0] {
@@ -401,7 +401,7 @@ fn test_parse_default_set() {
 fn test_parse_multiple_statements() {
     let source = "template { let x = 1 let y = 2 let z = 3 }";
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let template = ast.template.unwrap();
     assert_eq!(template.statements.len(), 3);
 }
@@ -410,7 +410,7 @@ fn test_parse_multiple_statements() {
 fn test_parse_mixed_statements() {
     let source = "template { let x = 10 const MAX = 100 width = 50 }";
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let template = ast.template.unwrap();
     assert_eq!(template.statements.len(), 3);
 
@@ -432,7 +432,7 @@ fn test_parse_mixed_statements() {
 fn test_parse_dollar_sign_interpolation() {
     let source = "template { let msg = $ x $ }";
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let template = ast.template.unwrap();
 
     match &template.statements[0] {
@@ -450,7 +450,7 @@ fn test_parse_dollar_sign_interpolation() {
 fn test_parse_nested_template_and_document() {
     let source = "template { func render() { return text { html } } } document { greet() }";
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     assert!(ast.template.is_some());
     assert!(ast.document.is_some());
 
@@ -465,7 +465,7 @@ fn test_parse_nested_template_and_document() {
 fn test_parse_string_interpolation_simple() {
     let source = r#"template { let msg = "Hello, {name}!" }"#;
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let template = ast.template.unwrap();
 
     match &template.statements[0] {
@@ -498,7 +498,7 @@ fn test_parse_string_interpolation_simple() {
 fn test_parse_string_interpolation_multiple() {
     let source = r#"template { let msg = "{greeting}, {name}!" }"#;
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let template = ast.template.unwrap();
 
     match &template.statements[0] {
@@ -542,7 +542,7 @@ fn test_parse_string_interpolation_multiple() {
 fn test_parse_string_interpolation_with_number() {
     let source = r#"template { let msg = "Count: {count}" }"#;
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let template = ast.template.unwrap();
 
     match &template.statements[0] {
@@ -572,7 +572,7 @@ fn test_parse_string_without_interpolation() {
     // Plain strings without {} should remain as StringLiteral
     let source = r#"template { let msg = "Hello, World!" }"#;
     let tokens = lex(source).expect("Lexing failed");
-    let ast = parse(tokens);
+    let ast = parse(tokens).expect("Parsing failed");
     let template = ast.template.unwrap();
 
     match &template.statements[0] {

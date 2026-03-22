@@ -6,7 +6,8 @@ use printpdf::{
     BuiltinFont, Mm, Op, PdfDocument, PdfFontHandle, PdfPage, PdfSaveOptions, Point, Pt, TextItem,
 };
 
-use crate::hlir::{FuncId, HLIRModule, HlirElement, Id, Op as HlirOp};
+use crate::hlir::{HLIRModule, HlirElement, StyleAttributes};
+use crate::layout::ComputedLayout;
 
 pub struct PdfRenderer;
 
@@ -15,10 +16,14 @@ impl PdfRenderer {
         Self
     }
 
-    pub fn render(&self, hlir: HLIRModule) -> Result<(), std::io::Error> {
+    pub fn render(
+        &self,
+        hlir: HLIRModule,
+        computed_layouts: &[ComputedLayout],
+    ) -> Result<(), std::io::Error> {
         let mut doc = PdfDocument::new("Document");
 
-        let pages = self.setup_pages(hlir);
+        let pages = self.setup_pages(hlir, computed_layouts);
         let pdf_bytes = doc
             .with_pages(pages)
             .save(&PdfSaveOptions::default(), &mut Vec::new());
@@ -31,64 +36,26 @@ impl PdfRenderer {
         Ok(())
     }
 
-    fn setup_pages(&self, hlir: HLIRModule) -> Vec<PdfPage> {
+    fn setup_pages(&self, hlir: HLIRModule, computed_layouts: &[ComputedLayout]) -> Vec<PdfPage> {
         let mut pages = Vec::new();
 
-        let ops = self.setup_ops(hlir);
+        let ops = self.setup_ops(hlir, computed_layouts);
         let page = PdfPage::new(Mm(210.0), Mm(297.0), ops);
         pages.push(page);
 
         pages
     }
 
-    fn setup_ops(&self, hlir: HLIRModule) -> Vec<Op> {
-        // vec![
-        //     Op::StartTextSection,
-        //     Op::SetTextCursor {
-        //         pos: Point::new(Mm(10.0), Mm(270.0)),
-        //     },
-        //     Op::SetFont {
-        //         font: PdfFontHandle::Builtin(BuiltinFont::Helvetica),
-        //         size: Pt(48.0),
-        //     },
-        //     Op::ShowText {
-        //         items: vec![TextItem::Text("Hello, PDF!".to_string())],
-        //     },
-        //     Op::EndTextSection,
-        // ]
+    fn setup_ops(&self, hlir: HLIRModule, computed_layouts: &[ComputedLayout]) -> Vec<Op> {
         let mut pdf_ops = Vec::new();
-        let mut point = Point::new(Mm(10.0), Mm(270.0));
 
-        let document_id = FuncId(hlir.functions.len() - 1);
-        let document = hlir
-            .functions
-            .get(&Id::Func(document_id))
-            .expect("document function not found");
-        for op in &document.body.ops {
-            match op {
-                HlirOp::HlirElementEmit { index } => {
-                    let element = hlir.elements.get(*index).expect("element not found");
-                    self.format_hlir_to_pdf_op(element.clone(), &hlir, &mut pdf_ops, &mut point);
-                }
-                HlirOp::Call { result, func, args } => {
-                    let func = hlir.functions.get(&func).expect("func not found");
-                    let returned_element_ref = func.body.returned_element_ref;
-                    if let Some(ref returned_element_ref) = returned_element_ref {
-                        let element = hlir
-                            .elements
-                            .get(*returned_element_ref)
-                            .expect("element not found");
-                        self.format_hlir_to_pdf_op(
-                            element.clone(),
-                            &hlir,
-                            &mut pdf_ops,
-                            &mut point,
-                        );
-                    }
-                }
-                _ => {}
+        // Render each element with its computed layout
+        for layout in computed_layouts {
+            if let Some(element) = hlir.elements.get(layout.element_index) {
+                self.format_hlir_to_pdf_op(element.clone(), &hlir, &mut pdf_ops, layout);
             }
         }
+
         pdf_ops
     }
 
@@ -97,36 +64,94 @@ impl PdfRenderer {
         element: HlirElement,
         hlir: &HLIRModule,
         pdf_ops: &mut Vec<Op>,
-        point: &mut Point,
+        layout: &ComputedLayout,
     ) {
+        // Convert layout coordinates (points) to PDF coordinates (Mm)
+        // Note: PDF y-coordinate starts from bottom, layout y starts from top
+        let page_height_pt = 842.0; // A4 height in points
+
+        // Get font size first so we can adjust for baseline
+        let (font_size, font) = match &element {
+            HlirElement::Text { attributes, .. } => {
+                let default_attrs = StyleAttributes::default();
+                let attrs = hlir
+                    .attributes
+                    .find_node(*attributes)
+                    .map(|n| &n.computed)
+                    .unwrap_or(&default_attrs);
+                (
+                    Self::parse_font_size(attrs),
+                    Self::get_font_from_family(attrs),
+                )
+            }
+            _ => (12.0, PdfFontHandle::Builtin(BuiltinFont::Helvetica)),
+        };
+
+        // Convert x from points to mm
+        let x_mm = layout.x / 2.83465;
+
+        // Convert y from points (top-down) to mm (bottom-up)
+        // PDF text cursor sets the baseline, not the top of the text
+        // We need to adjust y downward by the font ascent (approx 0.8 * font_size for most fonts)
+        // to make the text appear at the top of the allocated space
+        let ascent_pt = font_size * 0.8; // Approximate ascent (80% of font size)
+        let baseline_y_pt = page_height_pt - layout.y - ascent_pt;
+        let y_mm = baseline_y_pt / 2.83465;
+
+        let point = Point::new(Mm(x_mm), Mm(y_mm));
+
         match element {
             HlirElement::Text { content, .. } => {
                 pdf_ops.push(Op::StartTextSection);
-                pdf_ops.push(Op::SetTextCursor { pos: *point });
+                pdf_ops.push(Op::SetTextCursor { pos: point });
                 pdf_ops.push(Op::SetFont {
-                    font: PdfFontHandle::Builtin(BuiltinFont::Helvetica),
-                    size: Pt(12.0),
+                    font,
+                    size: Pt(font_size),
                 });
                 pdf_ops.push(Op::ShowText {
                     items: vec![TextItem::Text(content.clone())],
                 });
                 pdf_ops.push(Op::EndTextSection);
-                point.y -= Pt(12.0);
             }
-            HlirElement::List { children, .. } => {
-                for child_idx in children {
-                    if let Some(child) = hlir.elements.get(child_idx) {
-                        self.format_hlir_to_pdf_op(child.clone(), hlir, pdf_ops, point);
-                    }
-                }
+            HlirElement::List { .. } => {
+                // Container elements don't render directly
             }
-            HlirElement::Section { children, .. } => {
-                for child_idx in children {
-                    if let Some(child) = hlir.elements.get(child_idx) {
-                        self.format_hlir_to_pdf_op(child.clone(), hlir, pdf_ops, point);
-                    }
-                }
+            HlirElement::Section { .. } => {
+                // Container elements don't render directly
             }
+        }
+    }
+
+    /// Parse font-size from computed styles, defaulting to 12pt
+    fn parse_font_size(attrs: &StyleAttributes) -> f32 {
+        attrs
+            .style
+            .get("font-size")
+            .and_then(|v| {
+                // Parse value like "24pt" or "12px"
+                let v = v.trim();
+                let num_end = v
+                    .find(|c: char| !c.is_ascii_digit() && c != '.')
+                    .unwrap_or(v.len());
+                v[..num_end].parse::<f32>().ok()
+            })
+            .unwrap_or(12.0)
+    }
+
+    /// Get PDF font from font-family CSS property
+    fn get_font_from_family(attrs: &StyleAttributes) -> PdfFontHandle {
+        let font_family = attrs
+            .style
+            .get("font-family")
+            .map(|v| v.as_str())
+            .unwrap_or("Helvetica");
+
+        match font_family.to_lowercase().as_str() {
+            "times" | "times new roman" | "serif" => {
+                PdfFontHandle::Builtin(BuiltinFont::TimesRoman)
+            }
+            "courier" | "courier new" | "monospace" => PdfFontHandle::Builtin(BuiltinFont::Courier),
+            "helvetica" | "sans-serif" | _ => PdfFontHandle::Builtin(BuiltinFont::Helvetica),
         }
     }
 }

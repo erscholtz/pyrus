@@ -2,8 +2,9 @@ use core::panic;
 
 use crate::ast::{Ast, DocumentBlock, Expression, InterpPart, StyleBlock, TemplateBlock};
 use crate::lexer::{TokenKind, TokenStream};
+use crate::parser::parser_err::ParseError;
 
-pub fn parse(tokens: TokenStream) -> Ast {
+pub fn parse(tokens: TokenStream) -> Result<Ast, Vec<ParseError>> {
     let p = Parser::new(tokens);
     p.parse()
 }
@@ -18,12 +19,13 @@ impl Parser {
         Self { toks, idx: 0 }
     }
 
-    fn parse(mut self) -> Ast {
+    fn parse(mut self) -> Result<Ast, Vec<ParseError>> {
         // high level pass
 
         let mut template = None;
         let mut document = None;
         let mut style = None;
+        let mut errors: Vec<ParseError> = Vec::new();
 
         while self.idx < self.toks.kinds.len() {
             match self.current_token_kind() {
@@ -52,20 +54,28 @@ impl Parser {
                     });
                 }
                 TokenKind::Eof => break,
-                _ => panic!(
-                    "Parse error: unexpected token at top level (can only be Template, Document, Style at top level). Found: {:?} at {}:{}",
-                    self.current_token_kind(),
-                    self.current_token_line(),
-                    self.current_token_col()
-                ),
+                _ => errors.push(ParseError::new(
+                    format!(
+                        "Parse error: unexpected token at top level (can only be Template, Document, Style at top level). Found: {:?} at {}:{}",
+                        self.current_token_kind(),
+                        self.current_token_line(),
+                        self.current_token_col()
+                    ),
+                    self.current_token_line() as usize,
+                    self.current_token_col() as usize,
+                )),
             }
         }
 
-        Ast {
+        if !errors.is_empty() {
+            return Err(errors);
+        }
+
+        Ok(Ast {
             template,
             document,
             style,
-        }
+        })
     }
 
     pub fn parse_expression(&mut self) -> Expression {

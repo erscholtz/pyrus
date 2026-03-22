@@ -1,5 +1,6 @@
 mod parser;
 mod parser_document;
+mod parser_err;
 mod parser_style;
 mod parser_template;
 
