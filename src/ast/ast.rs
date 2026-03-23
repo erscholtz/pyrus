@@ -132,12 +132,18 @@ pub enum Statement {
         body: Vec<Statement>,
     },
     Return {
-        doc_element: DocElement,
+        doc_element: DocElement, // TODO change this to be on expression
     },
     /// name(args) { body... }
     FunctionDecl {
         name: String,
-        args: Vec<FuncParam>, // probably empty for now
+        args: Vec<FuncParam>,
+        body: Vec<Statement>,
+        return_type: Option<String>,
+    },
+    ElementDecl {
+        name: String,
+        args: Vec<FuncParam>,
         body: Vec<Statement>,
     },
 }
@@ -185,7 +191,7 @@ pub enum DocElement {
 pub struct StyleRule {
     pub selector_list: Vec<Selector>,
     pub declaration_block: Vec<KeyValue>,
-    pub specificity: u32, // Pre-computed specificity for cascade ordering
+    pub specificity: usize, // Pre-computed specificity for cascade ordering
 }
 
 impl StyleRule {
@@ -200,7 +206,7 @@ impl StyleRule {
 
     /// Compute CSS specificity: (id_count, class_count, type_count) as a single number
     /// Returns: id_count * 100 + class_count * 10 + type_count
-    fn compute_specificity(selectors: &[Selector]) -> u32 {
+    fn compute_specificity(selectors: &[Selector]) -> usize {
         let mut id_count = 0;
         let mut class_count = 0;
         let mut type_count = 0;

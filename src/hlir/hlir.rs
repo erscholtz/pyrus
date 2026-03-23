@@ -76,7 +76,12 @@ impl HLIRPass {
                     hlirmodule.globals.insert(global_id, global);
                     self.add_symbol(name.clone(), global_id);
                 }
-                Statement::FunctionDecl { name, args, body } => {
+                Statement::FunctionDecl {
+                    name,
+                    args,
+                    body,
+                    return_type,
+                } => {
                     let func_id = FuncId(hlirmodule.functions.len());
                     let hlir_body = self.lower_function_block(body, hlirmodule);
                     self.add_symbol(name.clone(), Id::Func(func_id)); // adds function name to symbol table
@@ -90,13 +95,24 @@ impl HLIRPass {
                         }
                     }
 
+                    let return_type = match return_type {
+                        Some(t) => match t.as_str() {
+                            "Int" => Some(Type::Int),
+                            "Float" => Some(Type::Float),
+                            "String" => Some(Type::String),
+                            "DocElement" => Some(Type::DocElement),
+                            _ => panic!("type not known"),
+                        },
+                        None => None,
+                    };
+
                     hlirmodule.functions.insert(
                         Id::Func(func_id),
                         Func {
                             id: Id::Func(func_id),
                             name: name.clone(),
                             args: arg_list,
-                            return_type: Some(Type::DocElement), // TODO check return type before setting (right now only DocElement)
+                            return_type: return_type,
                             body: hlir_body,
                         },
                     );
@@ -388,7 +404,6 @@ impl HLIRPass {
                 let attribute_node =
                     AttributeNode::new_with_attributes(attributes, hlirmodule.attributes.size);
                 let attributes_ref = hlirmodule.attributes.add_attribute(attribute_node);
-                // Get the parent index for children (current list's index)
                 let parent_index = hlirmodule.elements.len();
                 // Recursively convert all list items
                 let children: Vec<usize> = items
@@ -397,7 +412,6 @@ impl HLIRPass {
                         let child_hlir = self.convert_doc_element_to_hlir(item, hlirmodule);
                         let child_index = hlirmodule.elements.len();
                         hlirmodule.elements.push(child_hlir);
-                        // Update the child's metadata to set the parent
                         if let Some(metadata) = hlirmodule.element_metadata.get_mut(child_index) {
                             metadata.parent = Some(parent_index);
                         }

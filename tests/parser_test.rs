@@ -336,7 +336,12 @@ fn test_parse_function_declaration() {
     assert_eq!(template.statements.len(), 1);
 
     match &template.statements[0] {
-        Statement::FunctionDecl { name, args, body } => {
+        Statement::FunctionDecl {
+            name,
+            args,
+            body,
+            return_type,
+        } => {
             assert_eq!(name, "greet");
             assert_eq!(args.len(), 1);
             assert_eq!(args[0].ty, "string");

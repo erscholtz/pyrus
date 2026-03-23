@@ -10,6 +10,7 @@ pub enum TokenKind {
     RightBracket, // []
     Comma,
     Dot,
+    At, // @
     Semicolon,
     Colon,
     Bang,
@@ -41,6 +42,7 @@ pub enum TokenKind {
     Document,
     Style,
     Func,
+    Element,
     Let,
     Const,
     Var,

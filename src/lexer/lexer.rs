@@ -5,6 +5,7 @@ static KEYWORD_TABLE: phf::Map<&'static str, TokenKind> = phf::phf_map! {
     "document" => TokenKind::Document,
     "style" => TokenKind::Style,
     "func" => TokenKind::Func,
+    "element" => TokenKind::Element,
     "let" => TokenKind::Let,
     "const" => TokenKind::Const,
     "var" => TokenKind::Var,
@@ -46,6 +47,8 @@ static SYMBOL_LOOKUP_TABLE: [Option<TokenKind>; 256] = {
     t[b'#' as usize] = Some(Hash);
     t[b'!' as usize] = Some(Bang);
     t[b'>' as usize] = Some(Greater);
+    t[b'<' as usize] = Some(Less);
+    t[b'@' as usize] = Some(At);
 
     t
 };
@@ -54,8 +57,8 @@ static SYMBOL_LOOKUP_TABLE: [Option<TokenKind>; 256] = {
 pub struct TokenStream {
     pub kinds: Vec<TokenKind>,
     pub ranges: Vec<std::ops::Range<usize>>,
-    pub lines: Vec<u32>,
-    pub cols: Vec<u32>,
+    pub lines: Vec<usize>,
+    pub cols: Vec<usize>,
     pub source: String,
     pub errors: Vec<LexError>,
 }
@@ -63,12 +66,12 @@ pub struct TokenStream {
 #[derive(Debug, Clone)]
 pub struct LexError {
     pub message: String,
-    pub line: u32,
-    pub col: u32,
+    pub line: usize,
+    pub col: usize,
 }
 
 impl LexError {
-    pub fn new(message: String, line: u32, col: u32) -> Self {
+    pub fn new(message: String, line: usize, col: usize) -> Self {
         Self { message, line, col }
     }
 }
@@ -86,7 +89,7 @@ impl TokenStream {
     }
 
     #[inline]
-    fn push(&mut self, kind: TokenKind, start: usize, end: usize, line: u32, col: u32) {
+    fn push(&mut self, kind: TokenKind, start: usize, end: usize, line: usize, col: usize) {
         self.kinds.push(kind);
         self.ranges.push(start..end);
         self.lines.push(line);
@@ -144,7 +147,7 @@ pub fn lex(source: &str) -> Result<TokenStream, Vec<LexError>> {
                 .unwrap_or(TokenKind::Identifier);
             out.push(kind, start, i, line, col);
 
-            col += (i - start) as u32;
+            col += i - start;
             continue;
         }
 
@@ -170,7 +173,7 @@ pub fn lex(source: &str) -> Result<TokenStream, Vec<LexError>> {
                 TokenKind::Int
             };
             out.push(kind, start, i, line, col);
-            col += (i - start) as u32;
+            col += i - start;
             continue;
         }
 

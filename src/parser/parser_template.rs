@@ -1,6 +1,7 @@
 use crate::ast::Statement;
 use crate::lexer::TokenKind;
 use crate::parser::parser::Parser;
+use crate::parser::parser_err::ParseError;
 
 impl Parser {
     pub fn parse_template_block(&mut self) -> Vec<Statement> {
@@ -85,12 +86,19 @@ impl Parser {
             // TODO handle if statements
             // TODO handle for loops
             // TODO handle while loops
-            _ => panic!(
-                "Parse error: unexpected token parsing statement. Found: {:?} at {}:{}",
-                self.current_token_kind(),
-                self.current_token_line(),
-                self.current_token_col()
-            ),
+            _ => {
+                self.errors.push(ParseError::new(
+                    format!(
+                        "Parse error: unexpected token parsing statement. Found: {:?} at {}:{}",
+                        self.current_token_kind(),
+                        self.current_token_line(),
+                        self.current_token_col()
+                    ),
+                    self.current_token_line(),
+                    self.current_token_col(),
+                ));
+                panic!("{:?}", self.errors.last().unwrap());
+            }
         }
     }
 
@@ -104,18 +112,42 @@ impl Parser {
         let args = self.parse_args();
 
         // Optional return type annotation: -> Type
-        if self.current_token_kind() == TokenKind::Minus && self.peek() == Some(TokenKind::Greater)
+        let return_type = if self.current_token_kind() == TokenKind::Minus
+            && self.peek() == Some(TokenKind::Greater)
         {
             self.advance(); // consume -
             self.advance(); // consume >
-            let _return_type = self.current_text(); // consume type name
-            self.advance();
-        }
+            let ty = self.current_text().to_string();
+            self.advance(); // consume type
+            Some(ty)
+        } else {
+            None
+        };
 
         self.expect(TokenKind::LeftBrace);
-        let body = self.parse_func_decl_body();
+        let body = self.parse_decl_body();
 
-        Statement::FunctionDecl { name, args, body }
+        Statement::FunctionDecl {
+            name,
+            args,
+            body,
+            return_type: return_type,
+        }
+    }
+
+    fn parse_element_decl(&mut self) -> Statement {
+        self.expect(TokenKind::Func);
+
+        self.expect(TokenKind::Identifier);
+        let name = self.toks.source[self.toks.ranges[self.idx - 1].clone()].to_string();
+
+        self.expect(TokenKind::LeftParen);
+        let args = self.parse_args();
+
+        self.expect(TokenKind::LeftBrace);
+        let body = self.parse_decl_body();
+
+        Statement::ElementDecl { name, args, body }
     }
 
     fn parse_args(&mut self) -> Vec<crate::ast::FuncParam> {
@@ -135,14 +167,26 @@ impl Parser {
                     });
                     self.match_kind(TokenKind::Comma);
                 }
-                _ => panic!("Expected parameter or ')'"),
+                _ => {
+                    self.errors.push(ParseError::new(
+                        format!(
+                            "Parse error: unexpected token parsing function argument. Found: {:?} at {}:{}",
+                            self.current_token_kind(),
+                            self.current_token_line(),
+                            self.current_token_col()
+                        ),
+                        self.current_token_line(),
+                        self.current_token_col(),
+                    ));
+                    panic!("{:?}", self.errors.last().unwrap());
+                }
             }
         }
         self.expect(TokenKind::RightParen);
         params
     }
 
-    fn parse_func_decl_body(&mut self) -> Vec<Statement> {
+    fn parse_decl_body(&mut self) -> Vec<Statement> {
         let mut statements: Vec<Statement> = Vec::new();
         while self.idx < self.toks.kinds.len() {
             match self.current_token_kind() {

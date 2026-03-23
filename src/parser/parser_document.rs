@@ -4,6 +4,7 @@ use std::panic;
 use crate::ast::{ArgType, DocElement, Expression};
 use crate::lexer::TokenKind;
 use crate::parser::parser::Parser;
+use crate::parser::parser_err::ParseError;
 
 impl Parser {
     pub fn parse_document_block(&mut self) -> Vec<DocElement> {
@@ -140,19 +141,29 @@ impl Parser {
                             attributes,
                         });
                     } else {
-                        panic!(
-                            "Parse error: expected 'item' at {}:{}",
+                        self.errors.push(ParseError::new(
+                            format!(
+                                "Unexpected token '{}' at {}:{}",
+                                self.current_text(),
+                                self.current_token_line(),
+                                self.current_token_col()
+                            ),
                             self.current_token_line(),
-                            self.current_token_col()
-                        );
+                            self.current_token_col(),
+                        ));
                     }
                 }
                 _ => {
-                    panic!(
-                        "Parse error for document list: expected 'item' at {}:{}",
+                    self.errors.push(ParseError::new(
+                        format!(
+                            "Unexpected token '{}' at {}:{}",
+                            self.current_text(),
+                            self.current_token_line(),
+                            self.current_token_col()
+                        ),
                         self.current_token_line(),
-                        self.current_token_col()
-                    );
+                        self.current_token_col(),
+                    ));
                 }
             }
         }
@@ -162,11 +173,20 @@ impl Parser {
     fn parse_document_function_call(&mut self) -> DocElement {
         if self.toks.kinds.get(self.idx + 1) != Some(&TokenKind::LeftParen) {
             // check if it is a function call
-            panic!(
-                "Parse error: expected '(' after function name at {}:{}",
+            self.errors.push(ParseError::new(
+                format!(
+                    "Expected '(' after function name at {}:{}",
+                    self.current_token_line(),
+                    self.current_token_col()
+                ),
                 self.current_token_line(),
-                self.current_token_col()
-            );
+                self.current_token_col(),
+            ));
+            self.advance();
+            return DocElement::Text {
+                content: "error".to_string(),
+                attributes: HashMap::new(),
+            };
         }
         // function call
         let func_name = self.current_text();
@@ -201,12 +221,17 @@ impl Parser {
                 });
                 break;
             } else {
-                panic!(
-                    "Parse error: unexpected token in function call arguments. Found: {:?} at {}:{}",
-                    self.current_token_kind(),
+                self.errors.push(ParseError::new(
+                    format!(
+                        "Unexpected token '{}' at {}:{}",
+                        self.current_text(),
+                        self.current_token_line(),
+                        self.current_token_col()
+                    ),
                     self.current_token_line(),
-                    self.current_token_col()
-                );
+                    self.current_token_col(),
+                ));
+                break;
             }
         }
         self.expect(TokenKind::RightParen);

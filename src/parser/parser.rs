@@ -12,11 +12,16 @@ pub fn parse(tokens: TokenStream) -> Result<Ast, Vec<ParseError>> {
 pub struct Parser {
     pub toks: TokenStream,
     pub idx: usize,
+    pub errors: Vec<ParseError>,
 }
 
 impl Parser {
     fn new(toks: TokenStream) -> Self {
-        Self { toks, idx: 0 }
+        Self {
+            toks,
+            idx: 0,
+            errors: Vec::new(),
+        }
     }
 
     fn parse(mut self) -> Result<Ast, Vec<ParseError>> {
@@ -25,7 +30,6 @@ impl Parser {
         let mut template = None;
         let mut document = None;
         let mut style = None;
-        let mut errors: Vec<ParseError> = Vec::new();
 
         while self.idx < self.toks.kinds.len() {
             match self.current_token_kind() {
@@ -54,7 +58,7 @@ impl Parser {
                     });
                 }
                 TokenKind::Eof => break,
-                _ => errors.push(ParseError::new(
+                _ => self.errors.push(ParseError::new(
                     format!(
                         "Parse error: unexpected token at top level (can only be Template, Document, Style at top level). Found: {:?} at {}:{}",
                         self.current_token_kind(),
@@ -67,8 +71,8 @@ impl Parser {
             }
         }
 
-        if !errors.is_empty() {
-            return Err(errors);
+        if !self.errors.is_empty() {
+            return Err(self.errors);
         }
 
         Ok(Ast {
@@ -120,16 +124,24 @@ impl Parser {
                 expression
             }
             TokenKind::Identifier => self.parse_binary_expr(),
-            _ => panic!(
-                "Parse error: unexpected token parsing expression. Found: {:?} at {}:{}",
-                self.current_token_kind(),
-                self.current_token_line(),
-                self.current_token_col()
-            ),
+            _ => {
+                self.errors.push(ParseError::new(
+                    format!(
+                        "Unexpected token '{}' at {}:{}",
+                        self.current_text(),
+                        self.current_token_line(),
+                        self.current_token_col()
+                    ),
+                    self.current_token_line(),
+                    self.current_token_col(),
+                ));
+                self.advance();
+                Expression::Int(0)
+            }
         }
     }
 
-    fn parse_string_with_interpolation(&self, s: &str) -> Expression {
+    fn parse_string_with_interpolation(&mut self, s: &str) -> Expression {
         // Strip surrounding quotes if present
         let content = if s.len() >= 2 && s.starts_with('"') && s.ends_with('"') {
             &s[1..s.len() - 1]
@@ -225,7 +237,7 @@ impl Parser {
         }
     }
 
-    fn parse_expression_from_str(&self, expr_str: &str) -> Expression {
+    fn parse_expression_from_str(&mut self, expr_str: &str) -> Expression {
         let trimmed = expr_str.trim();
         if trimmed.is_empty() {
             return Expression::StringLiteral(String::new());
@@ -256,7 +268,11 @@ impl Parser {
                         right: Box::new(self.parse_expression_from_str(right.trim())),
                     };
                 }
-                _ => {}
+                _ => {
+                    // Continue to next character - this is not an error,
+                    // we're just looking for operators. Non-operator characters
+                    // are part of the identifier.
+                }
             }
         }
 
@@ -270,12 +286,20 @@ impl Parser {
                 self.advance();
                 Expression::Identifier(name)
             }
-            _ => panic!(
-                "Parse error: unexpected token in binary expression {:?} at {}:{}",
-                self.current_token_kind(),
-                self.current_token_line(),
-                self.current_token_col()
-            ),
+            _ => {
+                self.errors.push(ParseError::new(
+                    format!(
+                        "Unexpected token '{}' at {}:{}",
+                        self.current_text(),
+                        self.current_token_line(),
+                        self.current_token_col()
+                    ),
+                    self.current_token_line(),
+                    self.current_token_col(),
+                ));
+                self.advance();
+                Expression::Int(0)
+            }
         };
 
         while let TokenKind::Plus

@@ -1,20 +1,33 @@
 use crate::lexer::TokenKind;
 use crate::parser::parser::Parser;
+use crate::parser::parser_err::ParseError;
 
 impl Parser {
     pub fn current_token_kind(&self) -> TokenKind {
+        if self.idx >= self.toks.kinds.len() {
+            return TokenKind::Eof;
+        }
         self.toks.kinds[self.idx]
     }
 
-    pub fn current_token_line(&self) -> u32 {
+    pub fn current_token_line(&self) -> usize {
+        if self.idx >= self.toks.lines.len() {
+            return self.toks.lines.last().copied().unwrap_or(1);
+        }
         self.toks.lines[self.idx]
     }
 
-    pub fn current_token_col(&self) -> u32 {
+    pub fn current_token_col(&self) -> usize {
+        if self.idx >= self.toks.cols.len() {
+            return self.toks.cols.last().copied().unwrap_or(1);
+        }
         self.toks.cols[self.idx]
     }
 
     pub fn current_text(&self) -> String {
+        if self.idx >= self.toks.ranges.len() {
+            return String::new();
+        }
         let range = &self.toks.ranges[self.idx];
         self.toks.source[range.start..range.end].to_string()
     }
@@ -30,13 +43,18 @@ impl Parser {
         if self.current_token_kind() == kind {
             return self.advance().clone();
         }
-        panic!(
-            "Parse error: expected {:?} but found {:?} at {}:{}",
-            kind,
-            self.current_token_kind(),
+        self.errors.push(ParseError::new(
+            format!(
+                "Parse error: expected {:?} but found {:?} at {}:{}",
+                kind,
+                self.current_token_kind(),
+                self.current_token_line(),
+                self.current_token_col()
+            ),
             self.current_token_line(),
-            self.current_token_col()
-        );
+            self.current_token_col(),
+        ));
+        self.advance()
     }
 
     pub fn match_kind(&mut self, kind: TokenKind) -> bool {
