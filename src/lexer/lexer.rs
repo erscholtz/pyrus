@@ -8,7 +8,6 @@ static KEYWORD_TABLE: phf::Map<&'static str, TokenKind> = phf::phf_map! {
     "element" => TokenKind::Element,
     "let" => TokenKind::Let,
     "const" => TokenKind::Const,
-    "var" => TokenKind::Var,
     "if" => TokenKind::If,
     "else" => TokenKind::Else,
     "for" => TokenKind::For,
@@ -49,6 +48,7 @@ static SYMBOL_LOOKUP_TABLE: [Option<TokenKind>; 256] = {
     t[b'>' as usize] = Some(Greater);
     t[b'<' as usize] = Some(Less);
     t[b'@' as usize] = Some(At);
+    t[b'|' as usize] = Some(Pipe);
 
     t
 };

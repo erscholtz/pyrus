@@ -13,6 +13,7 @@ pub enum TokenKind {
     At, // @
     Semicolon,
     Colon,
+    Pipe, // |
     Bang,
     Plus,
     Minus,

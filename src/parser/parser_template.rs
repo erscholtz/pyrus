@@ -16,6 +16,10 @@ impl Parser {
                     let statement = self.parse_func_decl();
                     statements.push(statement);
                 }
+                TokenKind::Element => {
+                    let statement = self.parse_element_decl();
+                    statements.push(statement);
+                }
                 TokenKind::Eof => break,
                 _ => {
                     let statement = self.parse_statement();
@@ -56,17 +60,6 @@ impl Parser {
                 self.expect(TokenKind::Equals);
                 let expr = self.parse_expression();
                 Statement::ConstAssign {
-                    name: varname,
-                    value: expr,
-                }
-            }
-            TokenKind::Var => {
-                self.advance();
-                let varname = self.current_text();
-                self.advance();
-                self.expect(TokenKind::Equals);
-                let expr = self.parse_expression();
-                Statement::VarAssign {
                     name: varname,
                     value: expr,
                 }
@@ -136,7 +129,7 @@ impl Parser {
     }
 
     fn parse_element_decl(&mut self) -> Statement {
-        self.expect(TokenKind::Func);
+        self.expect(TokenKind::Element);
 
         self.expect(TokenKind::Identifier);
         let name = self.toks.source[self.toks.ranges[self.idx - 1].clone()].to_string();
@@ -194,11 +187,18 @@ impl Parser {
                     self.expect(TokenKind::RightBrace);
                     break;
                 }
-                TokenKind::Eof => panic!(
-                    "Parse error: unexpected end of file while parsing block at {}:{}",
-                    self.current_token_line(),
-                    self.current_token_col()
-                ),
+                TokenKind::Eof => {
+                    self.errors.push(ParseError::new(
+                        format!(
+                            "Parse error: unexpected end of file while parsing block at {}:{}",
+                            self.current_token_line(),
+                            self.current_token_col()
+                        ),
+                        self.current_token_line(),
+                        self.current_token_col(),
+                    ));
+                    panic!("{:?}", self.errors.last().unwrap());
+                }
                 _ => {
                     let statement = self.parse_statement();
                     statements.push(statement);

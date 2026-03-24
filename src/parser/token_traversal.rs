@@ -12,14 +12,24 @@ impl Parser {
 
     pub fn current_token_line(&self) -> usize {
         if self.idx >= self.toks.lines.len() {
-            return self.toks.lines.last().copied().unwrap_or(1);
+            return self
+                .toks
+                .lines
+                .last()
+                .copied()
+                .expect("lines vector empty but idx >= len");
         }
         self.toks.lines[self.idx]
     }
 
     pub fn current_token_col(&self) -> usize {
         if self.idx >= self.toks.cols.len() {
-            return self.toks.cols.last().copied().unwrap_or(1);
+            return self
+                .toks
+                .cols
+                .last()
+                .copied()
+                .expect("cols vector empty but idx >= len");
         }
         self.toks.cols[self.idx]
     }
