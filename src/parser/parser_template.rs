@@ -64,6 +64,10 @@ impl Parser {
                     value: expr,
                 }
             }
+            TokenKind::At => {
+                let element = self.parse_document_element();
+                Statement::DocElementEmit { element }
+            }
             TokenKind::Return => {
                 self.advance(); // consume 'return'
                 match self.current_token_kind() {
@@ -74,6 +78,12 @@ impl Parser {
                             doc_element: return_value,
                         }
                     }
+                }
+            }
+            TokenKind::Children => {
+                self.advance(); // consume 'children'
+                Statement::Children {
+                    children: "RENDER_CHILDREN".to_string(),
                 }
             }
             // TODO handle if statements
@@ -90,7 +100,10 @@ impl Parser {
                     self.current_token_line(),
                     self.current_token_col(),
                 ));
-                panic!("{:?}", self.errors.last().unwrap());
+                Statement::ErrorLocation {
+                    line: self.current_token_line(),
+                    col: self.current_token_col(),
+                }
             }
         }
     }
@@ -181,7 +194,7 @@ impl Parser {
 
     fn parse_decl_body(&mut self) -> Vec<Statement> {
         let mut statements: Vec<Statement> = Vec::new();
-        while self.idx < self.toks.kinds.len() {
+        while self.current_token_kind() != TokenKind::RightBrace {
             match self.current_token_kind() {
                 TokenKind::RightBrace => {
                     self.expect(TokenKind::RightBrace);

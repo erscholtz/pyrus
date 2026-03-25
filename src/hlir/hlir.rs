@@ -248,7 +248,11 @@ impl HLIRPass {
 
                 index
             }
-            crate::ast::DocElement::List { items, attributes } => {
+            crate::ast::DocElement::List {
+                items,
+                attributes,
+                numbered,
+            } => {
                 let (id, classes) = self.extract_id_and_classes(attributes);
                 let element_type = "list".to_string();
                 let attribute_node =
@@ -399,7 +403,11 @@ impl HLIRPass {
                     attributes: attributes_ref,
                 }
             }
-            crate::ast::DocElement::List { items, attributes } => {
+            crate::ast::DocElement::List {
+                items,
+                attributes,
+                numbered,
+            } => {
                 let (id, classes) = self.extract_id_and_classes(attributes);
                 let attribute_node =
                     AttributeNode::new_with_attributes(attributes, hlirmodule.attributes.size);

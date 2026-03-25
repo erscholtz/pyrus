@@ -146,6 +146,16 @@ pub enum Statement {
         args: Vec<FuncParam>,
         body: Vec<Statement>,
     },
+    DocElementEmit {
+        element: DocElement,
+    },
+    Children {
+        children: String,
+    },
+    ErrorLocation {
+        line: usize,
+        col: usize,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -165,6 +175,7 @@ pub enum DocElement {
     List {
         items: Vec<DocElement>,
         attributes: HashMap<String, Expression>,
+        numbered: bool,
     },
     Code {
         content: String,
@@ -182,6 +193,10 @@ pub enum DocElement {
     Section {
         elements: Vec<DocElement>,
         attributes: HashMap<String, Expression>,
+    },
+    ErrorLocation {
+        line: usize,
+        col: usize,
     },
 }
 

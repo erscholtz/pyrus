@@ -1,7 +1,7 @@
 use std::collections::HashMap;
-use std::panic;
+use std::io::SeekFrom;
 
-use crate::ast::{ArgType, DocElement, Expression};
+use crate::ast::{ArgType, DocElement, Expression, TemplateBlock};
 use crate::lexer::TokenKind;
 use crate::parser::parser::Parser;
 use crate::parser::parser_err::ParseError;
@@ -29,13 +29,15 @@ impl Parser {
     // TODO handle markdown formatting properly (bold, italics, etc.)
     // TODO handle code snippets properly
     pub fn parse_document_element(&mut self) -> DocElement {
+        self.expect(TokenKind::At);
+        println!("{:?}", self.current_token_kind());
         match self.current_token_kind() {
             TokenKind::Text => {
                 self.advance(); // consume text label
                 let attributes = self.parse_style_attributes();
-                self.expect(TokenKind::LeftBrace);
+                self.expect(TokenKind::LeftBracket);
                 let text_content = self.parse_document_text_content();
-                self.expect(TokenKind::RightBrace);
+                self.expect(TokenKind::RightBracket);
                 DocElement::Text {
                     content: text_content,
                     attributes,
@@ -44,16 +46,22 @@ impl Parser {
             TokenKind::List => {
                 self.advance(); // consume list label
                 let attributes = self.parse_style_attributes();
-                self.expect(TokenKind::LeftBrace);
-                let list_items = self.parse_document_list();
-                self.expect(TokenKind::RightBrace);
+                self.expect(TokenKind::LeftBracket);
+                let (list_items, numbered) = self.parse_document_list();
+                self.expect(TokenKind::RightBracket);
                 DocElement::List {
                     items: list_items,
                     attributes,
+                    numbered,
                 }
             }
             TokenKind::Image => {
-                todo!("Image support not implemented");
+                self.advance(); // consume image label
+                let attributes = self.parse_style_attributes();
+                self.expect(TokenKind::LeftBracket);
+                let src = self.parse_document_text_content();
+                self.expect(TokenKind::RightBracket);
+                DocElement::Image { src, attributes }
             }
             TokenKind::Link => {
                 todo!("Link support not implemented");
@@ -64,7 +72,7 @@ impl Parser {
             TokenKind::Section => {
                 self.advance(); // consume section label
                 let attributes = self.parse_style_attributes();
-                self.expect(TokenKind::LeftBrace);
+                self.expect(TokenKind::LeftBracket);
                 let section_content = self.parse_document_block();
                 DocElement::Section {
                     elements: section_content,
@@ -76,11 +84,22 @@ impl Parser {
                 self.parse_document_function_call()
             }
             _ => {
-                panic!(
-                    "Parse error: unexpected token while parsing document element at {}:{}",
+                self.errors.push(ParseError::new(
+                    format!(
+                        "Parse error: unexpected token while parsing document element at {}:{}: found {:?}",
+                        self.current_token_line(),
+                        self.current_token_col(),
+                        self.current_token_kind(),
+                    ),
                     self.current_token_line(),
-                    self.current_token_col()
-                )
+                    self.current_token_col(),
+                ));
+                println!("{:?}", self.current_token_kind());
+                self.advance();
+                DocElement::ErrorLocation {
+                    line: self.current_token_line(),
+                    col: self.current_token_col(),
+                }
             }
         }
     }
@@ -107,51 +126,57 @@ impl Parser {
 
     fn parse_document_text_content(&mut self) -> String {
         let mut content = String::new();
-        while self.current_token_kind() != TokenKind::RightBrace {
-            let text = self.current_text();
-            // Strip quotes from string literals
-            let text = if self.current_token_kind() == TokenKind::StringLiteral {
-                text.trim_matches('"').to_string()
-            } else {
-                text
-            };
-            content.push_str(&text);
-            self.advance();
-            // Add a space after each token (except before the closing brace)
-            if self.current_token_kind() != TokenKind::RightBrace {
-                content.push(' ');
+        while self.current_token_kind() != TokenKind::RightBracket {
+            match self.current_token_kind() {
+                TokenKind::Dollarsign => {
+                    self.advance(); // consume $
+                    if self.current_token_kind() != TokenKind::LeftBrace {
+                        content.push('$');
+                        content.push_str(&self.current_text());
+
+                        self.advance();
+                        continue;
+                    }
+                    content.push('$'); // TODO: string interpolation
+                    content.push_str(&self.current_text()); // add {
+                    self.advance();
+                    content.push_str(&self.current_text()); // add identifier
+                    self.advance(); // consume identifier
+                    content.push_str(&self.current_text()); // add }
+                    self.advance();
+                }
+                _ => {
+                    let text = self.current_text();
+                    content.push_str(&text);
+                    self.advance();
+                }
             }
         }
         content
     }
 
-    fn parse_document_list(&mut self) -> Vec<DocElement> {
+    fn parse_document_list(&mut self) -> (Vec<DocElement>, bool) {
         let mut items = Vec::new();
-        while self.current_token_kind() != TokenKind::RightBrace {
+        let mut numbered = false;
+        while self.current_token_kind() != TokenKind::RightBracket {
             match self.current_token_kind() {
-                TokenKind::Identifier => {
-                    if self.current_text() == "item" {
-                        self.advance(); // consume item label
-                        let attributes = self.parse_style_attributes();
-                        self.expect(TokenKind::LeftBrace);
-                        let content = self.parse_document_text_content();
-                        self.expect(TokenKind::RightBrace);
-                        items.push(DocElement::Text {
-                            content,
-                            attributes,
-                        });
-                    } else {
-                        self.errors.push(ParseError::new(
-                            format!(
-                                "Unexpected token '{}' at {}:{}",
-                                self.current_text(),
-                                self.current_token_line(),
-                                self.current_token_col()
-                            ),
-                            self.current_token_line(),
-                            self.current_token_col(),
-                        ));
-                    }
+                TokenKind::Minus => {
+                    self.advance();
+                    let content = self.parse_document_text_content();
+                    items.push(DocElement::Text {
+                        content,
+                        attributes: HashMap::new(),
+                    });
+                }
+                TokenKind::Int => {
+                    self.advance();
+                    self.expect(TokenKind::Dot);
+                    let content = self.parse_document_text_content();
+                    items.push(DocElement::Text {
+                        content,
+                        attributes: HashMap::new(),
+                    });
+                    numbered = true;
                 }
                 _ => {
                     self.errors.push(ParseError::new(
@@ -167,7 +192,7 @@ impl Parser {
                 }
             }
         }
-        items
+        (items, numbered)
     }
 
     fn parse_document_function_call(&mut self) -> DocElement {

@@ -1,5 +1,3 @@
-use core::panic;
-
 use crate::ast::{Ast, DocumentBlock, Expression, InterpPart, StyleBlock, TemplateBlock};
 use crate::lexer::{TokenKind, TokenStream};
 use crate::parser::parser_err::ParseError;
@@ -58,16 +56,19 @@ impl Parser {
                     });
                 }
                 TokenKind::Eof => break,
-                _ => self.errors.push(ParseError::new(
-                    format!(
-                        "Parse error: unexpected token at top level (can only be Template, Document, Style at top level). Found: {:?} at {}:{}",
-                        self.current_token_kind(),
-                        self.current_token_line(),
-                        self.current_token_col()
-                    ),
-                    self.current_token_line() as usize,
-                    self.current_token_col() as usize,
-                )),
+                _ => {
+                    self.errors.push(ParseError::new(
+                        format!(
+                            "Parse error: unexpected token at top level (can only be Template, Document, Style at top level). Found: {:?} at {}:{}",
+                            self.current_token_kind(),
+                            self.current_token_line(),
+                            self.current_token_col()
+                        ),
+                        self.current_token_line() as usize,
+                        self.current_token_col() as usize,
+                    ));
+                    self.advance();
+                }
             }
         }
 

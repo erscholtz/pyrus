@@ -6,6 +6,7 @@ static KEYWORD_TABLE: phf::Map<&'static str, TokenKind> = phf::phf_map! {
     "style" => TokenKind::Style,
     "func" => TokenKind::Func,
     "element" => TokenKind::Element,
+    "children" => TokenKind::Children,
     "let" => TokenKind::Let,
     "const" => TokenKind::Const,
     "if" => TokenKind::If,
@@ -61,6 +62,7 @@ pub struct TokenStream {
     pub cols: Vec<usize>,
     pub source: String,
     pub errors: Vec<LexError>,
+    pub warnings: Vec<LexError>, // TODO
 }
 
 #[derive(Debug, Clone)]
@@ -85,6 +87,7 @@ impl TokenStream {
             cols: Vec::new(),
             source,
             errors: Vec::new(),
+            warnings: Vec::new(),
         }
     }
 
