@@ -365,7 +365,7 @@ impl HLIRPass {
                     attributes_ref,
                 });
                 HlirElement::Text {
-                    content: content.clone(),
+                    content: content.to_string(),
                     attributes: attributes_ref,
                 }
             }

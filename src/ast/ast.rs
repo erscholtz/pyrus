@@ -161,11 +161,12 @@ pub enum Statement {
 #[derive(Debug, Clone)]
 pub enum DocElement {
     Text {
-        content: String,
+        content: Expression,
         attributes: HashMap<String, Expression>,
     },
     Image {
-        src: String,
+        // TODO see if this needs to be expression, technically should be something like filepath
+        src: Expression,
         attributes: HashMap<String, Expression>,
     },
     Table {

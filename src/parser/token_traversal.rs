@@ -1,3 +1,5 @@
+use std::arch::x86_64::_mm_lddqu_si128;
+
 use crate::lexer::TokenKind;
 use crate::parser::parser::Parser;
 use crate::parser::parser_err::ParseError;
@@ -105,6 +107,12 @@ impl Parser {
                 }
                 self.advance();
             }
+        }
+    }
+
+    pub fn synchronize(&mut self, sync_tokens: &[TokenKind]) {
+        while sync_tokens.contains(&self.current_token_kind()) {
+            self.advance();
         }
     }
 }

@@ -5,6 +5,12 @@ use crate::lexer::TokenKind;
 use crate::parser::parser::Parser;
 use crate::parser::parser_err::ParseError;
 
+const DOC_SYNC: &[TokenKind] = &[
+    TokenKind::At,
+    TokenKind::RightBrace, // End of block
+    TokenKind::Eof,
+];
+
 impl Parser {
     pub fn parse_document_block(&mut self) -> Vec<DocElement> {
         let mut elements: Vec<DocElement> = Vec::new();
@@ -97,8 +103,7 @@ impl Parser {
                     self.current_token_line(),
                     self.current_token_col(),
                 ));
-                println!("{:?}", self.errors.last().as_ref());
-                self.advance();
+                self.synchronize(DOC_SYNC);
                 DocElement::ErrorLocation {
                     line: self.current_token_line(),
                     col: self.current_token_col(),
@@ -127,7 +132,7 @@ impl Parser {
         attributes
     }
 
-    fn parse_document_text_content(&mut self) -> String {
+    fn parse_document_text_content(&mut self) -> Expression {
         let mut content = String::new();
         while self.current_token_kind() != TokenKind::RightBracket {
             match self.current_token_kind() {
@@ -155,7 +160,7 @@ impl Parser {
                 }
             }
         }
-        content
+        Expression::StringLiteral(content)
     }
 
     fn parse_document_list(&mut self) -> (Vec<DocElement>, bool) {
@@ -192,6 +197,7 @@ impl Parser {
                         self.current_token_line(),
                         self.current_token_col(),
                     ));
+                    self.synchronize(DOC_SYNC);
                 }
             }
         }
@@ -212,6 +218,7 @@ impl Parser {
                     self.current_token_line(),
                     self.current_token_col(),
                 ));
+                self.synchronize(DOC_SYNC);
                 break;
             }
             let row = self.parse_document_table_row();
@@ -228,7 +235,7 @@ impl Parser {
                 || self.current_token_kind() == TokenKind::RightBracket
             {
                 row.push(DocElement::Text {
-                    content: String::new(),
+                    content: Expression::StringLiteral(String::new()),
                     attributes: HashMap::new(),
                 });
                 continue;
@@ -250,14 +257,14 @@ impl Parser {
         row
     }
 
-    fn parse_table_delimiter_cell(&mut self) -> String {
+    fn parse_table_delimiter_cell(&mut self) -> Expression {
         let mut content = String::new();
         if self.current_token_kind() == TokenKind::Colon {
             content.push(':');
             self.advance();
         }
         if self.current_token_kind() != TokenKind::Minus {
-            return content;
+            return Expression::StringLiteral(content);
         }
         while self.current_token_kind() == TokenKind::Minus {
             content.push('-');
@@ -267,7 +274,7 @@ impl Parser {
             content.push(':');
             self.advance();
         }
-        content
+        Expression::StringLiteral(content)
     }
 
     fn parse_document_function_call(&mut self) -> DocElement {
@@ -282,10 +289,10 @@ impl Parser {
                 self.current_token_line(),
                 self.current_token_col(),
             ));
-            self.advance();
-            return DocElement::Text {
-                content: "error".to_string(),
-                attributes: HashMap::new(),
+            self.synchronize(DOC_SYNC);
+            return DocElement::ErrorLocation {
+                line: self.current_token_line(),
+                col: self.current_token_col(),
             };
         }
         // function call
@@ -331,6 +338,7 @@ impl Parser {
                     self.current_token_line(),
                     self.current_token_col(),
                 ));
+                self.synchronize(DOC_SYNC);
                 break;
             }
         }

@@ -24,7 +24,7 @@ fn main() {
     }
 
     let filename = if args.len() > 1 {
-        args[1].to_str().unwrap_or("temp.ink")
+        args[1].to_str().unwrap_or("ideas.ink")
     } else {
         "ideas.ink"
     };

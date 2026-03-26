@@ -3,6 +3,13 @@ use crate::lexer::TokenKind;
 use crate::parser::parser::Parser;
 use crate::parser::parser_err::ParseError;
 
+const TEMPLATE_SYNC: &[TokenKind] = &[
+    TokenKind::RightBrace,
+    TokenKind::Func,
+    TokenKind::Element,
+    TokenKind::Eof,
+];
+
 impl Parser {
     pub fn parse_template_block(&mut self) -> Vec<Statement> {
         let mut statements: Vec<Statement> = Vec::new();
@@ -100,6 +107,7 @@ impl Parser {
                     self.current_token_line(),
                     self.current_token_col(),
                 ));
+                self.synchronize(TEMPLATE_SYNC);
                 Statement::ErrorLocation {
                     line: self.current_token_line(),
                     col: self.current_token_col(),
@@ -185,7 +193,8 @@ impl Parser {
                         self.current_token_line(),
                         self.current_token_col(),
                     ));
-                    panic!("{:?}", self.errors.last().unwrap());
+                    self.synchronize(TEMPLATE_SYNC);
+                    break;
                 }
             }
         }
@@ -211,7 +220,8 @@ impl Parser {
                         self.current_token_line(),
                         self.current_token_col(),
                     ));
-                    panic!("{:?}", self.errors.last().unwrap());
+                    self.synchronize(TEMPLATE_SYNC);
+                    break;
                 }
                 _ => {
                     let statement = self.parse_statement();
