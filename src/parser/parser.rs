@@ -41,6 +41,10 @@ impl Parser {
                 }
                 TokenKind::Document => {
                     self.expect(TokenKind::Document);
+                    // Optional document name
+                    if self.current_token_kind() == TokenKind::Identifier {
+                        self.advance(); // consume document name
+                    }
                     self.expect(TokenKind::LeftBrace);
                     let document_block = self.parse_document_block();
                     document = Some(DocumentBlock {

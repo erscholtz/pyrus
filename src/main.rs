@@ -23,7 +23,12 @@ fn main() {
         println!("No arguments provided!");
     }
 
-    let data = fs::read_to_string("temp.ink").expect("Should be able to read test file");
+    let filename = if args.len() > 1 {
+        args[1].to_str().unwrap_or("temp.ink")
+    } else {
+        "ideas.ink"
+    };
+    let data = fs::read_to_string(filename).expect("Should be able to read test file");
 
     let tokens = match lexer::lex(&data) {
         Ok(tokens) => tokens,

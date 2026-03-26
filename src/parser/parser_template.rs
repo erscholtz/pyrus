@@ -152,6 +152,7 @@ impl Parser {
 
         self.expect(TokenKind::LeftBrace);
         let body = self.parse_decl_body();
+        self.expect(TokenKind::RightBrace); // consume element's closing brace
 
         Statement::ElementDecl { name, args, body }
     }

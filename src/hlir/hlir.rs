@@ -165,7 +165,11 @@ impl HLIRPass {
         parent_index: Option<usize>,
     ) -> usize {
         match element {
-            crate::ast::DocElement::Call { name, args } => {
+            crate::ast::DocElement::Call {
+                name,
+                args,
+                children,
+            } => {
                 let func_id = match self.find_symbol(name.as_str()) {
                     Some(id) => Some(id),
                     None => panic!("Function not found: {}", name),

@@ -1,7 +1,6 @@
 use std::collections::HashMap;
-use std::io::SeekFrom;
 
-use crate::ast::{ArgType, DocElement, Expression, TemplateBlock};
+use crate::ast::{ArgType, DocElement, Expression};
 use crate::lexer::TokenKind;
 use crate::parser::parser::Parser;
 use crate::parser::parser_err::ParseError;
@@ -30,7 +29,6 @@ impl Parser {
     // TODO handle code snippets properly
     pub fn parse_document_element(&mut self) -> DocElement {
         self.expect(TokenKind::At);
-        println!("{:?}", self.current_token_kind());
         match self.current_token_kind() {
             TokenKind::Text => {
                 self.advance(); // consume text label
@@ -67,7 +65,12 @@ impl Parser {
                 todo!("Link support not implemented");
             }
             TokenKind::Table => {
-                todo!("Table support not implemented");
+                self.advance(); // consume table label
+                let attributes = self.parse_style_attributes();
+                self.expect(TokenKind::LeftBracket);
+                let table = self.parse_document_table();
+                self.expect(TokenKind::RightBracket);
+                DocElement::Table { table, attributes }
             }
             TokenKind::Section => {
                 self.advance(); // consume section label
@@ -94,7 +97,7 @@ impl Parser {
                     self.current_token_line(),
                     self.current_token_col(),
                 ));
-                println!("{:?}", self.current_token_kind());
+                println!("{:?}", self.errors.last().as_ref());
                 self.advance();
                 DocElement::ErrorLocation {
                     line: self.current_token_line(),
@@ -195,6 +198,78 @@ impl Parser {
         (items, numbered)
     }
 
+    fn parse_document_table(&mut self) -> Vec<Vec<DocElement>> {
+        let mut table = Vec::new();
+
+        while self.current_token_kind() != TokenKind::RightBracket {
+            if self.current_token_kind() != TokenKind::Pipe {
+                self.errors.push(ParseError::new(
+                    format!(
+                        "Expected '|' to start table row at {}:{}",
+                        self.current_token_line(),
+                        self.current_token_col()
+                    ),
+                    self.current_token_line(),
+                    self.current_token_col(),
+                ));
+                break;
+            }
+            let row = self.parse_document_table_row();
+            table.push(row);
+        }
+        table
+    }
+
+    fn parse_document_table_row(&mut self) -> Vec<DocElement> {
+        let mut row = Vec::new();
+        while self.current_token_kind() == TokenKind::Pipe {
+            self.advance(); // consume '|'
+            if self.current_token_kind() == TokenKind::Pipe
+                || self.current_token_kind() == TokenKind::RightBracket
+            {
+                row.push(DocElement::Text {
+                    content: String::new(),
+                    attributes: HashMap::new(),
+                });
+                continue;
+            }
+            if self.current_token_kind() == TokenKind::Minus
+                || self.current_token_kind() == TokenKind::Colon
+            {
+                let cell_content = self.parse_table_delimiter_cell();
+                row.push(DocElement::Text {
+                    content: cell_content,
+                    attributes: HashMap::new(),
+                });
+            } else if self.current_token_kind() == TokenKind::At {
+                // DSL-style cell: @text[...] or other document element
+                let cell = self.parse_document_element();
+                row.push(cell);
+            }
+        }
+        row
+    }
+
+    fn parse_table_delimiter_cell(&mut self) -> String {
+        let mut content = String::new();
+        if self.current_token_kind() == TokenKind::Colon {
+            content.push(':');
+            self.advance();
+        }
+        if self.current_token_kind() != TokenKind::Minus {
+            return content;
+        }
+        while self.current_token_kind() == TokenKind::Minus {
+            content.push('-');
+            self.advance();
+        }
+        if self.current_token_kind() == TokenKind::Colon {
+            content.push(':');
+            self.advance();
+        }
+        content
+    }
+
     fn parse_document_function_call(&mut self) -> DocElement {
         if self.toks.kinds.get(self.idx + 1) != Some(&TokenKind::LeftParen) {
             // check if it is a function call
@@ -260,9 +335,27 @@ impl Parser {
             }
         }
         self.expect(TokenKind::RightParen);
+
+        // Check if there's a children block [...] for custom elements
+        let mut children = Vec::new();
+        if self.current_token_kind() == TokenKind::LeftBracket {
+            self.expect(TokenKind::LeftBracket);
+
+            while self.current_token_kind() != TokenKind::RightBracket {
+                children.push(self.parse_document_element());
+                if self.current_token_kind() == TokenKind::Comma {
+                    self.advance(); // consume comma
+                }
+            }
+            self.expect(TokenKind::RightBracket);
+            // For now, return as a Section containing the children
+            // TODO: Create a new DocElement variant that includes both the call and children
+        }
+
         return DocElement::Call {
             name: func_name,
             args: args,
+            children: children,
         };
     }
 }

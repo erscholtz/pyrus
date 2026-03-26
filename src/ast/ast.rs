@@ -169,7 +169,7 @@ pub enum DocElement {
         attributes: HashMap<String, Expression>,
     },
     Table {
-        rows: Vec<Vec<DocElement>>,
+        table: Vec<Vec<DocElement>>,
         attributes: HashMap<String, Expression>,
     },
     List {
@@ -184,6 +184,7 @@ pub enum DocElement {
     Call {
         name: String,
         args: Vec<ArgType>,
+        children: Vec<DocElement>,
     },
     Link {
         href: String,
