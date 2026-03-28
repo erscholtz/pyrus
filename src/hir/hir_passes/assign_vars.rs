@@ -1,8 +1,8 @@
-use crate::hlir::hlir::HLIRPass;
+use crate::hir::HIRPass;
 
-use crate::hlir::ir_types::{Global, GlobalId, Id, Literal, Op, Type, ValueId};
+use crate::hir::ir_types::{Global, GlobalId, Id, Literal, Op, Type, ValueId};
 
-impl HLIRPass {
+impl HIRPass {
     pub fn assign_global(
         &mut self,
         name: &String,

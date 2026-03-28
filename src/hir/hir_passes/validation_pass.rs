@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use crate::hlir::HLIRModule;
 use crate::hlir::ir_types::{Func, FuncBlock, Global, Id, Op};
+use crate::hlir::HLIRModule;
 
 impl HLIRModule {
     pub fn validate(&self, hlir: &HLIRModule) -> Result<(), String> {

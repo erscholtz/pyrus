@@ -30,6 +30,15 @@ impl Parser {
         let mut style = None;
 
         while self.idx < self.toks.kinds.len() {
+            // Skip whitespace at top level
+            while self.current_token_kind() == TokenKind::Whitespace {
+                self.advance();
+            }
+
+            if self.idx >= self.toks.kinds.len() {
+                break;
+            }
+
             match self.current_token_kind() {
                 TokenKind::Template => {
                     self.expect(TokenKind::Template);
@@ -101,11 +110,18 @@ impl Parser {
                     expression: Box::new(right),
                 }
             }
-            TokenKind::StringLiteral => {
-                let value = self.current_text();
+            TokenKind::StringLiteral(idx) => {
+                let idx_usize = idx as usize;
+                let entry = self.toks.string_table[idx_usize].clone();
                 self.advance();
                 // Check if the string contains interpolation patterns
-                self.parse_string_with_interpolation(&value)
+                if entry.has_interpolation {
+                    self.parse_string_with_interpolation(&entry.content)
+                } else {
+                    // Process escape sequences even for non-interpolated strings
+                    let processed = self.process_escape_sequences(&entry.content);
+                    Expression::StringLiteral(processed)
+                }
             }
             TokenKind::Float => {
                 let value = self.current_text();
@@ -141,7 +157,7 @@ impl Parser {
         }
     }
 
-    fn parse_string_with_interpolation(&mut self, s: &str) -> Expression {
+    pub fn parse_string_with_interpolation(&mut self, s: &str) -> Expression {
         // Strip surrounding quotes if present
         let content = if s.len() >= 2 && s.starts_with('"') && s.ends_with('"') {
             &s[1..s.len() - 1]
@@ -235,6 +251,38 @@ impl Parser {
         } else {
             Expression::InterpolatedString(parts)
         }
+    }
+
+    fn process_escape_sequences(&self, s: &str) -> String {
+        let mut result = String::new();
+        let mut chars = s.chars().peekable();
+
+        while let Some(ch) = chars.next() {
+            if ch == '\\' {
+                if let Some(next_ch) = chars.next() {
+                    match next_ch {
+                        'n' => result.push('\n'),
+                        't' => result.push('\t'),
+                        'r' => result.push('\r'),
+                        '\\' => result.push('\\'),
+                        '"' => result.push('"'),
+                        '{' => result.push('{'),
+                        '}' => result.push('}'),
+                        _ => {
+                            // Unknown escape - keep both characters
+                            result.push('\\');
+                            result.push(next_ch);
+                        }
+                    }
+                } else {
+                    result.push('\\');
+                }
+            } else {
+                result.push(ch);
+            }
+        }
+
+        result
     }
 
     fn parse_expression_from_str(&mut self, expr_str: &str) -> Expression {

@@ -1,8 +1,6 @@
-use std::arch::x86_64::_mm_lddqu_si128;
-
+use super::parser_err::ParseError;
 use crate::lexer::TokenKind;
 use crate::parser::parser::Parser;
-use crate::parser::parser_err::ParseError;
 
 impl Parser {
     pub fn current_token_kind(&self) -> TokenKind {
@@ -48,10 +46,19 @@ impl Parser {
         if self.idx < self.toks.kinds.len() {
             self.idx += 1;
         }
+        // Skip whitespace tokens after advancing
+        while self.idx < self.toks.kinds.len() && self.toks.kinds[self.idx] == TokenKind::Whitespace
+        {
+            self.idx += 1;
+        }
         self.toks.kinds[self.idx - 1]
     }
 
     pub fn expect(&mut self, kind: TokenKind) -> TokenKind {
+        // Skip whitespace tokens before checking
+        while self.current_token_kind() == TokenKind::Whitespace {
+            self.advance();
+        }
         if self.current_token_kind() == kind {
             return self.advance().clone();
         }
@@ -70,6 +77,10 @@ impl Parser {
     }
 
     pub fn match_kind(&mut self, kind: TokenKind) -> bool {
+        // Skip whitespace tokens before checking
+        while self.current_token_kind() == TokenKind::Whitespace {
+            self.advance();
+        }
         if self.current_token_kind() == kind {
             self.advance();
             return true;
@@ -111,7 +122,7 @@ impl Parser {
     }
 
     pub fn synchronize(&mut self, sync_tokens: &[TokenKind]) {
-        while sync_tokens.contains(&self.current_token_kind()) {
+        while !sync_tokens.contains(&self.current_token_kind()) {
             self.advance();
         }
     }

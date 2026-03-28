@@ -319,7 +319,10 @@ fn test_parse_return_statement() {
 
     match &template.statements[0] {
         Statement::Return { doc_element } => match doc_element {
-            DocElement::Text { content, .. } => assert_eq!(content, "done"),
+            DocElement::Text { content, .. } => match content {
+                Expression::StringLiteral(s) => assert_eq!(s, "done"),
+                _ => panic!("Expected StringLiteral content"),
+            },
             _ => panic!("Expected Text DocElement in return"),
         },
         _ => panic!("Expected Return statement"),
@@ -359,7 +362,7 @@ fn test_parse_function_call_no_args() {
     let doc = ast.document.unwrap();
 
     match &doc.elements[0] {
-        DocElement::Call { name, args } => {
+        DocElement::Call { name, args, .. } => {
             assert_eq!(name, "greet");
             assert_eq!(args.len(), 0);
         }
@@ -375,7 +378,7 @@ fn test_parse_function_call_with_args() {
     let doc = ast.document.unwrap();
 
     match &doc.elements[0] {
-        DocElement::Call { name, args } => {
+        DocElement::Call { name, args, .. } => {
             assert_eq!(name, "print");
             assert_eq!(args.len(), 2);
         }

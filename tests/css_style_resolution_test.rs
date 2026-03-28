@@ -1,6 +1,6 @@
 //! Tests for CSS style resolution in HLIR
 
-use pyrus::hlir::{lower, resolve_styles};
+use pyrus::hir::{lower, resolve_styles};
 use pyrus::lexer::lex;
 use pyrus::parser::parse;
 

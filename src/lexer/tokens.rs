@@ -1,3 +1,9 @@
+#[derive(Debug, Clone)]
+pub struct StringEntry {
+    pub content: String,
+    pub has_interpolation: bool,
+}
+
 #[repr(u8)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum TokenKind {
@@ -30,7 +36,7 @@ pub enum TokenKind {
     Identifier,
     Int,
     Float,
-    StringLiteral,
+    StringLiteral(u32),
 
     // Document elements
     Text,
@@ -55,6 +61,9 @@ pub enum TokenKind {
     For,
     While,
     Return,
+
+    // Whitespace
+    Whitespace,
 
     // End
     Eof,

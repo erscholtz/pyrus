@@ -4,8 +4,8 @@ use std::fs;
 use std::time::Instant;
 
 use pyrus::backend;
-use pyrus::hlir;
-use pyrus::hlir::resolve_styles;
+use pyrus::hir;
+use pyrus::hir::resolve_styles;
 use pyrus::layout::setup_layout;
 use pyrus::lexer;
 use pyrus::parser;
@@ -44,7 +44,7 @@ fn main() {
     let ast = parser::parse(tokens).expect("Should be able to parse tokens to AST");
     println!("{:#?}", ast);
 
-    let mut hlir_module = hlir::lower(&ast);
+    let mut hlir_module = hir::lower(&ast);
     println!("{:#?}", hlir_module);
     // println!("HLIR before style resolution:");
     // println!("  Elements: {}", hlir_module.elements.len());

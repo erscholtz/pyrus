@@ -1,4 +1,4 @@
-use crate::lexer::tokens::TokenKind;
+use crate::lexer::tokens::{StringEntry, TokenKind};
 
 static KEYWORD_TABLE: phf::Map<&'static str, TokenKind> = phf::phf_map! {
     "template" => TokenKind::Template,
@@ -62,7 +62,7 @@ pub struct TokenStream {
     pub cols: Vec<usize>,
     pub source: String,
     pub errors: Vec<LexError>,
-    pub warnings: Vec<LexError>, // TODO
+    pub string_table: Vec<StringEntry>,
 }
 
 #[derive(Debug, Clone)]
@@ -87,7 +87,7 @@ impl TokenStream {
             cols: Vec::new(),
             source,
             errors: Vec::new(),
-            warnings: Vec::new(),
+            string_table: Vec::new(),
         }
     }
 
@@ -213,8 +213,17 @@ pub fn lex(source: &str) -> Result<TokenStream, Vec<LexError>> {
             } else {
                 i += 1; // Skip closing quote
                 col += 1;
+
+                // Extract string content (without quotes) and add to string table
+                let content = source[start + 1..i - 1].to_string();
+                let has_interpolation = content.contains("${");
+                let index = out.string_table.len() as u32;
+                out.string_table.push(StringEntry {
+                    content,
+                    has_interpolation,
+                });
+                out.push(TokenKind::StringLiteral(index), start, i, line, col);
             }
-            out.push(TokenKind::StringLiteral, start, i, line, col);
             continue;
         }
 

@@ -3,9 +3,9 @@ use taffy::style::{AvailableSpace, Dimension};
 use taffy::style_helpers::{FromLength, FromPercent, TaffyAuto};
 use taffy::{LengthPercentage, LengthPercentageAuto, NodeId, Rect, Size, Style, TaffyTree};
 
-use crate::hlir::{FuncId, HLIRModule, HlirElement, Id, Op, StyleAttributes};
+use crate::hir::{FuncId, HIRModule, HirElement, Id, Op, StyleAttributes};
 
-pub fn setup_layout(hlir_module: &HLIRModule) -> LayoutEngine {
+pub fn setup_layout(hlir_module: &HIRModule) -> LayoutEngine {
     let layout = LayoutEngine::build_from_hlir_module(hlir_module);
     layout
 }
@@ -39,7 +39,7 @@ impl LayoutEngine {
         }
     }
 
-    pub fn build_from_hlir_module(hlir_module: &HLIRModule) -> Self {
+    pub fn build_from_hlir_module(hlir_module: &HIRModule) -> Self {
         let mut layout = LayoutEngine::new();
 
         // Pre-allocate element_to_node to match elements size
@@ -80,15 +80,15 @@ impl LayoutEngine {
         layout
     }
 
-    fn process_op_and_get_node(&mut self, op: &Op, hlir_module: &HLIRModule) -> Option<NodeId> {
+    fn process_op_and_get_node(&mut self, op: &Op, hlir_module: &HIRModule) -> Option<NodeId> {
         match op {
             Op::HlirElementEmit { index } => {
                 // Document element - has metadata and computed styles
                 let element = hlir_module.elements.get(*index).expect("element not found");
                 let attributes_ref = match element {
-                    HlirElement::Section { attributes, .. } => *attributes,
-                    HlirElement::List { attributes, .. } => *attributes,
-                    HlirElement::Text { attributes, .. } => *attributes,
+                    HirElement::Section { attributes, .. } => *attributes,
+                    HirElement::List { attributes, .. } => *attributes,
+                    HirElement::Text { attributes, .. } => *attributes,
                 };
                 self.create_node_from_metadata(*index, attributes_ref, hlir_module)
             }
@@ -110,7 +110,7 @@ impl LayoutEngine {
         &mut self,
         element_index: usize,
         attributes_ref: usize,
-        hlir_module: &HLIRModule,
+        hlir_module: &HIRModule,
     ) -> Option<NodeId> {
         let attributes = match hlir_module.attributes.find_node(attributes_ref) {
             Some(a) => &a.computed,
@@ -137,7 +137,7 @@ impl LayoutEngine {
     fn create_node_from_element(
         &mut self,
         element_index: usize,
-        hlir_module: &HLIRModule,
+        hlir_module: &HIRModule,
     ) -> Option<NodeId> {
         let element = match hlir_module.elements.get(element_index) {
             Some(e) => e,
@@ -146,9 +146,9 @@ impl LayoutEngine {
 
         // Get attributes_ref from the element and look up computed styles
         let attributes_ref = match element {
-            HlirElement::Section { attributes, .. } => *attributes,
-            HlirElement::List { attributes, .. } => *attributes,
-            HlirElement::Text { attributes, .. } => *attributes,
+            HirElement::Section { attributes, .. } => *attributes,
+            HirElement::List { attributes, .. } => *attributes,
+            HirElement::Text { attributes, .. } => *attributes,
         };
 
         let attributes = match hlir_module.attributes.find_node(attributes_ref) {
@@ -179,15 +179,15 @@ impl LayoutEngine {
 
     fn process_element_children(
         &mut self,
-        element: &HlirElement,
-        hlir_module: &HLIRModule,
+        element: &HirElement,
+        hlir_module: &HIRModule,
         parent_node: NodeId,
     ) {
         // HlirElement stores children as indices into hlir_module.elements
         let children = match element {
-            HlirElement::Section { children, .. } => children,
-            HlirElement::List { children, .. } => children,
-            HlirElement::Text { .. } => return, // No children
+            HirElement::Section { children, .. } => children,
+            HirElement::List { children, .. } => children,
+            HirElement::Text { .. } => return, // No children
         };
 
         for child_idx in children {
@@ -356,7 +356,7 @@ impl LayoutEngine {
 
     /// Compute a simple document flow layout for elements that Taffy can't measure
     /// This stacks elements vertically with proper spacing based on font-size
-    pub fn compute_document_flow(&self, hlir: &HLIRModule) -> Vec<ComputedLayout> {
+    pub fn compute_document_flow(&self, hlir: &HIRModule) -> Vec<ComputedLayout> {
         let mut layouts = Vec::new();
         let mut current_y = 0.0;
         let page_width = 595.0; // A4 width in points
@@ -402,7 +402,7 @@ impl LayoutEngine {
     fn process_element_for_layout(
         &self,
         element_index: usize,
-        hlir: &HLIRModule,
+        hlir: &HIRModule,
         layouts: &mut Vec<ComputedLayout>,
         current_y: &mut f32,
         page_width: f32,
@@ -410,7 +410,7 @@ impl LayoutEngine {
     ) {
         if let Some(element) = hlir.elements.get(element_index) {
             let (height, has_children) = match element {
-                HlirElement::Text { attributes, .. } => {
+                HirElement::Text { attributes, .. } => {
                     let attrs = hlir.attributes.find_node(*attributes).map(|n| &n.computed);
                     let font_size = attrs
                         .and_then(|a| a.style.get("font-size"))
@@ -419,7 +419,7 @@ impl LayoutEngine {
                     // Line height is typically 1.2x font size
                     (font_size * 1.2, false)
                 }
-                HlirElement::List { children, .. } => {
+                HirElement::List { children, .. } => {
                     // List container - process children with indentation
                     for child_idx in children {
                         self.process_element_for_layout(
@@ -433,7 +433,7 @@ impl LayoutEngine {
                     }
                     (0.0, true) // Height comes from children
                 }
-                HlirElement::Section { children, .. } => {
+                HirElement::Section { children, .. } => {
                     // Section container - process children
                     for child_idx in children {
                         self.process_element_for_layout(

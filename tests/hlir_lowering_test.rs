@@ -3,8 +3,8 @@
 //! These tests define the expected behavior of the lowering pass and
 //! the validation pass that should catch errors.
 
-use pyrus::hlir::{lower, resolve_styles};
-use pyrus::hlir::{FuncId, HLIRModule, Id, Op, Type};
+use pyrus::hir::{FuncId, HIRModule, Id, Op, Type};
+use pyrus::hir::{lower, resolve_styles};
 use pyrus::lexer::lex;
 use pyrus::parser::parse;
 
@@ -382,7 +382,7 @@ document {
 
     // Check the init literal
     match &global.init {
-        pyrus::hlir::Literal::Int(42) => {}
+        pyrus::hir::Literal::Int(42) => {}
         _ => panic!("Expected Int(42), got {:?}", global.init),
     }
 }

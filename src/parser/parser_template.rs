@@ -1,7 +1,7 @@
+use super::parser::Parser;
+use super::parser_err::ParseError;
 use crate::ast::Statement;
 use crate::lexer::TokenKind;
-use crate::parser::parser::Parser;
-use crate::parser::parser_err::ParseError;
 
 const TEMPLATE_SYNC: &[TokenKind] = &[
     TokenKind::RightBrace,
@@ -14,6 +14,15 @@ impl Parser {
     pub fn parse_template_block(&mut self) -> Vec<Statement> {
         let mut statements: Vec<Statement> = Vec::new();
         while self.idx < self.toks.kinds.len() {
+            // Skip whitespace before checking token type
+            while self.current_token_kind() == TokenKind::Whitespace {
+                self.advance();
+            }
+
+            if self.idx >= self.toks.kinds.len() {
+                break;
+            }
+
             match self.current_token_kind() {
                 TokenKind::RightBrace => {
                     self.advance(); // exit block
@@ -140,6 +149,7 @@ impl Parser {
 
         self.expect(TokenKind::LeftBrace);
         let body = self.parse_decl_body();
+        self.expect(TokenKind::RightBrace); // consume function's closing brace
 
         Statement::FunctionDecl {
             name,

@@ -12,10 +12,26 @@ fn lexes_sample_file_tokens() {
     let data = fs::read_to_string("tests/input/lexer_test.ink").expect("read sample file");
     let tokens = lexer::lex(&data).expect("Lexing failed");
 
-    // basic structure: first tokens should be `template` and `{`
+    // basic structure: find first non-whitespace tokens, should be `template` and `{`
     assert!(!tokens.kinds.is_empty());
-    assert_eq!(tokens.kinds[0], lexer::TokenKind::Template);
-    assert_eq!(tokens.kinds[1], lexer::TokenKind::LeftBrace);
+    let non_ws_indices: Vec<usize> = tokens
+        .kinds
+        .iter()
+        .enumerate()
+        .filter_map(|(i, k)| {
+            if *k != lexer::TokenKind::Whitespace {
+                Some(i)
+            } else {
+                None
+            }
+        })
+        .collect();
+    assert!(
+        !non_ws_indices.is_empty(),
+        "expected at least one non-whitespace token"
+    );
+    assert_eq!(tokens.kinds[non_ws_indices[0]], lexer::TokenKind::Template);
+    assert_eq!(tokens.kinds[non_ws_indices[1]], lexer::TokenKind::LeftBrace);
 
     // there should be at least one string literal ("My Document")
     let string_indices: Vec<usize> = tokens
@@ -23,7 +39,7 @@ fn lexes_sample_file_tokens() {
         .iter()
         .enumerate()
         .filter_map(|(i, k)| {
-            if *k == lexer::TokenKind::StringLiteral {
+            if matches!(*k, lexer::TokenKind::StringLiteral(_)) {
                 Some(i)
             } else {
                 None

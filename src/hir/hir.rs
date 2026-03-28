@@ -1,29 +1,31 @@
 use std::collections::HashMap;
 
 use crate::ast::{Ast, Expression, Statement};
-use crate::hlir::ir_types::{
-    AttributeNode, AttributeTree, ElementMetadata, Func, FuncBlock, FuncId, GlobalId, HLIRModule,
-    HlirElement, Id, Op, Type,
+
+pub use crate::hir::hir_util::style_resolver::resolve_styles;
+pub use crate::hir::ir_types::{
+    AttributeNode, AttributeTree, ElementMetadata, Func, FuncBlock, FuncId, GlobalId, HIRModule,
+    HirElement, Id, Literal, Op, StyleAttributes, Type,
 };
 
-pub fn lower(ast: &Ast) -> HLIRModule {
-    let mut pass = HLIRPass {
+pub fn lower(ast: &Ast) -> HIRModule {
+    let mut pass = HIRPass {
         ast: ast.clone(),
         symbol_table: Vec::new(),
     };
     pass.lower()
 }
 
-pub struct HLIRPass {
+pub struct HIRPass {
     // Fields and methods for the Hir struct
     ast: Ast,
     pub symbol_table: Vec<HashMap<String, Id>>, // Scope stack
 }
 
-impl HLIRPass {
+impl HIRPass {
     // Methods for the Hlir struct
-    fn lower(&mut self) -> HLIRModule {
-        let mut hlirmodule = HLIRModule {
+    fn lower(&mut self) -> HIRModule {
+        let mut hlirmodule = HIRModule {
             globals: HashMap::new(),
             functions: HashMap::new(),
             attributes: AttributeTree::new(),
@@ -46,7 +48,7 @@ impl HLIRPass {
         hlirmodule
     }
 
-    fn lower_template_block(&mut self, hlirmodule: &mut HLIRModule) {
+    fn lower_template_block(&mut self, hlirmodule: &mut HIRModule) {
         // all global, default and function declarations
         // handle defaults and globals inside this function call since they are small
 
@@ -122,7 +124,7 @@ impl HLIRPass {
         }
     }
 
-    fn lower_document_block(&mut self, hlirmodule: &mut HLIRModule) {
+    fn lower_document_block(&mut self, hlirmodule: &mut HIRModule) {
         let mut ir_body = FuncBlock {
             ops: Vec::new(),
             returned_element_ref: None,
@@ -157,10 +159,10 @@ impl HLIRPass {
         self.symbol_table.pop(); // remove scope (document)
     }
 
-    fn lower_document_element(
+    pub fn lower_document_element(
         &mut self,
         element: &crate::ast::DocElement,
-        hlirmodule: &mut HLIRModule,
+        hlirmodule: &mut HIRModule,
         ir_body: &mut FuncBlock,
         parent_index: Option<usize>,
     ) -> usize {
@@ -202,7 +204,7 @@ impl HLIRPass {
                     attributes_ref,
                 });
 
-                hlirmodule.elements.push(HlirElement::Text {
+                hlirmodule.elements.push(HirElement::Text {
                     content: content.to_string(),
                     attributes: attributes_ref,
                 });
@@ -229,7 +231,7 @@ impl HLIRPass {
                     attributes_ref,
                 });
                 // Push placeholder first to reserve the slot
-                hlirmodule.elements.push(HlirElement::Section {
+                hlirmodule.elements.push(HirElement::Section {
                     children: Vec::new(), // Will be updated
                     attributes: attributes_ref,
                 });
@@ -245,7 +247,7 @@ impl HLIRPass {
                 }
 
                 // Update with actual children
-                hlirmodule.elements[index] = HlirElement::Section {
+                hlirmodule.elements[index] = HirElement::Section {
                     children,
                     attributes: attributes_ref,
                 };
@@ -273,7 +275,7 @@ impl HLIRPass {
                     attributes_ref,
                 });
                 // Push placeholder first to reserve the slot
-                hlirmodule.elements.push(HlirElement::List {
+                hlirmodule.elements.push(HirElement::List {
                     children: Vec::new(), // Will be updated
                     attributes: attributes_ref,
                 });
@@ -289,7 +291,7 @@ impl HLIRPass {
                 }
 
                 // Update with actual children
-                hlirmodule.elements[index] = HlirElement::List {
+                hlirmodule.elements[index] = HirElement::List {
                     children,
                     attributes: attributes_ref,
                 };
@@ -345,8 +347,8 @@ impl HLIRPass {
     pub fn convert_doc_element_to_hlir(
         &self,
         element: &crate::ast::DocElement,
-        hlirmodule: &mut HLIRModule,
-    ) -> HlirElement {
+        hlirmodule: &mut HIRModule,
+    ) -> HirElement {
         match element {
             crate::ast::DocElement::Text {
                 content,
@@ -364,7 +366,7 @@ impl HLIRPass {
                     parent: None,
                     attributes_ref,
                 });
-                HlirElement::Text {
+                HirElement::Text {
                     content: content.to_string(),
                     attributes: attributes_ref,
                 }
@@ -402,7 +404,7 @@ impl HLIRPass {
                     parent: None,
                     attributes_ref,
                 });
-                HlirElement::Section {
+                HirElement::Section {
                     children,
                     attributes: attributes_ref,
                 }
@@ -438,7 +440,7 @@ impl HLIRPass {
                     parent: None,
                     attributes_ref,
                 });
-                HlirElement::List {
+                HirElement::List {
                     children,
                     attributes: attributes_ref,
                 }
@@ -454,7 +456,7 @@ impl HLIRPass {
                     parent: None,
                     attributes_ref: 1,
                 });
-                HlirElement::Text {
+                HirElement::Text {
                     content: String::new(),
                     attributes: 1, // Root attribute node
                 }

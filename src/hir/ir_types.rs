@@ -144,17 +144,17 @@ pub struct ElementMetadata {
 }
 
 #[derive(Debug, Clone)]
-pub struct HLIRModule {
+pub struct HIRModule {
     pub globals: HashMap<Id, Global>, // TODO eventually remove IDs from actual struct and just refer to them (I think)
     pub functions: HashMap<Id, Func>,
     pub attributes: AttributeTree,
     pub css_rules: Vec<StyleRule>, // Parsed CSS rules (unapplied)
-    pub elements: Vec<HlirElement>,
+    pub elements: Vec<HirElement>,
     pub element_metadata: Vec<ElementMetadata>, // Parallel to elements, for CSS matching
 }
 
 #[derive(Debug, Clone)]
-pub enum HlirElement {
+pub enum HirElement {
     Section {
         children: Vec<usize>,
         attributes: usize,

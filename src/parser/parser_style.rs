@@ -1,4 +1,4 @@
-use crate::parser::parser::Parser;
+use super::parser::Parser;
 
 use crate::ast::{Expression, KeyValue, Selector, StyleRule};
 use crate::lexer::TokenKind;
@@ -7,6 +7,15 @@ impl Parser {
     pub fn parse_style_block(&mut self) -> Vec<StyleRule> {
         let mut rules: Vec<StyleRule> = Vec::new();
         while self.idx < self.toks.kinds.len() {
+            // Skip whitespace before checking token type
+            while self.current_token_kind() == TokenKind::Whitespace {
+                self.advance();
+            }
+
+            if self.idx >= self.toks.kinds.len() {
+                break;
+            }
+
             match self.current_token_kind() {
                 TokenKind::RightBrace => {
                     self.advance(); // exit block

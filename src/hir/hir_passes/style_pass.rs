@@ -1,5 +1,5 @@
-use crate::hlir::hlir::HLIRPass;
 use crate::hlir::util::style_resolver::resolve_styles;
+use crate::hlir::HLIRPass;
 
 impl HLIRPass {
     /// Run the CSS style resolution pass on the HLIR module

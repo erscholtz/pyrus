@@ -1,5 +1,5 @@
 use crate::backend::render::pdf::pdf_renderer::PdfRenderer;
-use crate::hlir::HLIRModule;
+use crate::hir::HIRModule;
 use crate::layout::{ComputedLayout, LayoutEngine};
 
 pub enum Renderer {
@@ -19,7 +19,7 @@ impl Backend {
 
     pub fn render(
         &self,
-        hlir: HLIRModule,
+        hlir: HIRModule,
         _layout: &LayoutEngine,
         computed_layouts: &[ComputedLayout],
     ) -> Result<(), std::io::Error> {

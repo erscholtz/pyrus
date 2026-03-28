@@ -1,15 +1,15 @@
 use std::collections::HashMap;
 
-use crate::hlir::hlir::HLIRPass;
-use crate::hlir::ir_types::{AttributeNode, FuncBlock, HLIRModule, HlirElement, Id, Op, ValueId};
+use crate::hir::HIRPass;
+use crate::hir::ir_types::{AttributeNode, FuncBlock, HIRModule, HirElement, Id, Op, ValueId};
 
 use crate::ast::ArgType;
 
-impl HLIRPass {
+impl HIRPass {
     pub fn lower_function_block(
         &mut self,
         body: &Vec<crate::ast::Statement>,
-        hlirmodule: &mut HLIRModule,
+        hlirmodule: &mut HIRModule,
     ) -> FuncBlock {
         let mut ir_body = FuncBlock {
             ops: Vec::new(),
@@ -34,9 +34,8 @@ impl HLIRPass {
                 }
 
                 crate::ast::Statement::Return { doc_element } => {
-                    let hlir_element = self.convert_doc_element_to_hlir(doc_element, hlirmodule);
-                    hlirmodule.elements.push(hlir_element);
-                    let element_id = hlirmodule.elements.len() - 1;
+                    let element_id =
+                        self.lower_document_element(doc_element, hlirmodule, &mut ir_body, None);
                     ir_body.ops.push(Op::Return {
                         doc_element_ref: element_id,
                     });

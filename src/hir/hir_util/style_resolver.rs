@@ -1,17 +1,17 @@
 use crate::ast::{KeyValue, Selector, StyleRule};
-use crate::hlir::ir_types::{HLIRModule, StyleAttributes};
+use crate::hir::ir_types::{HIRModule, PageBreak, StyleAttributes};
 
-pub fn resolve_styles(hlir: &mut HLIRModule) {
+pub fn resolve_styles(hlir: &mut HIRModule) {
     let mut resolver = StyleResolver::new(hlir);
     resolver.resolve();
 }
 
 pub struct StyleResolver<'a> {
-    hlir: &'a mut HLIRModule,
+    hlir: &'a mut HIRModule,
 }
 
 impl<'a> StyleResolver<'a> {
-    pub fn new(hlir: &'a mut HLIRModule) -> Self {
+    pub fn new(hlir: &'a mut HIRModule) -> Self {
         Self { hlir }
     }
 
@@ -110,7 +110,7 @@ impl<'a> StyleResolver<'a> {
             if inline.hidden {
                 computed.hidden = true;
             }
-            if inline.page_break != crate::hlir::ir_types::PageBreak::None {
+            if inline.page_break != PageBreak::None {
                 computed.page_break = inline.page_break.clone();
             }
             if let Some(role) = &inline.role {

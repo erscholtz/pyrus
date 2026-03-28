@@ -1,9 +1,9 @@
 mod parser;
 mod parser_document;
-mod parser_err;
 mod parser_style;
 mod parser_template;
+mod parser_util;
 
 pub use parser::parse;
-
-mod token_traversal;
+pub use parser_util::parser_err;
+pub use parser_util::token_traversal;

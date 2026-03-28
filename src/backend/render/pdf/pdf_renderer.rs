@@ -6,7 +6,7 @@ use printpdf::{
     BuiltinFont, Mm, Op, PdfDocument, PdfFontHandle, PdfPage, PdfSaveOptions, Point, Pt, TextItem,
 };
 
-use crate::hlir::{HLIRModule, HlirElement, StyleAttributes};
+use crate::hir::{HIRModule, HirElement, StyleAttributes};
 use crate::layout::ComputedLayout;
 
 pub struct PdfRenderer;
@@ -18,7 +18,7 @@ impl PdfRenderer {
 
     pub fn render(
         &self,
-        hlir: HLIRModule,
+        hlir: HIRModule,
         computed_layouts: &[ComputedLayout],
     ) -> Result<(), std::io::Error> {
         let mut doc = PdfDocument::new("Document");
@@ -36,7 +36,7 @@ impl PdfRenderer {
         Ok(())
     }
 
-    fn setup_pages(&self, hlir: HLIRModule, computed_layouts: &[ComputedLayout]) -> Vec<PdfPage> {
+    fn setup_pages(&self, hlir: HIRModule, computed_layouts: &[ComputedLayout]) -> Vec<PdfPage> {
         let mut pages = Vec::new();
 
         let ops = self.setup_ops(hlir, computed_layouts);
@@ -46,7 +46,7 @@ impl PdfRenderer {
         pages
     }
 
-    fn setup_ops(&self, hlir: HLIRModule, computed_layouts: &[ComputedLayout]) -> Vec<Op> {
+    fn setup_ops(&self, hlir: HIRModule, computed_layouts: &[ComputedLayout]) -> Vec<Op> {
         let mut pdf_ops = Vec::new();
 
         // Render each element with its computed layout
@@ -61,8 +61,8 @@ impl PdfRenderer {
 
     fn format_hlir_to_pdf_op(
         &self,
-        element: HlirElement,
-        hlir: &HLIRModule,
+        element: HirElement,
+        hlir: &HIRModule,
         pdf_ops: &mut Vec<Op>,
         layout: &ComputedLayout,
     ) {
@@ -72,7 +72,7 @@ impl PdfRenderer {
 
         // Get font size first so we can adjust for baseline
         let (font_size, font) = match &element {
-            HlirElement::Text { attributes, .. } => {
+            HirElement::Text { attributes, .. } => {
                 let default_attrs = StyleAttributes::default();
                 let attrs = hlir
                     .attributes
@@ -101,7 +101,7 @@ impl PdfRenderer {
         let point = Point::new(Mm(x_mm), Mm(y_mm));
 
         match element {
-            HlirElement::Text { content, .. } => {
+            HirElement::Text { content, .. } => {
                 pdf_ops.push(Op::StartTextSection);
                 pdf_ops.push(Op::SetTextCursor { pos: point });
                 pdf_ops.push(Op::SetFont {
@@ -113,10 +113,10 @@ impl PdfRenderer {
                 });
                 pdf_ops.push(Op::EndTextSection);
             }
-            HlirElement::List { .. } => {
+            HirElement::List { .. } => {
                 // Container elements don't render directly
             }
-            HlirElement::Section { .. } => {
+            HirElement::Section { .. } => {
                 // Container elements don't render directly
             }
         }
