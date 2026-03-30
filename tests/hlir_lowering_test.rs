@@ -354,7 +354,7 @@ document {
         .body
         .ops
         .iter()
-        .filter(|op| matches!(op, Op::HlirElementEmit { .. }))
+        .filter(|op| matches!(op, Op::HirElementEmit { .. }))
         .collect();
 
     assert_eq!(emit_ops.len(), 2, "Should have 2 DocElementEmit ops");

@@ -74,7 +74,7 @@ pub enum Op {
     Return {
         doc_element_ref: usize,
     },
-    HlirElementEmit {
+    HirElementEmit {
         index: usize,
     },
     StringConcat {
@@ -165,6 +165,14 @@ pub enum HirElement {
     },
     Text {
         content: String,
+        attributes: usize,
+    },
+    Image {
+        src: String,
+        attributes: usize,
+    },
+    Table {
+        table: Vec<Vec<usize>>,
         attributes: usize,
     },
     // TODO code, images, etc

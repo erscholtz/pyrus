@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 
-use crate::hlir::ir_types::{Func, FuncBlock, Global, Id, Op};
-use crate::hlir::HLIRModule;
+use crate::hir::HIRModule;
+use crate::hir::ir_types::{Func, FuncBlock, Global, Id, Op};
 
-impl HLIRModule {
-    pub fn validate(&self, hlir: &HLIRModule) -> Result<(), String> {
-        self.validate_globals(&hlir.globals);
-        self.validate_functions(&hlir.functions);
+impl HIRModule {
+    pub fn validate(&self, hir: &HIRModule) -> Result<(), String> {
+        self.validate_globals(&hir.globals);
+        self.validate_functions(&hir.functions);
 
         Ok(())
     }

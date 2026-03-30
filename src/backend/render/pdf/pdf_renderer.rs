@@ -119,6 +119,12 @@ impl PdfRenderer {
             HirElement::Section { .. } => {
                 // Container elements don't render directly
             }
+            HirElement::Image { src, .. } => {
+                // Render image
+            }
+            HirElement::Table { .. } => {
+                // Render table
+            }
         }
     }
 

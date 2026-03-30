@@ -82,13 +82,15 @@ impl LayoutEngine {
 
     fn process_op_and_get_node(&mut self, op: &Op, hlir_module: &HIRModule) -> Option<NodeId> {
         match op {
-            Op::HlirElementEmit { index } => {
+            Op::HirElementEmit { index } => {
                 // Document element - has metadata and computed styles
                 let element = hlir_module.elements.get(*index).expect("element not found");
                 let attributes_ref = match element {
                     HirElement::Section { attributes, .. } => *attributes,
                     HirElement::List { attributes, .. } => *attributes,
                     HirElement::Text { attributes, .. } => *attributes,
+                    HirElement::Image { attributes, .. } => *attributes,
+                    HirElement::Table { attributes, .. } => *attributes,
                 };
                 self.create_node_from_metadata(*index, attributes_ref, hlir_module)
             }
@@ -149,6 +151,8 @@ impl LayoutEngine {
             HirElement::Section { attributes, .. } => *attributes,
             HirElement::List { attributes, .. } => *attributes,
             HirElement::Text { attributes, .. } => *attributes,
+            HirElement::Image { attributes, .. } => *attributes,
+            HirElement::Table { attributes, .. } => *attributes,
         };
 
         let attributes = match hlir_module.attributes.find_node(attributes_ref) {
@@ -187,7 +191,9 @@ impl LayoutEngine {
         let children = match element {
             HirElement::Section { children, .. } => children,
             HirElement::List { children, .. } => children,
-            HirElement::Text { .. } => return, // No children
+            HirElement::Text { .. } => return,  // No children
+            HirElement::Image { .. } => return, // No children
+            HirElement::Table { .. } => return, // No children,
         };
 
         for child_idx in children {
@@ -366,7 +372,7 @@ impl LayoutEngine {
         if let Some(document) = hlir.functions.get(&Id::Func(document_id)) {
             for op in &document.body.ops {
                 match op {
-                    Op::HlirElementEmit { index } => {
+                    Op::HirElementEmit { index } => {
                         self.process_element_for_layout(
                             *index,
                             hlir,
@@ -441,6 +447,16 @@ impl LayoutEngine {
                         );
                     }
                     (0.0, true) // Height comes from children
+                }
+                HirElement::Image { .. } => {
+                    // Image - no layout needed, but we still need to advance the cursor
+                    *current_y += 10.0;
+                    (0.0, false)
+                }
+                HirElement::Table { .. } => {
+                    // TODO this is wrong fix in the future, should adjust cursor based on table content
+                    *current_y += 10.0;
+                    (0.0, false)
                 }
             };
 

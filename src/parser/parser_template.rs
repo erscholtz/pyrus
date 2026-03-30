@@ -25,7 +25,6 @@ impl Parser {
 
             match self.current_token_kind() {
                 TokenKind::RightBrace => {
-                    self.advance(); // exit block
                     break;
                 }
                 TokenKind::Func => {

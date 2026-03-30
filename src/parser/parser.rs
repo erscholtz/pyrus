@@ -1,3 +1,5 @@
+use std::iter::Product;
+
 use crate::ast::{Ast, DocumentBlock, Expression, InterpPart, StyleBlock, TemplateBlock};
 use crate::lexer::{TokenKind, TokenStream};
 use crate::parser::parser_err::ParseError;
@@ -47,6 +49,7 @@ impl Parser {
                     template = Some(TemplateBlock {
                         statements: template_block,
                     });
+                    self.expect(TokenKind::RightBrace);
                 }
                 TokenKind::Document => {
                     self.expect(TokenKind::Document);
@@ -55,6 +58,7 @@ impl Parser {
                     document = Some(DocumentBlock {
                         elements: document_block,
                     });
+                    self.expect(TokenKind::RightBrace);
                 }
                 TokenKind::Style => {
                     self.expect(TokenKind::Style);
@@ -63,6 +67,7 @@ impl Parser {
                     style = Some(StyleBlock {
                         statements: style_block,
                     });
+                    self.expect(TokenKind::RightBrace);
                 }
                 TokenKind::Eof => break,
                 _ => {

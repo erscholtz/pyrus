@@ -9,7 +9,7 @@ impl HIRPass {
     pub fn lower_function_block(
         &mut self,
         body: &Vec<crate::ast::Statement>,
-        hlirmodule: &mut HIRModule,
+        hirmodule: &mut HIRModule,
     ) -> FuncBlock {
         let mut ir_body = FuncBlock {
             ops: Vec::new(),
@@ -35,7 +35,7 @@ impl HIRPass {
 
                 crate::ast::Statement::Return { doc_element } => {
                     let element_id =
-                        self.lower_document_element(doc_element, hlirmodule, &mut ir_body, None);
+                        self.lower_document_element(doc_element, hirmodule, &mut ir_body, None);
                     ir_body.ops.push(Op::Return {
                         doc_element_ref: element_id,
                     });
