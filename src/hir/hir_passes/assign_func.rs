@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use crate::hir::HIRPass;
 use crate::hir::ir_types::{AttributeNode, FuncBlock, HIRModule, HirElement, Id, Op, ValueId};
+use crate::hir::HIRPass;
 
 use crate::ast::ArgType;
 

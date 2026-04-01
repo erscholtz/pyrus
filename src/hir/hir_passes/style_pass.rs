@@ -1,5 +1,5 @@
-use crate::hir::HIRPass;
 use crate::hir::hir_util::style_resolver::resolve_styles;
+use crate::hir::HIRPass;
 
 impl HIRPass {
     /// Run the CSS style resolution pass on the HLIR module

@@ -1,4 +1,6 @@
-use pyrus::ast::{BinaryOp, DocElement, Expression, InterpPart, Statement, UnaryOp};
+use pyrus::ast::{
+    BinaryOp, DocElement, DocElementKind, Expression, InterpPart, Statement, UnaryOp,
+};
 use pyrus::lexer::lex;
 use pyrus::parser::parse;
 
@@ -318,8 +320,8 @@ fn test_parse_return_statement() {
     let template = ast.template.unwrap();
 
     match &template.statements[0] {
-        Statement::Return { doc_element } => match doc_element {
-            DocElement::Text { content, .. } => match content {
+        Statement::Return { doc_element } => match &doc_element.node {
+            DocElementKind::Text { content, .. } => match content {
                 Expression::StringLiteral(s) => assert_eq!(s, "done"),
                 _ => panic!("Expected StringLiteral content"),
             },
@@ -361,8 +363,8 @@ fn test_parse_function_call_no_args() {
     let ast = parse(tokens).expect("Parsing failed");
     let doc = ast.document.unwrap();
 
-    match &doc.elements[0] {
-        DocElement::Call { name, args, .. } => {
+    match &doc.elements[0].node {
+        DocElementKind::Call { name, args, .. } => {
             assert_eq!(name, "greet");
             assert_eq!(args.len(), 0);
         }
@@ -377,8 +379,8 @@ fn test_parse_function_call_with_args() {
     let ast = parse(tokens).expect("Parsing failed");
     let doc = ast.document.unwrap();
 
-    match &doc.elements[0] {
-        DocElement::Call { name, args, .. } => {
+    match &doc.elements[0].node {
+        DocElementKind::Call { name, args, .. } => {
             assert_eq!(name, "print");
             assert_eq!(args.len(), 2);
         }

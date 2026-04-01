@@ -1,4 +1,8 @@
+use crate::error::SourceLocation;
+use crate::util::Spanned;
 use std::collections::HashMap;
+
+pub type DocElement = Spanned<DocElementKind>;
 
 #[derive(Debug, Clone)]
 pub enum BinaryOp {
@@ -159,7 +163,7 @@ pub enum Statement {
 }
 
 #[derive(Debug, Clone)]
-pub enum DocElement {
+pub enum DocElementKind {
     Text {
         content: Expression,
         attributes: HashMap<String, Expression>,
@@ -195,10 +199,6 @@ pub enum DocElement {
     Section {
         elements: Vec<DocElement>,
         attributes: HashMap<String, Expression>,
-    },
-    ErrorLocation {
-        line: usize,
-        col: usize,
     },
 }
 

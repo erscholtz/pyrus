@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::str::FromStr;
 
 use crate::ast::{DocElement, Expression, StyleRule};
+use crate::hir::hir_util::hir_error::HirError;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Type {
@@ -141,6 +142,7 @@ pub struct ElementMetadata {
     pub element_type: String,
     pub parent: Option<usize>, // Index into elements vector
     pub attributes_ref: usize, // Index into AttributeTree
+    pub location: crate::error::SourceLocation, // Source location for error reporting
 }
 
 #[derive(Debug, Clone)]
@@ -151,6 +153,7 @@ pub struct HIRModule {
     pub css_rules: Vec<StyleRule>, // Parsed CSS rules (unapplied)
     pub elements: Vec<HirElement>,
     pub element_metadata: Vec<ElementMetadata>, // Parallel to elements, for CSS matching
+    pub errors: Vec<HirError>,
 }
 
 #[derive(Debug, Clone)]

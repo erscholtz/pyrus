@@ -1,13 +1,14 @@
 use std::collections::HashMap;
-use std::ops::{Index, IndexMut};
 
 use crate::ast::{Ast, Expression, Statement};
-
+use crate::error::{Diagnostic, Severity, SourceLocation, Span};
+use crate::hir::hir_util::hir_error::HirError;
 pub use crate::hir::hir_util::style_resolver::resolve_styles;
 pub use crate::hir::ir_types::{
     AttributeNode, AttributeTree, ElementMetadata, Func, FuncBlock, FuncId, GlobalId, HIRModule,
     HirElement, Id, Literal, Op, StyleAttributes, Type,
 };
+use crate::util::Spanned;
 
 pub fn lower(ast: &Ast) -> HIRModule {
     let mut pass = HIRPass {
@@ -33,6 +34,7 @@ impl HIRPass {
             css_rules: Vec::new(),
             elements: Vec::new(),
             element_metadata: Vec::new(),
+            errors: Vec::new(),
         };
 
         self.symbol_table.push(HashMap::new()); // add new scope (global)
@@ -140,7 +142,7 @@ impl HIRPass {
 
                 // Only emit HirElementEmit for actual elements, not for function calls
                 // Calls handle element emission separately via Op::Call
-                if !matches!(element, crate::ast::DocElement::Call { .. }) {
+                if !matches!(element.node, crate::ast::DocElementKind::Call { .. }) {
                     ir_body.ops.push(Op::HirElementEmit { index });
                 }
             }
@@ -167,8 +169,9 @@ impl HIRPass {
         ir_body: &mut FuncBlock,
         parent_index: Option<usize>,
     ) -> usize {
-        match element {
-            crate::ast::DocElement::Call {
+        let location = element.location;
+        match &element.node {
+            crate::ast::DocElementKind::Call {
                 name,
                 args,
                 children,
@@ -178,7 +181,7 @@ impl HIRPass {
                     None => panic!("Function not found: {}", name),
                 };
 
-                let arg_value_ids = self.handle_args(args, ir_body);
+                let arg_value_ids = self.handle_args(&args, ir_body);
                 ir_body.ops.push(Op::Call {
                     func: func_id.unwrap(),
                     result: None,
@@ -188,14 +191,14 @@ impl HIRPass {
                 // The returned_element_ref in the function body is used instead
                 0 // TODO magic number
             }
-            crate::ast::DocElement::Text {
+            crate::ast::DocElementKind::Text {
                 content,
                 attributes,
             } => {
-                let (id, classes) = self.extract_id_and_classes(attributes);
+                let (id, classes) = self.extract_id_and_classes(&attributes);
                 let element_type = "text".to_string();
                 let attribute_node =
-                    AttributeNode::new_with_attributes(attributes, hirmodule.attributes.size);
+                    AttributeNode::new_with_attributes(&attributes, hirmodule.attributes.size);
                 let attributes_ref = hirmodule.attributes.add_attribute(attribute_node);
                 let index = hirmodule.elements.len();
                 hirmodule.element_metadata.push(ElementMetadata {
@@ -204,6 +207,7 @@ impl HIRPass {
                     element_type,
                     parent: parent_index,
                     attributes_ref,
+                    location,
                 });
                 hirmodule.elements.push(HirElement::Text {
                     content: content.to_string(),
@@ -212,14 +216,14 @@ impl HIRPass {
 
                 index
             }
-            crate::ast::DocElement::Section {
+            crate::ast::DocElementKind::Section {
                 elements: section_elements,
                 attributes,
             } => {
-                let (id, classes) = self.extract_id_and_classes(attributes);
+                let (id, classes) = self.extract_id_and_classes(&attributes);
                 let element_type = "section".to_string();
                 let attribute_node =
-                    AttributeNode::new_with_attributes(attributes, hirmodule.attributes.size);
+                    AttributeNode::new_with_attributes(&attributes, hirmodule.attributes.size);
                 let attributes_ref = hirmodule.attributes.add_attribute(attribute_node);
                 // Reserve index before processing children so children get correct parent
                 let index = hirmodule.elements.len();
@@ -229,6 +233,7 @@ impl HIRPass {
                     element_type,
                     parent: parent_index,
                     attributes_ref,
+                    location,
                 });
                 // Push placeholder first to reserve the slot
                 hirmodule.elements.push(HirElement::Section {
@@ -252,21 +257,22 @@ impl HIRPass {
 
                 index
             }
-            crate::ast::DocElement::List {
+            crate::ast::DocElementKind::List {
                 items,
                 attributes,
                 numbered,
             } => {
-                let (id, classes) = self.extract_id_and_classes(attributes);
+                let (id, classes) = self.extract_id_and_classes(&attributes);
                 let element_type = "list".to_string();
                 let attribute_node =
-                    AttributeNode::new_with_attributes(attributes, hirmodule.attributes.size);
+                    AttributeNode::new_with_attributes(&attributes, hirmodule.attributes.size);
                 let attributes_ref = hirmodule.attributes.add_attribute(attribute_node);
                 // Reserve index before processing children so children get correct parent
                 let index = hirmodule.elements.len();
                 hirmodule.element_metadata.push(ElementMetadata {
                     id,
                     classes,
+                    location,
                     element_type,
                     parent: parent_index,
                     attributes_ref,
@@ -294,11 +300,11 @@ impl HIRPass {
                 index
             }
             // TODO: Handle Image, Code, Link, Table similarly
-            crate::ast::DocElement::Image { src, attributes } => {
-                let (id, classes) = self.extract_id_and_classes(attributes);
+            crate::ast::DocElementKind::Image { src, attributes } => {
+                let (id, classes) = self.extract_id_and_classes(&attributes);
                 let element_type = "list".to_string();
                 let attribute_node =
-                    AttributeNode::new_with_attributes(attributes, hirmodule.attributes.size);
+                    AttributeNode::new_with_attributes(&attributes, hirmodule.attributes.size);
                 let attributes_ref = hirmodule.attributes.add_attribute(attribute_node);
                 // Reserve index before processing children so children get correct parent
                 let index = hirmodule.elements.len();
@@ -308,6 +314,7 @@ impl HIRPass {
                     element_type,
                     parent: parent_index,
                     attributes_ref,
+                    location,
                 });
                 hirmodule.elements.push(HirElement::Image {
                     src: src.to_string(),
@@ -316,11 +323,11 @@ impl HIRPass {
 
                 index
             }
-            crate::ast::DocElement::Table { table, attributes } => {
-                let (id, classes) = self.extract_id_and_classes(attributes);
+            crate::ast::DocElementKind::Table { table, attributes } => {
+                let (id, classes) = self.extract_id_and_classes(&attributes);
                 let element_type = "list".to_string();
                 let attribute_node =
-                    AttributeNode::new_with_attributes(attributes, hirmodule.attributes.size);
+                    AttributeNode::new_with_attributes(&attributes, hirmodule.attributes.size);
                 let attributes_ref = hirmodule.attributes.add_attribute(attribute_node);
                 // Reserve index before processing children so children get correct parent
                 let index = hirmodule.elements.len();
@@ -330,6 +337,7 @@ impl HIRPass {
                     element_type,
                     parent: parent_index,
                     attributes_ref,
+                    location,
                 });
                 let table = table
                     .into_iter()
@@ -349,10 +357,19 @@ impl HIRPass {
                 index
             }
             _ => {
-                panic!(
-                    "Unsupported document element: {:?}  (HIR document lowering)",
-                    element
+                let span = Span::point(0, "unknown");
+                let err = HirError::new(
+                    format!(
+                        "Unsupported document element: {:?}  (HIR document lowering)",
+                        element.node
+                    ),
+                    Severity::Error,
+                    location,
+                    span,
                 );
+                hirmodule.errors.push(err);
+                // return invalid index
+                usize::MAX
             }
         }
     }

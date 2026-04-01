@@ -2,8 +2,10 @@ use std::collections::HashMap;
 
 use super::parser::Parser;
 use super::parser_err::ParseError;
-use crate::ast::{ArgType, DocElement, Expression};
+use crate::ast::{ArgType, DocElement, DocElementKind, Expression};
+use crate::error::SourceLocation;
 use crate::lexer::TokenKind;
+use crate::util::Spanned;
 
 const DOC_SYNC: &[TokenKind] = &[
     TokenKind::At,
@@ -37,6 +39,10 @@ impl Parser {
                         elements.push(statement);
                     } else {
                         // Unexpected identifier without @
+                        let location = SourceLocation::new(
+                            self.current_token_line(),
+                            self.current_token_col(),
+                        );
                         self.errors.push(ParseError::new(
                             format!(
                                 "Parse error: expected @ before identifier at {}:{}",
@@ -47,10 +53,13 @@ impl Parser {
                             self.current_token_col(),
                         ));
                         self.synchronize(DOC_SYNC);
-                        elements.push(DocElement::ErrorLocation {
-                            line: self.current_token_line(),
-                            col: self.current_token_col(),
-                        });
+                        elements.push(Spanned::new(
+                            DocElementKind::Text {
+                                content: Expression::StringLiteral("".to_string()),
+                                attributes: HashMap::new(),
+                            },
+                            location,
+                        ));
                     }
                 }
                 _ => {
@@ -71,6 +80,7 @@ impl Parser {
         if self.current_token_kind() == TokenKind::At {
             self.advance(); // consume @
         }
+        let location = SourceLocation::new(self.current_token_line(), self.current_token_col());
         match self.current_token_kind() {
             TokenKind::Text => {
                 self.advance(); // consume text label
@@ -90,19 +100,25 @@ impl Parser {
                             self.current_token_col(),
                         ));
                         self.synchronize(DOC_SYNC);
-                        return DocElement::ErrorLocation {
-                            line: self.current_token_line(),
-                            col: self.current_token_col(),
-                        };
+                        return Spanned::new(
+                            DocElementKind::Text {
+                                content: Expression::StringLiteral("".to_string()),
+                                attributes: HashMap::new(),
+                            },
+                            location,
+                        );
                     }
                 };
                 self.expect(left_bracket);
                 let text_content = self.parse_document_text_content_until(right_bracket);
                 self.expect(right_bracket);
-                DocElement::Text {
-                    content: text_content,
-                    attributes,
-                }
+                Spanned::new(
+                    DocElementKind::Text {
+                        content: text_content,
+                        attributes,
+                    },
+                    location,
+                )
             }
             TokenKind::List => {
                 self.advance(); // consume list label
@@ -121,20 +137,27 @@ impl Parser {
                             self.current_token_col(),
                         ));
                         self.synchronize(DOC_SYNC);
-                        return DocElement::ErrorLocation {
-                            line: self.current_token_line(),
-                            col: self.current_token_col(),
-                        };
+                        return Spanned::new(
+                            DocElementKind::List {
+                                items: Vec::new(),
+                                attributes: HashMap::new(),
+                                numbered: false,
+                            },
+                            location,
+                        );
                     }
                 };
                 self.expect(left_bracket);
                 let (list_items, numbered) = self.parse_document_list();
                 self.expect(right_bracket);
-                DocElement::List {
-                    items: list_items,
-                    attributes,
-                    numbered,
-                }
+                Spanned::new(
+                    DocElementKind::List {
+                        items: list_items,
+                        attributes,
+                        numbered,
+                    },
+                    location,
+                )
             }
             TokenKind::Image => {
                 self.advance(); // consume image label
@@ -153,16 +176,19 @@ impl Parser {
                             self.current_token_col(),
                         ));
                         self.synchronize(DOC_SYNC);
-                        return DocElement::ErrorLocation {
-                            line: self.current_token_line(),
-                            col: self.current_token_col(),
-                        };
+                        return Spanned::new(
+                            DocElementKind::Image {
+                                src: Expression::StringLiteral("".to_string()),
+                                attributes: HashMap::new(),
+                            },
+                            location,
+                        );
                     }
                 };
                 self.expect(left_bracket);
                 let src = self.parse_document_text_content_until(right_bracket);
                 self.expect(right_bracket);
-                DocElement::Image { src, attributes }
+                Spanned::new(DocElementKind::Image { src, attributes }, location)
             }
             TokenKind::Link => {
                 todo!("Link support not implemented");
@@ -184,16 +210,19 @@ impl Parser {
                             self.current_token_col(),
                         ));
                         self.synchronize(DOC_SYNC);
-                        return DocElement::ErrorLocation {
-                            line: self.current_token_line(),
-                            col: self.current_token_col(),
-                        };
+                        return Spanned::new(
+                            DocElementKind::Table {
+                                table: Vec::new(),
+                                attributes: HashMap::new(),
+                            },
+                            location,
+                        );
                     }
                 };
                 self.expect(left_bracket);
                 let table = self.parse_document_table();
                 self.expect(right_bracket);
-                DocElement::Table { table, attributes }
+                Spanned::new(DocElementKind::Table { table, attributes }, location)
             }
             TokenKind::Section => {
                 self.advance(); // consume section label
@@ -212,19 +241,25 @@ impl Parser {
                             self.current_token_col(),
                         ));
                         self.synchronize(DOC_SYNC);
-                        return DocElement::ErrorLocation {
-                            line: self.current_token_line(),
-                            col: self.current_token_col(),
-                        };
+                        return Spanned::new(
+                            DocElementKind::Section {
+                                elements: Vec::new(),
+                                attributes: HashMap::new(),
+                            },
+                            location,
+                        );
                     }
                 };
                 self.expect(left_bracket);
                 let section_content = self.parse_document_block();
                 self.expect(right_bracket);
-                DocElement::Section {
-                    elements: section_content,
-                    attributes,
-                }
+                Spanned::new(
+                    DocElementKind::Section {
+                        elements: section_content,
+                        attributes,
+                    },
+                    location,
+                )
             }
             TokenKind::Identifier => {
                 // function call
@@ -242,10 +277,13 @@ impl Parser {
                     self.current_token_col(),
                 ));
                 self.synchronize(DOC_SYNC);
-                DocElement::ErrorLocation {
-                    line: self.current_token_line(),
-                    col: self.current_token_col(),
-                }
+                Spanned::new(
+                    DocElementKind::Text {
+                        content: Expression::StringLiteral("".to_string()),
+                        attributes: HashMap::new(),
+                    },
+                    location,
+                )
             }
         }
     }
@@ -358,23 +396,30 @@ impl Parser {
         let mut items = Vec::new();
         let mut numbered = false;
         while self.current_token_kind() != TokenKind::RightBracket {
+            let location = SourceLocation::new(self.current_token_line(), self.current_token_col());
             match self.current_token_kind() {
                 TokenKind::Minus => {
                     self.advance();
                     let content = self.parse_document_text_content();
-                    items.push(DocElement::Text {
-                        content,
-                        attributes: HashMap::new(),
-                    });
+                    items.push(Spanned::new(
+                        DocElementKind::Text {
+                            content,
+                            attributes: HashMap::new(),
+                        },
+                        location,
+                    ));
                 }
                 TokenKind::Int => {
                     self.advance();
                     self.expect(TokenKind::Dot);
                     let content = self.parse_document_text_content();
-                    items.push(DocElement::Text {
-                        content,
-                        attributes: HashMap::new(),
-                    });
+                    items.push(Spanned::new(
+                        DocElementKind::Text {
+                            content,
+                            attributes: HashMap::new(),
+                        },
+                        location,
+                    ));
                     numbered = true;
                 }
                 _ => {
@@ -422,23 +467,30 @@ impl Parser {
         let mut row = Vec::new();
         while self.current_token_kind() == TokenKind::Pipe {
             self.advance(); // consume '|'
+            let location = SourceLocation::new(self.current_token_line(), self.current_token_col());
             if self.current_token_kind() == TokenKind::Pipe
                 || self.current_token_kind() == TokenKind::RightBracket
             {
-                row.push(DocElement::Text {
-                    content: Expression::StringLiteral(String::new()),
-                    attributes: HashMap::new(),
-                });
+                row.push(Spanned::new(
+                    DocElementKind::Text {
+                        content: Expression::StringLiteral(String::new()),
+                        attributes: HashMap::new(),
+                    },
+                    location,
+                ));
                 continue;
             }
             if self.current_token_kind() == TokenKind::Minus
                 || self.current_token_kind() == TokenKind::Colon
             {
                 let cell_content = self.parse_table_delimiter_cell();
-                row.push(DocElement::Text {
-                    content: cell_content,
-                    attributes: HashMap::new(),
-                });
+                row.push(Spanned::new(
+                    DocElementKind::Text {
+                        content: cell_content,
+                        attributes: HashMap::new(),
+                    },
+                    location,
+                ));
             } else if self.current_token_kind() == TokenKind::At {
                 // DSL-style cell: @text[...] or other document element
                 let cell = self.parse_document_element();
@@ -469,6 +521,7 @@ impl Parser {
     }
 
     fn parse_document_function_call(&mut self) -> DocElement {
+        let location = SourceLocation::new(self.current_token_line(), self.current_token_col());
         if self.toks.kinds.get(self.idx + 1) != Some(&TokenKind::LeftParen) {
             // check if it is a function call
             self.errors.push(ParseError::new(
@@ -481,10 +534,14 @@ impl Parser {
                 self.current_token_col(),
             ));
             self.synchronize(DOC_SYNC);
-            return DocElement::ErrorLocation {
-                line: self.current_token_line(),
-                col: self.current_token_col(),
-            };
+            return Spanned::new(
+                DocElementKind::Call {
+                    name: "".to_string(),
+                    args: Vec::new(),
+                    children: Vec::new(),
+                },
+                location,
+            );
         }
         // function call
         let func_name = self.current_text();
@@ -551,10 +608,13 @@ impl Parser {
             // TODO: Create a new DocElement variant that includes both the call and children
         }
 
-        return DocElement::Call {
-            name: func_name,
-            args: args,
-            children: children,
-        };
+        return Spanned::new(
+            DocElementKind::Call {
+                name: func_name,
+                args: args,
+                children: children,
+            },
+            location,
+        );
     }
 }
