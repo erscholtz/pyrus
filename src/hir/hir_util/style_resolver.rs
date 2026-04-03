@@ -1,32 +1,32 @@
 use crate::ast::{KeyValue, Selector, StyleRule};
 use crate::hir::ir_types::{HIRModule, PageBreak, StyleAttributes};
 
-pub fn resolve_styles(hlir: &mut HIRModule) {
-    let mut resolver = StyleResolver::new(hlir);
+pub fn resolve_styles(hir: &mut HIRModule) {
+    let mut resolver = StyleResolver::new(hir);
     resolver.resolve();
 }
 
 pub struct StyleResolver<'a> {
-    hlir: &'a mut HIRModule,
+    hir: &'a mut HIRModule,
 }
 
 impl<'a> StyleResolver<'a> {
-    pub fn new(hlir: &'a mut HIRModule) -> Self {
-        Self { hlir }
+    pub fn new(hir: &'a mut HIRModule) -> Self {
+        Self { hir }
     }
 
     pub fn resolve(&mut self) {
         // Sort CSS rules by specificity for cascade order
-        let mut sorted_rules = self.hlir.css_rules.clone();
+        let mut sorted_rules = self.hir.css_rules.clone();
         sorted_rules.sort_by_key(|r| r.specificity);
 
-        for element_idx in 0..self.hlir.element_metadata.len() {
+        for element_idx in 0..self.hir.element_metadata.len() {
             self.compute_element_styles(element_idx, &sorted_rules);
         }
     }
 
     fn compute_element_styles(&mut self, element_idx: usize, sorted_rules: &[StyleRule]) {
-        let metadata = &self.hlir.element_metadata[element_idx].clone();
+        let metadata = &self.hir.element_metadata[element_idx].clone();
 
         // Start with inherited styles from parent
         let mut computed = StyleAttributes::default();
@@ -45,10 +45,10 @@ impl<'a> StyleResolver<'a> {
     }
 
     fn apply_inherited_styles(&self, computed: &mut StyleAttributes, parent_idx: usize) {
-        let parent_metadata = &self.hlir.element_metadata[parent_idx];
+        let parent_metadata = &self.hir.element_metadata[parent_idx];
 
         if let Some(parent_node) = self
-            .hlir
+            .hir
             .attributes
             .find_node(parent_metadata.attributes_ref)
         {
@@ -64,7 +64,7 @@ impl<'a> StyleResolver<'a> {
     }
 
     fn selector_matches(&self, selector: &Selector, element_idx: usize) -> bool {
-        let metadata = &self.hlir.element_metadata[element_idx];
+        let metadata = &self.hir.element_metadata[element_idx];
 
         match selector {
             Selector::Id(id) => metadata.id.as_ref() == Some(id),
@@ -73,16 +73,20 @@ impl<'a> StyleResolver<'a> {
         }
     }
 
-    fn apply_rule_declarations(&self, computed: &mut StyleAttributes, declarations: &[KeyValue]) {
+    fn apply_rule_declarations(
+        &mut self,
+        computed: &mut StyleAttributes,
+        declarations: &[KeyValue],
+    ) {
         for decl in declarations {
-            let value_str = expr_to_string(&decl.value);
+            let value_str = self.expr_to_string(&decl.value);
             computed.set(&decl.key, value_str);
         }
     }
 
     /// Inline styles override CSS rules (higher specificity)
     fn apply_inline_styles(&self, computed: &mut StyleAttributes, attributes_ref: usize) {
-        if let Some(node) = self.hlir.attributes.find_node(attributes_ref) {
+        if let Some(node) = self.hir.attributes.find_node(attributes_ref) {
             let inline = &node.inline;
 
             // Merge inline styles into computed, with inline taking precedence
@@ -120,50 +124,55 @@ impl<'a> StyleResolver<'a> {
     }
 
     fn update_computed_styles(&mut self, attributes_ref: usize, computed: StyleAttributes) {
-        if let Some(node) = self.hlir.attributes.find_node_mut(attributes_ref) {
+        if let Some(node) = self.hir.attributes.find_node_mut(attributes_ref) {
             node.computed = computed;
         }
     }
-}
 
-fn expr_to_string(expr: &crate::ast::Expression) -> String {
-    use crate::ast::Expression;
+    fn expr_to_string(&mut self, expr: &crate::ast::Expression) -> String {
+        use crate::ast::ExpressionKind;
 
-    match expr {
-        Expression::StringLiteral(s) => s.clone(),
-        Expression::Int(n) => n.to_string(),
-        Expression::Float(f) => f.to_string(),
-        Expression::Identifier(s) => s.clone(),
-        Expression::StructDefault(s) => format!("default({})", s),
-        Expression::InterpolatedString(parts) => {
-            let mut result = String::new();
-            for part in parts {
-                match part {
-                    crate::ast::InterpPart::Text(text) => result.push_str(text),
-                    crate::ast::InterpPart::Expression(expr) => {
-                        result.push_str(&expr_to_string(expr))
+        match &expr.node {
+            ExpressionKind::StringLiteral(s) => s.clone(),
+            ExpressionKind::Int(n) => n.to_string(),
+            ExpressionKind::Float(f) => f.to_string(),
+            ExpressionKind::Identifier(s) => s.clone(),
+            ExpressionKind::StructDefault(s) => format!("default({})", s),
+            ExpressionKind::InterpolatedString(parts) => {
+                let mut result = String::new();
+                for part in parts {
+                    match part {
+                        crate::ast::InterpPart::Text(text) => result.push_str(text),
+                        crate::ast::InterpPart::Expression(expr_kind) => {
+                            // Create a temporary Expression wrapper for the ExpressionKind
+                            let temp_expr = crate::ast::Expression::new(
+                                expr_kind.clone(),
+                                crate::error::SourceLocation::new(0, 0, self.hir.file.clone()),
+                            );
+                            result.push_str(&self.expr_to_string(&temp_expr))
+                        }
                     }
                 }
+                result
             }
-            result
-        }
-        Expression::Binary {
-            left,
-            operator,
-            right,
-        } => {
-            format!(
-                "{} {:?} {}",
-                expr_to_string(left),
+            ExpressionKind::Binary {
+                left,
                 operator,
-                expr_to_string(right)
-            )
-        }
-        Expression::Unary {
-            operator,
-            expression,
-        } => {
-            format!("{:?} {}", operator, expr_to_string(expression))
+                right,
+            } => {
+                format!(
+                    "{} {:?} {}",
+                    self.expr_to_string(left),
+                    operator,
+                    self.expr_to_string(right)
+                )
+            }
+            ExpressionKind::Unary {
+                operator,
+                expression,
+            } => {
+                format!("{:?} {}", operator, self.expr_to_string(expression))
+            }
         }
     }
 }

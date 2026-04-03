@@ -1,8 +1,11 @@
 use crate::error::SourceLocation;
 use crate::util::Spanned;
 use std::collections::HashMap;
+use std::fmt;
 
 pub type DocElement = Spanned<DocElementKind>;
+pub type Statement = Spanned<StatementKind>;
+pub type Expression = Spanned<ExpressionKind>;
 
 #[derive(Debug, Clone)]
 pub enum BinaryOp {
@@ -21,7 +24,7 @@ pub enum UnaryOp {
 }
 
 #[derive(Debug, Clone)]
-pub enum Expression {
+pub enum ExpressionKind {
     StringLiteral(String),
     InterpolatedString(Vec<InterpPart>),
     Int(i64),
@@ -39,19 +42,19 @@ pub enum Expression {
     StructDefault(String),
 }
 
-impl Expression {
+impl ExpressionKind {
     // TODO this is not good find a way to remove
     pub fn as_number(&self) -> Option<i64> {
         match self {
-            Expression::Int(n) => Some(*n),
+            ExpressionKind::Int(n) => Some(*n),
             _ => None,
         }
     }
 
     pub fn to_string(&self) -> String {
         match self {
-            Expression::StringLiteral(s) => s.clone(),
-            Expression::InterpolatedString(parts) => {
+            ExpressionKind::StringLiteral(s) => s.clone(),
+            ExpressionKind::InterpolatedString(parts) => {
                 let mut result = String::new();
                 for part in parts {
                     match part {
@@ -61,25 +64,31 @@ impl Expression {
                 }
                 result
             }
-            Expression::Unary {
+            ExpressionKind::Unary {
                 operator,
                 expression,
             } => match operator {
                 UnaryOp::Negate => format!("-{}", expression.to_string()),
                 UnaryOp::Not => format!("!{}", expression.to_string()),
             },
-            Expression::StructDefault(name) => format!("default({})", name),
-            Expression::Int(value) => format!("{}", value),
-            Expression::Float(value) => format!("{}", value),
+            ExpressionKind::StructDefault(name) => format!("default({})", name),
+            ExpressionKind::Int(value) => format!("{}", value),
+            ExpressionKind::Float(value) => format!("{}", value),
             _ => "Error".to_string(),
         }
+    }
+}
+
+impl fmt::Display for ExpressionKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.to_string())
     }
 }
 
 #[derive(Debug, Clone)]
 pub enum InterpPart {
     Text(String),
-    Expression(Expression), // interpolated portion
+    Expression(ExpressionKind), // interpolated portion
 }
 
 #[derive(Debug, Clone)]
@@ -106,14 +115,12 @@ pub struct ArgType {
 }
 
 #[derive(Debug, Clone)]
-pub enum Statement {
-    /// everything between `{` and `}` that isn't a function definition or a return
+pub enum StatementKind {
     DefaultSet {
         key: String,
         value: Expression,
     },
     VarAssign {
-        // value should never be an expression, should always be explicit
         name: String,
         value: Expression,
     },
@@ -259,6 +266,7 @@ pub struct StyleBlock {
 
 #[derive(Debug, Clone)]
 pub struct Ast {
+    pub file: String,
     pub template: Option<TemplateBlock>,
     pub document: Option<DocumentBlock>,
     pub style: Option<StyleBlock>,

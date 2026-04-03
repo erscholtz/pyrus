@@ -1,4 +1,5 @@
 use crate::error::SourceLocation;
+use std::fmt;
 
 /// A wrapper type that attaches source location information to any AST or IR node.
 /// This allows error reporting to point back to the original source location
@@ -36,6 +37,12 @@ impl<T> Spanned<T> {
     /// Unwrap to get the inner node, discarding the location
     pub fn into_inner(self) -> T {
         self.node
+    }
+}
+
+impl<T: fmt::Display> fmt::Display for Spanned<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.node.fmt(f)
     }
 }
 

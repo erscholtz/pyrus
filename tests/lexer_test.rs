@@ -10,7 +10,7 @@ fn lexeme(ts: &lexer::TokenStream, idx: usize) -> &str {
 #[test]
 fn lexes_sample_file_tokens() {
     let data = fs::read_to_string("tests/input/lexer_test.ink").expect("read sample file");
-    let tokens = lexer::lex(&data).expect("Lexing failed");
+    let tokens = lexer::lex(&data, "lexes_sample_file_token").expect("Lexing failed");
 
     // basic structure: find first non-whitespace tokens, should be `template` and `{`
     assert!(!tokens.kinds.is_empty());

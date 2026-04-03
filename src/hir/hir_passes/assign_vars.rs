@@ -10,29 +10,29 @@ impl HIRPass {
         id: Id,
         mutable: bool,
     ) -> Global {
-        let global = match value {
-            crate::ast::Expression::StringLiteral(s) => Global {
+        let global = match &value.node {
+            crate::ast::ExpressionKind::StringLiteral(s) => Global {
                 id: id,
                 name: name.clone(),
                 ty: Type::String,
                 init: Literal::String(s.clone()),
                 mutable: mutable,
             },
-            crate::ast::Expression::Int(n) => Global {
+            crate::ast::ExpressionKind::Int(n) => Global {
                 id: id,
                 name: name.clone(),
                 ty: Type::Int,
                 init: Literal::Int(*n),
                 mutable: mutable,
             },
-            crate::ast::Expression::Float(n) => Global {
+            crate::ast::ExpressionKind::Float(n) => Global {
                 id: id,
                 name: name.clone(),
                 ty: Type::Float,
                 init: Literal::Float(*n),
                 mutable: mutable,
             },
-            crate::ast::Expression::InterpolatedString(parts) => {
+            crate::ast::ExpressionKind::InterpolatedString(parts) => {
                 // For globals with interpolated strings, we evaluate at initialization time
                 // by converting to a string immediately (since globals are evaluated once)
                 let result = self.eval_interpolated_string_to_literal(&parts);
@@ -56,25 +56,25 @@ impl HIRPass {
         name: String,
         value: crate::ast::Expression,
         id: Id,
-        mutable: bool,
+        _mutable: bool,
     ) -> Op {
-        let op = match value {
-            crate::ast::Expression::StringLiteral(s) => Op::Const {
+        let op = match &value.node {
+            crate::ast::ExpressionKind::StringLiteral(s) => Op::Const {
                 result: id,
                 literal: Literal::String(s.clone()),
                 ty: Type::String,
             },
-            crate::ast::Expression::Int(n) => Op::Const {
+            crate::ast::ExpressionKind::Int(n) => Op::Const {
                 result: id,
-                literal: Literal::Int(n),
+                literal: Literal::Int(*n),
                 ty: Type::Int,
             },
-            crate::ast::Expression::Float(n) => Op::Const {
+            crate::ast::ExpressionKind::Float(n) => Op::Const {
                 result: id,
-                literal: Literal::Float(n),
+                literal: Literal::Float(*n),
                 ty: Type::Float,
             },
-            crate::ast::Expression::InterpolatedString(parts) => {
+            crate::ast::ExpressionKind::InterpolatedString(parts) => {
                 // For simplicity in local assignment, we convert to a literal string
                 // In a full implementation, this would generate ops to build the string at runtime
                 let result = self.eval_interpolated_string_to_literal(&parts);
@@ -102,20 +102,20 @@ impl HIRPass {
         for part in parts {
             match part {
                 crate::ast::InterpPart::Text(text) => result.push_str(text),
-                crate::ast::InterpPart::Expression(expr) => {
+                crate::ast::InterpPart::Expression(expr_kind) => {
                     // Try to evaluate the expression to a constant
-                    match expr {
-                        crate::ast::Expression::StringLiteral(s) => result.push_str(s),
-                        crate::ast::Expression::Int(n) => result.push_str(&n.to_string()),
-                        crate::ast::Expression::Float(f) => result.push_str(&f.to_string()),
-                        crate::ast::Expression::Identifier(name) => {
+                    match expr_kind {
+                        crate::ast::ExpressionKind::StringLiteral(s) => result.push_str(s),
+                        crate::ast::ExpressionKind::Int(n) => result.push_str(&n.to_string()),
+                        crate::ast::ExpressionKind::Float(f) => result.push_str(&f.to_string()),
+                        crate::ast::ExpressionKind::Identifier(name) => {
                             // For identifiers, we can't resolve at compile time without
                             // more sophisticated constant propagation, so we keep the placeholder
                             result.push_str(&format!("{{{}}}", name));
                         }
                         _ => {
                             // For other expressions, we use a placeholder
-                            result.push_str(&format!("{{{}}}", expr.to_string()));
+                            result.push_str(&format!("{{{}}}", expr_kind.to_string()));
                         }
                     }
                 }

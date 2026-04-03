@@ -114,16 +114,16 @@ impl Diagnostic for SemanticError {
 
     fn location(&self) -> SourceLocation {
         match self {
-            SemanticError::TypeMismatch { location, .. } => *location,
-            SemanticError::UndefinedVariable { location, .. } => *location,
-            SemanticError::InvalidBinaryOp { location, .. } => *location,
-            SemanticError::InvalidUnaryOp { location, .. } => *location,
-            SemanticError::ArgumentCountMismatch { location, .. } => *location,
-            SemanticError::ArgumentTypeMismatch { location, .. } => *location,
-            SemanticError::DuplicateDefinition { location, .. } => *location,
-            SemanticError::InvalidStyleProperty { location, .. } => *location,
-            SemanticError::MissingStyleProperty { location, .. } => *location,
-            SemanticError::InvalidLayoutConstraint { location, .. } => *location,
+            SemanticError::TypeMismatch { location, .. } => location.clone(),
+            SemanticError::UndefinedVariable { location, .. } => location.clone(),
+            SemanticError::InvalidBinaryOp { location, .. } => location.clone(),
+            SemanticError::InvalidUnaryOp { location, .. } => location.clone(),
+            SemanticError::ArgumentCountMismatch { location, .. } => location.clone(),
+            SemanticError::ArgumentTypeMismatch { location, .. } => location.clone(),
+            SemanticError::DuplicateDefinition { location, .. } => location.clone(),
+            SemanticError::InvalidStyleProperty { location, .. } => location.clone(),
+            SemanticError::MissingStyleProperty { location, .. } => location.clone(),
+            SemanticError::InvalidLayoutConstraint { location, .. } => location.clone(),
         }
     }
 
@@ -223,6 +223,7 @@ impl SemanticError {
                 ..
             } => {
                 let prev_str = previous_location
+                    .as_ref()
                     .map(|loc| format!(" (previously defined at {})", loc))
                     .unwrap_or_default();
                 format!("`{}` is already defined{}", name, prev_str)

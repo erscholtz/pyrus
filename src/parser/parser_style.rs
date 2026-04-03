@@ -1,7 +1,9 @@
 use super::parser::Parser;
 
-use crate::ast::{Expression, KeyValue, Selector, StyleRule};
+use crate::ast::{Expression, ExpressionKind, KeyValue, Selector, StyleRule};
+use crate::error::SourceLocation;
 use crate::lexer::TokenKind;
+use crate::util::Spanned;
 
 impl Parser {
     pub fn parse_style_block(&mut self) -> Vec<StyleRule> {
@@ -104,6 +106,8 @@ impl Parser {
     }
 
     fn parse_css_value(&mut self) -> crate::ast::Expression {
+        let start_line = self.current_token_line();
+        let start_col = self.current_token_col();
         let mut parts = Vec::new();
 
         while self.idx < self.toks.kinds.len() {
@@ -118,7 +122,8 @@ impl Parser {
         }
 
         if parts.is_empty() {
-            return Expression::StringLiteral(String::new());
+            let location = SourceLocation::new(start_line, start_col, self.file.clone());
+            return Spanned::new(ExpressionKind::StringLiteral(String::new()), location);
         }
 
         let mut result = String::new();
@@ -142,6 +147,7 @@ impl Parser {
             result.push_str(part);
         }
 
-        Expression::StringLiteral(result)
+        let location = SourceLocation::new(start_line, start_col, self.file.clone());
+        Spanned::new(ExpressionKind::StringLiteral(result), location)
     }
 }

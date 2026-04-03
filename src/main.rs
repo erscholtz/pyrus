@@ -30,7 +30,7 @@ fn main() {
     };
     let data = fs::read_to_string(filename).expect("Should be able to read test file");
 
-    let tokens = match lexer::lex(&data) {
+    let tokens = match lexer::lex(&data, filename) {
         Ok(tokens) => tokens,
         Err(errors) => {
             for error in errors {

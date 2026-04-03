@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 
-use crate::ast::{Ast, Expression, Statement};
+use crate::ast::{Ast, Expression, Statement, StatementKind};
 use crate::error::{Diagnostic, Severity, SourceLocation, Span};
 use crate::hir::hir_util::hir_error::HirError;
 pub use crate::hir::hir_util::style_resolver::resolve_styles;
 pub use crate::hir::ir_types::{
-    AttributeNode, AttributeTree, ElementMetadata, Func, FuncBlock, FuncId, GlobalId, HIRModule,
-    HirElement, Id, Literal, Op, StyleAttributes, Type,
+    AttributeNode, AttributeTree, ElementMetadata, FuncBlock, FuncDecl, FuncId, GlobalId,
+    HIRModule, HirElementOp, Id, Literal, Op, StyleAttributes, Type,
 };
 use crate::util::Spanned;
 
@@ -20,7 +20,7 @@ pub fn lower(ast: &Ast) -> HIRModule {
 
 pub struct HIRPass {
     // Fields and methods for the Hir struct
-    ast: Ast,
+    pub ast: Ast,
     pub symbol_table: Vec<HashMap<String, Id>>, // Scope stack
 }
 
@@ -28,6 +28,7 @@ impl HIRPass {
     // Methods for the Hir struct
     fn lower(&mut self) -> HIRModule {
         let mut hirmodule = HIRModule {
+            file: self.ast.file.clone(),
             globals: HashMap::new(),
             functions: HashMap::new(),
             attributes: AttributeTree::new(),
@@ -61,27 +62,27 @@ impl HIRPass {
 
         let statements = template.statements.clone();
         for statement in &statements {
-            match statement {
-                Statement::DefaultSet { key, value } => {
+            match &statement.node {
+                StatementKind::DefaultSet { key, value } => {
                     let global_id = Id::Global(GlobalId(hirmodule.globals.len()));
                     let global_name = "__".to_string() + &key.clone();
                     let global = self.assign_global(&global_name, &value, global_id, false);
                     hirmodule.globals.insert(global_id, global);
                     self.add_symbol(key.clone(), global_id);
                 }
-                Statement::ConstAssign { name, value } => {
+                StatementKind::ConstAssign { name, value } => {
                     let global_id = Id::Global(GlobalId(hirmodule.globals.len()));
                     let global = self.assign_global(&name, &value, global_id, false);
                     hirmodule.globals.insert(global_id, global);
                     self.add_symbol(name.clone(), global_id);
                 }
-                Statement::VarAssign { name, value } => {
+                StatementKind::VarAssign { name, value } => {
                     let global_id = Id::Global(GlobalId(hirmodule.globals.len()));
                     let global = self.assign_global(&name, &value, global_id, true);
                     hirmodule.globals.insert(global_id, global);
                     self.add_symbol(name.clone(), global_id);
                 }
-                Statement::FunctionDecl {
+                StatementKind::FunctionDecl {
                     name,
                     args,
                     body,
@@ -113,7 +114,7 @@ impl HIRPass {
 
                     hirmodule.functions.insert(
                         Id::Func(func_id),
-                        Func {
+                        FuncDecl {
                             id: Id::Func(func_id),
                             name: name.clone(),
                             args: arg_list,
@@ -121,6 +122,19 @@ impl HIRPass {
                             body: hir_body,
                         },
                     );
+                }
+                StatementKind::ElementDecl { name, args, body } => {
+                    let element_id = hirmodule.elements.len();
+                    let location = statement.location.clone();
+
+                    hirmodule.element_metadata.push(ElementMetadata {
+                        id: None,
+                        classes: Vec::new(),
+                        element_type: name.clone(),
+                        parent: None,
+                        attributes_ref: 0,
+                        location: location,
+                    });
                 }
                 _ => {}
             }
@@ -150,7 +164,7 @@ impl HIRPass {
         let func_id = FuncId(TryInto::<usize>::try_into(hirmodule.functions.len()).unwrap());
         hirmodule.functions.insert(
             Id::Func(func_id),
-            Func {
+            FuncDecl {
                 id: Id::Func(func_id),
                 name: "__document".to_string(),
                 args: Vec::new(),
@@ -169,7 +183,7 @@ impl HIRPass {
         ir_body: &mut FuncBlock,
         parent_index: Option<usize>,
     ) -> usize {
-        let location = element.location;
+        let location = element.location.clone();
         match &element.node {
             crate::ast::DocElementKind::Call {
                 name,
@@ -178,8 +192,21 @@ impl HIRPass {
             } => {
                 let func_id = match self.find_symbol(name.as_str()) {
                     Some(id) => Some(id),
-                    None => panic!("Function not found: {}", name),
+                    None => None,
                 };
+                if func_id.is_none() {
+                    hirmodule.errors.push(HirError::new(
+                        format!("Function not found: {}", name),
+                        Severity::Error,
+                        location.clone(),
+                        Span {
+                            start: location.line,
+                            end: location.column,
+                            file: location.file.clone(),
+                        },
+                    ));
+                    return 0;
+                }
 
                 let arg_value_ids = self.handle_args(&args, ir_body);
                 ir_body.ops.push(Op::Call {
@@ -209,7 +236,7 @@ impl HIRPass {
                     attributes_ref,
                     location,
                 });
-                hirmodule.elements.push(HirElement::Text {
+                hirmodule.elements.push(HirElementOp::Text {
                     content: content.to_string(),
                     attributes: attributes_ref,
                 });
@@ -236,7 +263,7 @@ impl HIRPass {
                     location,
                 });
                 // Push placeholder first to reserve the slot
-                hirmodule.elements.push(HirElement::Section {
+                hirmodule.elements.push(HirElementOp::Section {
                     children: Vec::new(), // Will be updated
                     attributes: attributes_ref,
                 });
@@ -250,7 +277,7 @@ impl HIRPass {
                     ));
                 }
                 // Update with actual children
-                hirmodule.elements[index] = HirElement::Section {
+                hirmodule.elements[index] = HirElementOp::Section {
                     children,
                     attributes: attributes_ref,
                 };
@@ -278,7 +305,7 @@ impl HIRPass {
                     attributes_ref,
                 });
                 // Push placeholder first to reserve the slot
-                hirmodule.elements.push(HirElement::List {
+                hirmodule.elements.push(HirElementOp::List {
                     children: Vec::new(), // Will be updated
                     attributes: attributes_ref,
                 });
@@ -292,7 +319,7 @@ impl HIRPass {
                     ));
                 }
                 // Update with actual children
-                hirmodule.elements[index] = HirElement::List {
+                hirmodule.elements[index] = HirElementOp::List {
                     children,
                     attributes: attributes_ref,
                 };
@@ -316,7 +343,7 @@ impl HIRPass {
                     attributes_ref,
                     location,
                 });
-                hirmodule.elements.push(HirElement::Image {
+                hirmodule.elements.push(HirElementOp::Image {
                     src: src.to_string(),
                     attributes: attributes_ref,
                 });
@@ -349,7 +376,7 @@ impl HIRPass {
                             .collect()
                     })
                     .collect();
-                hirmodule.elements.push(HirElement::Table {
+                hirmodule.elements.push(HirElementOp::Table {
                     table,
                     attributes: attributes_ref,
                 });

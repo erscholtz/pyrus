@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
-use crate::hir::ir_types::{AttributeNode, FuncBlock, HIRModule, HirElement, Id, Op, ValueId};
 use crate::hir::HIRPass;
+use crate::hir::ir_types::{FuncBlock, HIRModule, Id, Op, ValueId};
 
-use crate::ast::ArgType;
+use crate::ast::{ArgType, Expression, StatementKind};
 
 impl HIRPass {
     pub fn lower_function_block(
@@ -19,21 +19,21 @@ impl HIRPass {
         self.symbol_table.push(HashMap::new()); // add new scope (function)
 
         for stmt in body {
-            match stmt {
-                crate::ast::Statement::ConstAssign { name, value } => {
+            match &stmt.node {
+                StatementKind::ConstAssign { name, value } => {
                     let id = Id::Value(ValueId(ir_body.ops.len()));
                     let value = self.assign_local(name.clone(), value.clone(), id, false);
                     ir_body.ops.push(value);
                     self.add_symbol(name.clone(), id);
                 }
-                crate::ast::Statement::VarAssign { name, value } => {
+                StatementKind::VarAssign { name, value } => {
                     let id = Id::Value(ValueId(ir_body.ops.len()));
                     let value = self.assign_local(name.clone(), value.clone(), id, true);
                     ir_body.ops.push(value);
                     self.add_symbol(name.clone(), id);
                 }
 
-                crate::ast::Statement::Return { doc_element } => {
+                StatementKind::Return { doc_element } => {
                     let element_id =
                         self.lower_document_element(doc_element, hirmodule, &mut ir_body, None);
                     ir_body.ops.push(Op::Return {
@@ -78,10 +78,13 @@ impl HIRPass {
                 "int" => {
                     let value = name.as_str().parse::<i64>().unwrap();
                     let id = ValueId(ir_body.ops.len());
-                    let var_name = "raw_arg_".to_string() + id.to_string().as_str();
+                    let var_name = format!("raw_arg_{}", id.0);
                     let var = self.assign_local(
                         var_name.clone(),
-                        crate::ast::Expression::Int(value),
+                        crate::ast::Expression::new(
+                            crate::ast::ExpressionKind::Int(value),
+                            crate::error::SourceLocation::new(0, 0, self.ast.file.clone()),
+                        ),
                         Id::Value(id),
                         false,
                     );
@@ -91,10 +94,13 @@ impl HIRPass {
                 "float" => {
                     let value = name.as_str().parse::<f64>().unwrap();
                     let id = ValueId(ir_body.ops.len());
-                    let var_name = "raw_arg_".to_string() + id.to_string().as_str();
+                    let var_name = format!("raw_arg_{}", id.0);
                     let var = self.assign_local(
                         var_name.clone(),
-                        crate::ast::Expression::Float(value),
+                        crate::ast::Expression::new(
+                            crate::ast::ExpressionKind::Float(value),
+                            crate::error::SourceLocation::new(0, 0, self.ast.file.clone()),
+                        ),
                         Id::Value(id),
                         false,
                     );
@@ -109,10 +115,13 @@ impl HIRPass {
                         .trim_matches('"')
                         .to_string();
                     let id = ValueId(ir_body.ops.len());
-                    let var_name = "raw_arg_".to_string() + id.to_string().as_str();
+                    let var_name = format!("raw_arg_{}", id.0);
                     let var = self.assign_local(
                         var_name.clone(),
-                        crate::ast::Expression::StringLiteral(value),
+                        crate::ast::Expression::new(
+                            crate::ast::ExpressionKind::StringLiteral(value),
+                            crate::error::SourceLocation::new(0, 0, self.ast.file.clone()),
+                        ),
                         Id::Value(id),
                         false,
                     );

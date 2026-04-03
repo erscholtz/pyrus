@@ -1,8 +1,10 @@
-use std::iter::Product;
-
-use crate::ast::{Ast, DocumentBlock, Expression, InterpPart, StyleBlock, TemplateBlock};
+use crate::ast::{
+    Ast, DocumentBlock, Expression, ExpressionKind, InterpPart, StyleBlock, TemplateBlock,
+};
+use crate::error::SourceLocation;
 use crate::lexer::{TokenKind, TokenStream};
 use crate::parser::parser_err::ParseError;
+use crate::util::Spanned;
 
 pub fn parse(tokens: TokenStream) -> Result<Ast, Vec<ParseError>> {
     let p = Parser::new(tokens);
@@ -10,6 +12,7 @@ pub fn parse(tokens: TokenStream) -> Result<Ast, Vec<ParseError>> {
 }
 
 pub struct Parser {
+    pub file: String,
     pub toks: TokenStream,
     pub idx: usize,
     pub errors: Vec<ParseError>,
@@ -18,6 +21,7 @@ pub struct Parser {
 impl Parser {
     fn new(toks: TokenStream) -> Self {
         Self {
+            file: toks.file.clone(),
             toks,
             idx: 0,
             errors: Vec::new(),
@@ -80,6 +84,7 @@ impl Parser {
                         ),
                         self.current_token_line() as usize,
                         self.current_token_col() as usize,
+                        self.file.clone(),
                     ));
                     self.advance();
                 }
@@ -91,6 +96,7 @@ impl Parser {
         }
 
         Ok(Ast {
+            file: self.file.clone(),
             template,
             document,
             style,
@@ -98,11 +104,14 @@ impl Parser {
     }
 
     pub fn parse_expression(&mut self) -> Expression {
-        match self.current_token_kind() {
+        let start_line = self.current_token_line();
+        let start_col = self.current_token_col();
+
+        let kind = match self.current_token_kind() {
             TokenKind::Minus => {
                 self.advance();
                 let right = self.parse_expression();
-                Expression::Unary {
+                ExpressionKind::Unary {
                     operator: crate::ast::UnaryOp::Negate,
                     expression: Box::new(right),
                 }
@@ -110,7 +119,7 @@ impl Parser {
             TokenKind::Bang => {
                 self.advance();
                 let right = self.parse_expression();
-                Expression::Unary {
+                ExpressionKind::Unary {
                     operator: crate::ast::UnaryOp::Not,
                     expression: Box::new(right),
                 }
@@ -125,24 +134,24 @@ impl Parser {
                 } else {
                     // Process escape sequences even for non-interpolated strings
                     let processed = self.process_escape_sequences(&entry.content);
-                    Expression::StringLiteral(processed)
+                    ExpressionKind::StringLiteral(processed)
                 }
             }
             TokenKind::Float => {
                 let value = self.current_text();
                 self.advance();
-                Expression::Float(value.parse().unwrap())
+                ExpressionKind::Float(value.parse().unwrap())
             }
             TokenKind::Int => {
                 let value = self.current_text();
                 self.advance();
-                Expression::Int(value.parse().unwrap())
+                ExpressionKind::Int(value.parse().unwrap())
             }
             TokenKind::Dollarsign => {
                 self.advance(); // first $
                 let expression = self.parse_expression();
                 self.advance(); // other $
-                expression
+                return expression; // Return directly to preserve location from inner expression
             }
             TokenKind::Identifier => self.parse_binary_expr(),
             _ => {
@@ -155,14 +164,18 @@ impl Parser {
                     ),
                     self.current_token_line(),
                     self.current_token_col(),
+                    self.file.clone(),
                 ));
                 self.advance();
-                Expression::Int(0)
+                ExpressionKind::Int(0)
             }
-        }
+        };
+
+        let location = SourceLocation::new(start_line, start_col, self.file.clone());
+        Spanned::new(kind, location)
     }
 
-    pub fn parse_string_with_interpolation(&mut self, s: &str) -> Expression {
+    pub fn parse_string_with_interpolation(&mut self, s: &str) -> ExpressionKind {
         // Strip surrounding quotes if present
         let content = if s.len() >= 2 && s.starts_with('"') && s.ends_with('"') {
             &s[1..s.len() - 1]
@@ -247,14 +260,14 @@ impl Parser {
         }
 
         if parts.is_empty() {
-            Expression::StringLiteral(String::new())
+            ExpressionKind::StringLiteral(String::new())
         } else if parts.len() == 1 {
             match &parts[0] {
-                InterpPart::Text(text) => Expression::StringLiteral(text.clone()),
-                InterpPart::Expression(_) => Expression::InterpolatedString(parts),
+                InterpPart::Text(text) => ExpressionKind::StringLiteral(text.clone()),
+                InterpPart::Expression(_) => ExpressionKind::InterpolatedString(parts),
             }
         } else {
-            Expression::InterpolatedString(parts)
+            ExpressionKind::InterpolatedString(parts)
         }
     }
 
@@ -290,16 +303,16 @@ impl Parser {
         result
     }
 
-    fn parse_expression_from_str(&mut self, expr_str: &str) -> Expression {
+    fn parse_expression_from_str(&mut self, expr_str: &str) -> ExpressionKind {
         let trimmed = expr_str.trim();
         if trimmed.is_empty() {
-            return Expression::StringLiteral(String::new());
+            return ExpressionKind::StringLiteral(String::new());
         }
         if let Ok(n) = trimmed.parse::<i64>() {
-            return Expression::Int(n);
+            return ExpressionKind::Int(n);
         }
         if let Ok(f) = trimmed.parse::<f64>() {
-            return Expression::Float(f);
+            return ExpressionKind::Float(f);
         }
 
         for (op_pos, op_char) in trimmed.chars().enumerate() {
@@ -315,29 +328,39 @@ impl Parser {
                         '=' => crate::ast::BinaryOp::Equals,
                         _ => unreachable!(),
                     };
-                    return Expression::Binary {
-                        left: Box::new(self.parse_expression_from_str(left.trim())),
+                    // For string-interpolated expressions, we create simple ExpressionKind
+                    // without location info since we don't have token positions
+                    let left_expr = self.parse_expression_from_str(left.trim());
+                    let right_expr = self.parse_expression_from_str(right.trim());
+                    return ExpressionKind::Binary {
+                        left: Box::new(Spanned::new(
+                            left_expr,
+                            SourceLocation::new(0, 0, self.file.clone()),
+                        )),
                         operator,
-                        right: Box::new(self.parse_expression_from_str(right.trim())),
+                        right: Box::new(Spanned::new(
+                            right_expr,
+                            SourceLocation::new(0, 0, self.file.clone()),
+                        )),
                     };
                 }
                 _ => {
-                    // Continue to next character - this is not an error,
+                    // NOTE: Continue to next character - this is not an error,
                     // we're just looking for operators. Non-operator characters
                     // are part of the identifier.
                 }
             }
         }
 
-        Expression::Identifier(trimmed.to_string())
+        ExpressionKind::Identifier(trimmed.to_string())
     }
 
-    fn parse_binary_expr(&mut self) -> Expression {
+    fn parse_binary_expr(&mut self) -> ExpressionKind {
         let left = match self.current_token_kind() {
             TokenKind::Identifier => {
                 let name = self.current_text();
                 self.advance();
-                Expression::Identifier(name)
+                ExpressionKind::Identifier(name)
             }
             _ => {
                 self.errors.push(ParseError::new(
@@ -349,9 +372,10 @@ impl Parser {
                     ),
                     self.current_token_line(),
                     self.current_token_col(),
+                    self.file.clone(),
                 ));
                 self.advance();
-                Expression::Int(0)
+                ExpressionKind::Int(0)
             }
         };
 
@@ -371,8 +395,13 @@ impl Parser {
             };
             self.advance(); // consume operator
             let right = self.parse_expression();
-            return Expression::Binary {
-                left: Box::new(left),
+            let left_span = SourceLocation::new(
+                self.current_token_line(),
+                self.current_token_col(),
+                self.file.clone(),
+            );
+            return ExpressionKind::Binary {
+                left: Box::new(Spanned::new(left, left_span)),
                 operator,
                 right: Box::new(right),
             };

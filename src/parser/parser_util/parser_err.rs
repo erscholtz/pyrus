@@ -3,14 +3,16 @@ pub struct ParseError {
     error_message: String,
     line: usize,
     column: usize,
+    file: String,
 }
 
 impl ParseError {
-    pub fn new(error_message: String, line: usize, column: usize) -> Self {
+    pub fn new(error_message: String, line: usize, column: usize, file: String) -> Self {
         Self {
             error_message,
             line,
             column,
+            file,
         }
     }
 
@@ -25,6 +27,10 @@ impl ParseError {
     pub fn column(&self) -> usize {
         self.column
     }
+
+    pub fn file(&self) -> &str {
+        &self.file
+    }
 }
 
 // Implement the Diagnostic trait for unified error handling
@@ -34,7 +40,7 @@ impl crate::error::Diagnostic for ParseError {
     }
 
     fn location(&self) -> crate::error::SourceLocation {
-        crate::error::SourceLocation::new(self.line, self.column)
+        crate::error::SourceLocation::new(self.line, self.column, self.file.clone())
     }
 
     fn severity(&self) -> crate::error::Severity {

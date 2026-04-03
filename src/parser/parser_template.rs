@@ -1,7 +1,9 @@
 use super::parser::Parser;
 use super::parser_err::ParseError;
-use crate::ast::Statement;
+use crate::ast::{Statement, StatementKind};
+use crate::error::SourceLocation;
 use crate::lexer::TokenKind;
+use crate::util::Spanned;
 
 const TEMPLATE_SYNC: &[TokenKind] = &[
     TokenKind::RightBrace,
@@ -46,13 +48,16 @@ impl Parser {
     }
 
     fn parse_statement(&mut self) -> Statement {
-        match self.current_token_kind() {
+        let start_line = self.current_token_line();
+        let start_col = self.current_token_col();
+
+        let kind = match self.current_token_kind() {
             TokenKind::Identifier => {
                 let varname = self.current_text();
                 self.advance();
                 self.expect(TokenKind::Equals);
                 let expr = self.parse_expression();
-                Statement::DefaultSet {
+                StatementKind::DefaultSet {
                     key: varname,
                     value: expr,
                 }
@@ -63,7 +68,7 @@ impl Parser {
                 self.advance();
                 self.expect(TokenKind::Equals);
                 let expr = self.parse_expression();
-                Statement::VarAssign {
+                StatementKind::VarAssign {
                     name: varname,
                     value: expr,
                 }
@@ -74,14 +79,14 @@ impl Parser {
                 self.advance();
                 self.expect(TokenKind::Equals);
                 let expr = self.parse_expression();
-                Statement::ConstAssign {
+                StatementKind::ConstAssign {
                     name: varname,
                     value: expr,
                 }
             }
             TokenKind::At => {
                 let element = self.parse_document_element();
-                Statement::DocElementEmit { element }
+                StatementKind::DocElementEmit { element }
             }
             TokenKind::Return => {
                 self.advance(); // consume 'return'
@@ -89,7 +94,7 @@ impl Parser {
                     // TODO add the other types of return types later, for rigt now only returning DocElements
                     _ => {
                         let return_value = self.parse_document_element();
-                        Statement::Return {
+                        StatementKind::Return {
                             doc_element: return_value,
                         }
                     }
@@ -97,7 +102,7 @@ impl Parser {
             }
             TokenKind::Children => {
                 self.advance(); // consume 'children'
-                Statement::Children {
+                StatementKind::Children {
                     children: "RENDER_CHILDREN".to_string(),
                 }
             }
@@ -114,17 +119,24 @@ impl Parser {
                     ),
                     self.current_token_line(),
                     self.current_token_col(),
+                    self.file.clone(),
                 ));
                 self.synchronize(TEMPLATE_SYNC);
-                Statement::ErrorLocation {
+                StatementKind::ErrorLocation {
                     line: self.current_token_line(),
                     col: self.current_token_col(),
                 }
             }
-        }
+        };
+
+        let location = SourceLocation::new(start_line, start_col, self.file.clone());
+        Spanned::new(kind, location)
     }
 
     fn parse_func_decl(&mut self) -> Statement {
+        let start_line = self.current_token_line();
+        let start_col = self.current_token_col();
+
         self.expect(TokenKind::Func);
 
         self.expect(TokenKind::Identifier);
@@ -150,15 +162,21 @@ impl Parser {
         let body = self.parse_decl_body();
         self.expect(TokenKind::RightBrace); // consume function's closing brace
 
-        Statement::FunctionDecl {
+        let kind = StatementKind::FunctionDecl {
             name,
             args,
             body,
             return_type: return_type,
-        }
+        };
+
+        let location = SourceLocation::new(start_line, start_col, self.file.clone());
+        Spanned::new(kind, location)
     }
 
     fn parse_element_decl(&mut self) -> Statement {
+        let start_line = self.current_token_line();
+        let start_col = self.current_token_col();
+
         self.expect(TokenKind::Element);
 
         self.expect(TokenKind::Identifier);
@@ -171,7 +189,10 @@ impl Parser {
         let body = self.parse_decl_body();
         self.expect(TokenKind::RightBrace); // consume element's closing brace
 
-        Statement::ElementDecl { name, args, body }
+        let kind = StatementKind::ElementDecl { name, args, body };
+
+        let location = SourceLocation::new(start_line, start_col, self.file.clone());
+        Spanned::new(kind, location)
     }
 
     fn parse_args(&mut self) -> Vec<crate::ast::FuncParam> {
@@ -201,6 +222,7 @@ impl Parser {
                         ),
                         self.current_token_line(),
                         self.current_token_col(),
+                        self.file.clone(),
                     ));
                     self.synchronize(TEMPLATE_SYNC);
                     break;
@@ -228,6 +250,7 @@ impl Parser {
                         ),
                         self.current_token_line(),
                         self.current_token_col(),
+                        self.file.clone(),
                     ));
                     self.synchronize(TEMPLATE_SYNC);
                     break;

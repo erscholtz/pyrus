@@ -6,7 +6,7 @@ use printpdf::{
     BuiltinFont, Mm, Op, PdfDocument, PdfFontHandle, PdfPage, PdfSaveOptions, Point, Pt, TextItem,
 };
 
-use crate::hir::{HIRModule, HirElement, StyleAttributes};
+use crate::hir::{HIRModule, HirElementOp, StyleAttributes};
 use crate::layout::ComputedLayout;
 
 pub struct PdfRenderer;
@@ -61,7 +61,7 @@ impl PdfRenderer {
 
     fn format_hlir_to_pdf_op(
         &self,
-        element: HirElement,
+        element: HirElementOp,
         hlir: &HIRModule,
         pdf_ops: &mut Vec<Op>,
         layout: &ComputedLayout,
@@ -72,7 +72,7 @@ impl PdfRenderer {
 
         // Get font size first so we can adjust for baseline
         let (font_size, font) = match &element {
-            HirElement::Text { attributes, .. } => {
+            HirElementOp::Text { attributes, .. } => {
                 let default_attrs = StyleAttributes::default();
                 let attrs = hlir
                     .attributes
@@ -101,7 +101,7 @@ impl PdfRenderer {
         let point = Point::new(Mm(x_mm), Mm(y_mm));
 
         match element {
-            HirElement::Text { content, .. } => {
+            HirElementOp::Text { content, .. } => {
                 pdf_ops.push(Op::StartTextSection);
                 pdf_ops.push(Op::SetTextCursor { pos: point });
                 pdf_ops.push(Op::SetFont {
@@ -113,16 +113,16 @@ impl PdfRenderer {
                 });
                 pdf_ops.push(Op::EndTextSection);
             }
-            HirElement::List { .. } => {
+            HirElementOp::List { .. } => {
                 // Container elements don't render directly
             }
-            HirElement::Section { .. } => {
+            HirElementOp::Section { .. } => {
                 // Container elements don't render directly
             }
-            HirElement::Image { src, .. } => {
+            HirElementOp::Image { src, .. } => {
                 // Render image
             }
-            HirElement::Table { .. } => {
+            HirElementOp::Table { .. } => {
                 // Render table
             }
         }

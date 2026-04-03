@@ -1,7 +1,8 @@
 use std::collections::HashMap;
+use std::fmt;
 use std::str::FromStr;
 
-use crate::ast::{DocElement, Expression, StyleRule};
+use crate::ast::{Expression, StyleRule};
 use crate::hir::hir_util::hir_error::HirError;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -34,19 +35,21 @@ pub struct GlobalId(pub usize);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ValueId(pub usize);
 
-use std::fmt;
-
-impl fmt::Display for ValueId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ElementId(pub usize);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Id {
     Func(FuncId),
     Global(GlobalId),
     Value(ValueId),
+    Element(ElementId),
+}
+
+impl fmt::Display for Id {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -113,11 +116,19 @@ pub struct Local {
 // how functions are handled
 
 #[derive(Debug, Clone)]
-pub struct Func {
+pub struct FuncDecl {
     pub id: Id,
     pub name: String,
     pub args: Vec<Type>,
     pub return_type: Option<Type>,
+    pub body: FuncBlock,
+}
+
+#[derive(Debug, Clone)]
+pub struct HirElementDecl {
+    pub id: Id,
+    pub name: String,
+    pub args: Vec<Type>,
     pub body: FuncBlock,
 }
 
@@ -147,17 +158,18 @@ pub struct ElementMetadata {
 
 #[derive(Debug, Clone)]
 pub struct HIRModule {
+    pub file: String,
     pub globals: HashMap<Id, Global>, // TODO eventually remove IDs from actual struct and just refer to them (I think)
-    pub functions: HashMap<Id, Func>,
+    pub functions: HashMap<Id, FuncDecl>,
     pub attributes: AttributeTree,
     pub css_rules: Vec<StyleRule>, // Parsed CSS rules (unapplied)
-    pub elements: Vec<HirElement>,
+    pub elements: Vec<HirElementOp>,
     pub element_metadata: Vec<ElementMetadata>, // Parallel to elements, for CSS matching
     pub errors: Vec<HirError>,
 }
 
 #[derive(Debug, Clone)]
-pub enum HirElement {
+pub enum HirElementOp {
     Section {
         children: Vec<usize>,
         attributes: usize,

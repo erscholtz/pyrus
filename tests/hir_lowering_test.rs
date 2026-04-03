@@ -3,8 +3,8 @@
 //! These tests define the expected behavior of the lowering pass and
 //! the validation pass that should catch errors.
 
-use pyrus::hir::{FuncId, HIRModule, Id, Op, Type};
 use pyrus::hir::{lower, resolve_styles};
+use pyrus::hir::{FuncId, HIRModule, Id, Op, Type};
 use pyrus::lexer::lex;
 use pyrus::parser::parse;
 
@@ -18,7 +18,7 @@ fn test_lower_empty_document() {
 document {
 }
 "#;
-    let tokens = lex(source).expect("Lexing failed");
+    let tokens = lex(source, "test_lower_empty_document").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower(&ast);
 
@@ -42,7 +42,7 @@ template {
 document {
 }
 "#;
-    let tokens = lex(source).expect("Lexing failed");
+    let tokens = lex(source, "test_lower_global_const").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower(&ast);
 
@@ -54,12 +54,12 @@ document {
 fn test_lower_global_var() {
     let source = r#"
 template {
-    var counter = 0
+    let counter = 0
 }
 document {
 }
 "#;
-    let tokens = lex(source).expect("Lexing failed");
+    let tokens = lex(source, "test_lower_global_var").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower(&ast);
 
@@ -73,12 +73,12 @@ fn test_lower_multiple_globals() {
 template {
     const TITLE = "My Doc"
     const AUTHOR = "Me"
-    var page_num = 1
+    let page_num = 1
 }
 document {
 }
 "#;
-    let tokens = lex(source).expect("Lexing failed");
+    let tokens = lex(source, "test_lower_multiple_globals").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower(&ast);
 
@@ -96,7 +96,7 @@ template {
 document {
 }
 "#;
-    let tokens = lex(source).expect("Lexing failed");
+    let tokens = lex(source, "test_lower_simple_function").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower(&ast);
 
@@ -126,7 +126,7 @@ template {
 document {
 }
 "#;
-    let tokens = lex(source).expect("Lexing failed");
+    let tokens = lex(source, "test_lower_function_with_args").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower(&ast);
 
@@ -150,7 +150,7 @@ template {
 document {
 }
 "#;
-    let tokens = lex(source).expect("Lexing failed");
+    let tokens = lex(source, "test_lower_function_with_multiple_args").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower(&ast);
 
@@ -175,7 +175,7 @@ document {
     text { "Hello World" }
 }
 "#;
-    let tokens = lex(source).expect("Lexing failed");
+    let tokens = lex(source, "test_lower_text_element").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower(&ast);
 
@@ -194,7 +194,7 @@ document {
     }
 }
 "#;
-    let tokens = lex(source).expect("Lexing failed");
+    let tokens = lex(source, "test_lower_section_with_children").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower(&ast);
 
@@ -224,7 +224,7 @@ document {
     text (id="header", class="large bold") { "Title" }
 }
 "#;
-    let tokens = lex(source).expect("Lexing failed");
+    let tokens = lex(source, "test_lower_element_with_id_and_class").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower(&ast);
 
@@ -252,7 +252,7 @@ style {
     }
 }
 "#;
-    let tokens = lex(source).expect("Lexing failed");
+    let tokens = lex(source, "test_lower_preserves_css_rules").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower(&ast);
 
@@ -275,7 +275,7 @@ document {
     header()
 }
 "#;
-    let tokens = lex(source).expect("Lexing failed");
+    let tokens = lex(source, "test_lower_function_call_in_document").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower(&ast);
 
@@ -307,7 +307,7 @@ document {
     greet("World")
 }
 "#;
-    let tokens = lex(source).expect("Lexing failed");
+    let tokens = lex(source, "test_lower_function_call_with_args").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower(&ast);
 
@@ -340,7 +340,7 @@ document {
     text { "Second" }
 }
 "#;
-    let tokens = lex(source).expect("Lexing failed");
+    let tokens = lex(source, "test_lower_generates_doc_element_emit_ops").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower(&ast);
 
@@ -369,7 +369,7 @@ template {
 document {
 }
 "#;
-    let tokens = lex(source).expect("Lexing failed");
+    let tokens = lex(source, "test_lower_const_generates_const_op").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower(&ast);
 
@@ -596,7 +596,7 @@ document {
     text { "Last" }
 }
 "#;
-    let tokens = lex(source).expect("Lexing failed");
+    let tokens = lex(source, "test_lower_preserves_element_order").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower(&ast);
 
@@ -615,7 +615,7 @@ template {
 document {
 }
 "#;
-    let tokens = lex(source).expect("Lexing failed");
+    let tokens = lex(source, "test_lower_empty_template_is_ok").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower(&ast);
 
@@ -634,7 +634,7 @@ document {
     }
 }
 "#;
-    let tokens = lex(source).expect("Lexing failed");
+    let tokens = lex(source, "test_lower_nested_sections").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower(&ast);
 

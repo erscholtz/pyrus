@@ -37,15 +37,20 @@ impl Span {
 }
 
 /// A simpler location for line/column-based errors
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SourceLocation {
     pub line: usize,
     pub column: usize,
+    pub file: String,
 }
 
 impl SourceLocation {
-    pub fn new(line: usize, column: usize) -> Self {
-        Self { line, column }
+    pub fn new(line: usize, column: usize, file: impl Into<String>) -> Self {
+        Self {
+            line,
+            column,
+            file: file.into(),
+        }
     }
 }
 

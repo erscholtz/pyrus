@@ -1,13 +1,11 @@
-use pyrus::ast::{
-    BinaryOp, DocElement, DocElementKind, Expression, InterpPart, Statement, UnaryOp,
-};
+use pyrus::ast::{BinaryOp, DocElementKind, ExpressionKind, InterpPart, StatementKind, UnaryOp};
 use pyrus::lexer::lex;
 use pyrus::parser::parse;
 
 #[test]
 fn test_parse_empty_document() {
     let source = "document { }";
-    let tokens = lex(source).expect("Lexing failed");
+    let tokens = lex(source, "test_parse_empty_document").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     assert!(ast.document.is_some());
     assert!(ast.template.is_none());
@@ -20,7 +18,7 @@ fn test_parse_empty_document() {
 #[test]
 fn test_parse_empty_template() {
     let source = "template { }";
-    let tokens = lex(source).expect("Lexing failed");
+    let tokens = lex(source, "test_parse_empty_template").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     assert!(ast.template.is_some());
     assert!(ast.document.is_none());
@@ -33,7 +31,7 @@ fn test_parse_empty_template() {
 #[test]
 fn test_parse_empty_style() {
     let source = "style { }";
-    let tokens = lex(source).expect("Lexing failed");
+    let tokens = lex(source, "test_parse_empty_style").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     assert!(ast.style.is_some());
     assert!(ast.template.is_none());
@@ -43,7 +41,7 @@ fn test_parse_empty_style() {
 #[test]
 fn test_parse_all_blocks() {
     let source = "template { } document { } style { }";
-    let tokens = lex(source).expect("Lexing failed");
+    let tokens = lex(source, "test_parse_all_blocks").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     assert!(ast.template.is_some());
     assert!(ast.document.is_some());
@@ -53,16 +51,16 @@ fn test_parse_all_blocks() {
 #[test]
 fn test_parse_variable_assignment() {
     let source = "template { let x = \"hello\" }";
-    let tokens = lex(source).expect("Lexing failed");
+    let tokens = lex(source, "test_parse_variable_assignment").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let template = ast.template.unwrap();
     assert_eq!(template.statements.len(), 1);
 
-    match &template.statements[0] {
-        Statement::VarAssign { name, value } => {
+    match &template.statements[0].node {
+        StatementKind::VarAssign { name, value } => {
             assert_eq!(name, "x");
-            match value {
-                Expression::StringLiteral(s) => assert_eq!(s, "hello"),
+            match &value.node {
+                ExpressionKind::StringLiteral(s) => assert_eq!(s, "hello"),
                 _ => panic!("Expected StringLiteral expression"),
             }
         }
@@ -73,16 +71,16 @@ fn test_parse_variable_assignment() {
 #[test]
 fn test_parse_const_assignment() {
     let source = "template { const PI = \"3.14\" }";
-    let tokens = lex(source).expect("Lexing failed");
+    let tokens = lex(source, "test_parse_const_assignment").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let template = ast.template.unwrap();
     assert_eq!(template.statements.len(), 1);
 
-    match &template.statements[0] {
-        Statement::ConstAssign { name, value } => {
+    match &template.statements[0].node {
+        StatementKind::ConstAssign { name, value } => {
             assert_eq!(name, "PI");
-            match value {
-                Expression::StringLiteral(s) => assert_eq!(s, "3.14"),
+            match &value.node {
+                ExpressionKind::StringLiteral(s) => assert_eq!(s, "3.14"),
                 _ => panic!("Expected StringLiteral expression"),
             }
         }
@@ -93,15 +91,15 @@ fn test_parse_const_assignment() {
 #[test]
 fn test_parse_unary_negation() {
     let source = "template { let x = - 42 }";
-    let tokens = lex(source).expect("Lexing failed");
+    let tokens = lex(source, "test_parse_unary_negation").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let template = ast.template.unwrap();
 
-    match &template.statements[0] {
-        Statement::VarAssign { name, value } => {
+    match &template.statements[0].node {
+        StatementKind::VarAssign { name, value } => {
             assert_eq!(name, "x");
-            match value {
-                Expression::Unary {
+            match &value.node {
+                ExpressionKind::Unary {
                     operator,
                     expression: _,
                 } => {
@@ -121,15 +119,15 @@ fn test_parse_unary_negation() {
 #[test]
 fn test_parse_binary_addition() {
     let source = "template { let sum = x + y }";
-    let tokens = lex(source).expect("Lexing failed");
+    let tokens = lex(source, "test_parse_binary_addition").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let template = ast.template.unwrap();
 
-    match &template.statements[0] {
-        Statement::VarAssign { name, value } => {
+    match &template.statements[0].node {
+        StatementKind::VarAssign { name, value } => {
             assert_eq!(name, "sum");
-            match value {
-                Expression::Binary {
+            match &value.node {
+                ExpressionKind::Binary {
                     left,
                     operator,
                     right,
@@ -138,8 +136,8 @@ fn test_parse_binary_addition() {
                         BinaryOp::Add => {}
                         _ => panic!("Expected Add operator"),
                     }
-                    match (&**left, &**right) {
-                        (Expression::Identifier(l), Expression::Identifier(r)) => {
+                    match (&left.node, &right.node) {
+                        (ExpressionKind::Identifier(l), ExpressionKind::Identifier(r)) => {
                             assert_eq!(l, "x");
                             assert_eq!(r, "y");
                         }
@@ -156,13 +154,13 @@ fn test_parse_binary_addition() {
 #[test]
 fn test_parse_binary_subtraction() {
     let source = "template { let diff = a - b }";
-    let tokens = lex(source).expect("Lexing failed");
+    let tokens = lex(source, "test_parse_binary_subtraction").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let template = ast.template.unwrap();
 
-    match &template.statements[0] {
-        Statement::VarAssign { value, .. } => match value {
-            Expression::Binary { operator, .. } => match operator {
+    match &template.statements[0].node {
+        StatementKind::VarAssign { value, .. } => match &value.node {
+            ExpressionKind::Binary { operator, .. } => match operator {
                 BinaryOp::Subtract => {}
                 _ => panic!("Expected Subtract operator"),
             },
@@ -175,13 +173,13 @@ fn test_parse_binary_subtraction() {
 #[test]
 fn test_parse_binary_multiplication() {
     let source = "template { let product = a * b }";
-    let tokens = lex(source).expect("Lexing failed");
+    let tokens = lex(source, "test_parse_binary_multiplication").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let template = ast.template.unwrap();
 
-    match &template.statements[0] {
-        Statement::VarAssign { value, .. } => match value {
-            Expression::Binary { operator, .. } => match operator {
+    match &template.statements[0].node {
+        StatementKind::VarAssign { value, .. } => match &value.node {
+            ExpressionKind::Binary { operator, .. } => match operator {
                 BinaryOp::Multiply => {}
                 _ => panic!("Expected Multiply operator"),
             },
@@ -194,13 +192,13 @@ fn test_parse_binary_multiplication() {
 #[test]
 fn test_parse_binary_division() {
     let source = "template { let quotient = a / b }";
-    let tokens = lex(source).expect("Lexing failed");
+    let tokens = lex(source, "test_parse_binary_division").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let template = ast.template.unwrap();
 
-    match &template.statements[0] {
-        Statement::VarAssign { value, .. } => match value {
-            Expression::Binary { operator, .. } => match operator {
+    match &template.statements[0].node {
+        StatementKind::VarAssign { value, .. } => match &value.node {
+            ExpressionKind::Binary { operator, .. } => match operator {
                 BinaryOp::Divide => {}
                 _ => panic!("Expected Divide operator"),
             },
@@ -213,13 +211,13 @@ fn test_parse_binary_division() {
 #[test]
 fn test_parse_binary_equals() {
     let source = "template { let result = a = b }";
-    let tokens = lex(source).expect("Lexing failed");
+    let tokens = lex(source, "test_parse_binary_equals").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let template = ast.template.unwrap();
 
-    match &template.statements[0] {
-        Statement::VarAssign { value, .. } => match value {
-            Expression::Binary { operator, .. } => match operator {
+    match &template.statements[0].node {
+        StatementKind::VarAssign { value, .. } => match &value.node {
+            ExpressionKind::Binary { operator, .. } => match operator {
                 BinaryOp::Equals => {}
                 _ => panic!("Expected Equals operator"),
             },
@@ -232,13 +230,13 @@ fn test_parse_binary_equals() {
 #[test]
 fn test_parse_string_literal() {
     let source = "template { let msg = \"Hello, World!\" }";
-    let tokens = lex(source).expect("Lexing failed");
+    let tokens = lex(source, "test_parse_string_literal").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let template = ast.template.unwrap();
 
-    match &template.statements[0] {
-        Statement::VarAssign { value, .. } => match value {
-            Expression::StringLiteral(s) => assert_eq!(s, "Hello, World!"),
+    match &template.statements[0].node {
+        StatementKind::VarAssign { value, .. } => match &value.node {
+            ExpressionKind::StringLiteral(s) => assert_eq!(s, "Hello, World!"),
             _ => panic!("Expected StringLiteral expression"),
         },
         _ => panic!("Expected VarAssign statement"),
@@ -248,13 +246,13 @@ fn test_parse_string_literal() {
 #[test]
 fn test_parse_string_with_escaped_quote() {
     let source = r#"template { let msg = "foo\"bar" }"#;
-    let tokens = lex(source).expect("Lexing failed");
+    let tokens = lex(source, "test_parse_string_with_escaped_quote").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let template = ast.template.unwrap();
 
-    match &template.statements[0] {
-        Statement::VarAssign { value, .. } => match value {
-            Expression::StringLiteral(s) => assert_eq!(
+    match &template.statements[0].node {
+        StatementKind::VarAssign { value, .. } => match &value.node {
+            ExpressionKind::StringLiteral(s) => assert_eq!(
                 s, "foo\"bar",
                 "Escaped quote should be preserved as literal quote"
             ),
@@ -267,7 +265,7 @@ fn test_parse_string_with_escaped_quote() {
 #[test]
 fn test_lex_unterminated_string() {
     let source = r#"template { let msg = "unterminated }"#;
-    let tokens = lex(source).expect("Lexing failed");
+    let tokens = lex(source, "test_lex_unterminated_string").expect("Lexing failed");
 
     assert!(
         !tokens.errors.is_empty(),
@@ -282,13 +280,13 @@ fn test_lex_unterminated_string() {
 #[test]
 fn test_parse_integer_literal() {
     let source = "template { let num = 42 }";
-    let tokens = lex(source).expect("Lexing failed");
+    let tokens = lex(source, "test_parse_integer_literal").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let template = ast.template.unwrap();
 
-    match &template.statements[0] {
-        Statement::VarAssign { value, .. } => match value {
-            Expression::Int(n) => assert_eq!(*n, 42),
+    match &template.statements[0].node {
+        StatementKind::VarAssign { value, .. } => match &value.node {
+            ExpressionKind::Int(n) => assert_eq!(*n, 42),
             _ => panic!("Expected Int expression"),
         },
         _ => panic!("Expected VarAssign statement"),
@@ -298,13 +296,13 @@ fn test_parse_integer_literal() {
 #[test]
 fn test_parse_float_literal() {
     let source = "template { let pi = 3.14 }";
-    let tokens = lex(source).expect("Lexing failed");
+    let tokens = lex(source, "test_parse_float_literal").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let template = ast.template.unwrap();
 
-    match &template.statements[0] {
-        Statement::VarAssign { value, .. } => match value {
-            Expression::Float(f) => assert!((f - 3.14).abs() < 0.001),
+    match &template.statements[0].node {
+        StatementKind::VarAssign { value, .. } => match &value.node {
+            ExpressionKind::Float(f) => assert!((f - 3.14).abs() < 0.001),
             _ => panic!("Expected Float expression"),
         },
         _ => panic!("Expected VarAssign statement"),
@@ -315,14 +313,14 @@ fn test_parse_float_literal() {
 fn test_parse_return_statement() {
     // Return requires a document element (like text { ... }), not a plain string
     let source = "template { return text { done } }";
-    let tokens = lex(source).expect("Lexing failed");
+    let tokens = lex(source, "test_parse_return_statement").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let template = ast.template.unwrap();
 
-    match &template.statements[0] {
-        Statement::Return { doc_element } => match &doc_element.node {
-            DocElementKind::Text { content, .. } => match content {
-                Expression::StringLiteral(s) => assert_eq!(s, "done"),
+    match &template.statements[0].node {
+        StatementKind::Return { doc_element } => match &doc_element.node {
+            DocElementKind::Text { content, .. } => match &content.node {
+                ExpressionKind::StringLiteral(s) => assert_eq!(s, "done"),
                 _ => panic!("Expected StringLiteral content"),
             },
             _ => panic!("Expected Text DocElement in return"),
@@ -335,13 +333,13 @@ fn test_parse_return_statement() {
 fn test_parse_function_declaration() {
     // Function body needs proper document element in return
     let source = "template { func greet(name: string) { return text { Hello } } }";
-    let tokens = lex(source).expect("Lexing failed");
+    let tokens = lex(source, "test_parse_function_declaration").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let template = ast.template.unwrap();
     assert_eq!(template.statements.len(), 1);
 
-    match &template.statements[0] {
-        Statement::FunctionDecl {
+    match &template.statements[0].node {
+        StatementKind::FunctionDecl {
             name,
             args,
             body,
@@ -359,7 +357,7 @@ fn test_parse_function_declaration() {
 #[test]
 fn test_parse_function_call_no_args() {
     let source = "document { greet() }";
-    let tokens = lex(source).expect("Lexing failed");
+    let tokens = lex(source, "test_parse_function_call_no_args").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let doc = ast.document.unwrap();
 
@@ -375,7 +373,7 @@ fn test_parse_function_call_no_args() {
 #[test]
 fn test_parse_function_call_with_args() {
     let source = "document { print(\"hello\", \"world\") }";
-    let tokens = lex(source).expect("Lexing failed");
+    let tokens = lex(source, "test_parse_function_call_with_args").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let doc = ast.document.unwrap();
 
@@ -391,15 +389,15 @@ fn test_parse_function_call_with_args() {
 #[test]
 fn test_parse_default_set() {
     let source = "template { width = 100 }";
-    let tokens = lex(source).expect("Lexing failed");
+    let tokens = lex(source, "test_parse_default_set").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let template = ast.template.unwrap();
 
-    match &template.statements[0] {
-        Statement::DefaultSet { key, value } => {
+    match &template.statements[0].node {
+        StatementKind::DefaultSet { key, value } => {
             assert_eq!(key, "width");
-            match value {
-                Expression::Int(n) => assert_eq!(*n, 100),
+            match &value.node {
+                ExpressionKind::Int(n) => assert_eq!(*n, 100),
                 _ => panic!("Expected Int expression"),
             }
         }
@@ -410,7 +408,7 @@ fn test_parse_default_set() {
 #[test]
 fn test_parse_multiple_statements() {
     let source = "template { let x = 1 let y = 2 let z = 3 }";
-    let tokens = lex(source).expect("Lexing failed");
+    let tokens = lex(source, "test_parse_multiple_statements").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let template = ast.template.unwrap();
     assert_eq!(template.statements.len(), 3);
@@ -419,21 +417,21 @@ fn test_parse_multiple_statements() {
 #[test]
 fn test_parse_mixed_statements() {
     let source = "template { let x = 10 const MAX = 100 width = 50 }";
-    let tokens = lex(source).expect("Lexing failed");
+    let tokens = lex(source, "test_parse_mixed_statements").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let template = ast.template.unwrap();
     assert_eq!(template.statements.len(), 3);
 
-    match &template.statements[0] {
-        Statement::VarAssign { .. } => {}
+    match &template.statements[0].node {
+        StatementKind::VarAssign { .. } => {}
         _ => panic!("Expected VarAssign"),
     }
-    match &template.statements[1] {
-        Statement::ConstAssign { .. } => {}
+    match &template.statements[1].node {
+        StatementKind::ConstAssign { .. } => {}
         _ => panic!("Expected ConstAssign"),
     }
-    match &template.statements[2] {
-        Statement::DefaultSet { .. } => {}
+    match &template.statements[2].node {
+        StatementKind::DefaultSet { .. } => {}
         _ => panic!("Expected DefaultSet"),
     }
 }
@@ -441,13 +439,13 @@ fn test_parse_mixed_statements() {
 #[test]
 fn test_parse_dollar_sign_interpolation() {
     let source = "template { let msg = $ x $ }";
-    let tokens = lex(source).expect("Lexing failed");
+    let tokens = lex(source, "test_parse_dollar_sign_interpolation").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let template = ast.template.unwrap();
 
-    match &template.statements[0] {
-        Statement::VarAssign { value, .. } => match value {
-            Expression::Identifier(id) => {
+    match &template.statements[0].node {
+        StatementKind::VarAssign { value, .. } => match &value.node {
+            ExpressionKind::Identifier(id) => {
                 assert_eq!(id, "x");
             }
             _ => panic!("Expected Identifier expression"),
@@ -459,7 +457,7 @@ fn test_parse_dollar_sign_interpolation() {
 #[test]
 fn test_parse_nested_template_and_document() {
     let source = "template { func render() { return text { html } } } document { greet() }";
-    let tokens = lex(source).expect("Lexing failed");
+    let tokens = lex(source, "test_parse_nested_template_and_document").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     assert!(ast.template.is_some());
     assert!(ast.document.is_some());
@@ -474,13 +472,13 @@ fn test_parse_nested_template_and_document() {
 #[test]
 fn test_parse_string_interpolation_simple() {
     let source = r#"template { let msg = "Hello, {name}!" }"#;
-    let tokens = lex(source).expect("Lexing failed");
+    let tokens = lex(source, "test_parse_string_interpolation_simple").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let template = ast.template.unwrap();
 
-    match &template.statements[0] {
-        Statement::VarAssign { value, .. } => match value {
-            Expression::InterpolatedString(parts) => {
+    match &template.statements[0].node {
+        StatementKind::VarAssign { value, .. } => match &value.node {
+            ExpressionKind::InterpolatedString(parts) => {
                 assert_eq!(parts.len(), 3);
                 match &parts[0] {
                     InterpPart::Text(text) => assert_eq!(text, "Hello, "),
@@ -488,7 +486,7 @@ fn test_parse_string_interpolation_simple() {
                 }
                 match &parts[1] {
                     InterpPart::Expression(expr) => match expr {
-                        Expression::Identifier(id) => assert_eq!(id, "name"),
+                        ExpressionKind::Identifier(id) => assert_eq!(id, "name"),
                         _ => panic!("Expected Identifier expression"),
                     },
                     _ => panic!("Expected Expression part"),
@@ -507,18 +505,18 @@ fn test_parse_string_interpolation_simple() {
 #[test]
 fn test_parse_string_interpolation_multiple() {
     let source = r#"template { let msg = "{greeting}, {name}!" }"#;
-    let tokens = lex(source).expect("Lexing failed");
+    let tokens = lex(source, "test_parse_string_interpolation_multiple").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let template = ast.template.unwrap();
 
-    match &template.statements[0] {
-        Statement::VarAssign { value, .. } => match value {
-            Expression::InterpolatedString(parts) => {
+    match &template.statements[0].node {
+        StatementKind::VarAssign { value, .. } => match &value.node {
+            ExpressionKind::InterpolatedString(parts) => {
                 assert_eq!(parts.len(), 4);
                 // {greeting}
                 match &parts[0] {
                     InterpPart::Expression(expr) => match expr {
-                        Expression::Identifier(id) => assert_eq!(id, "greeting"),
+                        ExpressionKind::Identifier(id) => assert_eq!(id, "greeting"),
                         _ => panic!("Expected Identifier"),
                     },
                     _ => panic!("Expected Expression part"),
@@ -531,7 +529,7 @@ fn test_parse_string_interpolation_multiple() {
                 // {name}
                 match &parts[2] {
                     InterpPart::Expression(expr) => match expr {
-                        Expression::Identifier(id) => assert_eq!(id, "name"),
+                        ExpressionKind::Identifier(id) => assert_eq!(id, "name"),
                         _ => panic!("Expected Identifier"),
                     },
                     _ => panic!("Expected Expression part"),
@@ -551,13 +549,13 @@ fn test_parse_string_interpolation_multiple() {
 #[test]
 fn test_parse_string_interpolation_with_number() {
     let source = r#"template { let msg = "Count: {count}" }"#;
-    let tokens = lex(source).expect("Lexing failed");
+    let tokens = lex(source, "test_parse_string_interpolation_with_number").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let template = ast.template.unwrap();
 
-    match &template.statements[0] {
-        Statement::VarAssign { value, .. } => match value {
-            Expression::InterpolatedString(parts) => {
+    match &template.statements[0].node {
+        StatementKind::VarAssign { value, .. } => match &value.node {
+            ExpressionKind::InterpolatedString(parts) => {
                 assert_eq!(parts.len(), 2);
                 match &parts[0] {
                     InterpPart::Text(text) => assert_eq!(text, "Count: "),
@@ -565,7 +563,7 @@ fn test_parse_string_interpolation_with_number() {
                 }
                 match &parts[1] {
                     InterpPart::Expression(expr) => match expr {
-                        Expression::Identifier(id) => assert_eq!(id, "count"),
+                        ExpressionKind::Identifier(id) => assert_eq!(id, "count"),
                         _ => panic!("Expected Identifier expression"),
                     },
                     _ => panic!("Expected Expression part"),
@@ -581,13 +579,13 @@ fn test_parse_string_interpolation_with_number() {
 fn test_parse_string_without_interpolation() {
     // Plain strings without {} should remain as StringLiteral
     let source = r#"template { let msg = "Hello, World!" }"#;
-    let tokens = lex(source).expect("Lexing failed");
+    let tokens = lex(source, "test_parse_string_without_interpolation").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let template = ast.template.unwrap();
 
-    match &template.statements[0] {
-        Statement::VarAssign { value, .. } => match value {
-            Expression::StringLiteral(s) => assert_eq!(s, "Hello, World!"),
+    match &template.statements[0].node {
+        StatementKind::VarAssign { value, .. } => match &value.node {
+            ExpressionKind::StringLiteral(s) => assert_eq!(s, "Hello, World!"),
             _ => panic!("Expected StringLiteral for plain string, got {:?}", value),
         },
         _ => panic!("Expected VarAssign statement"),

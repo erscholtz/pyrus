@@ -56,6 +56,7 @@ static SYMBOL_LOOKUP_TABLE: [Option<TokenKind>; 256] = {
 
 #[derive(Debug)]
 pub struct TokenStream {
+    pub file: String,
     pub kinds: Vec<TokenKind>,
     pub ranges: Vec<std::ops::Range<usize>>,
     pub lines: Vec<usize>,
@@ -79,8 +80,9 @@ impl LexError {
 }
 
 impl TokenStream {
-    pub fn new(source: String) -> Self {
+    pub fn new(source: String, file: String) -> Self {
         Self {
+            file: file,
             kinds: Vec::new(),
             ranges: Vec::new(),
             lines: Vec::new(),
@@ -110,8 +112,8 @@ fn is_ident_continue(c: u8) -> bool {
     is_ident_start(c) || (c >= b'0' && c <= b'9')
 }
 
-pub fn lex(source: &str) -> Result<TokenStream, Vec<LexError>> {
-    let mut out = TokenStream::new(source.to_string());
+pub fn lex(source: &str, file: &str) -> Result<TokenStream, Vec<LexError>> {
+    let mut out = TokenStream::new(source.to_string(), file.to_string());
     let bytes = source.as_bytes();
     let len = bytes.len();
 
@@ -216,7 +218,47 @@ pub fn lex(source: &str) -> Result<TokenStream, Vec<LexError>> {
 
                 // Extract string content (without quotes) and add to string table
                 let content = source[start + 1..i - 1].to_string();
-                let has_interpolation = content.contains("${");
+
+                // Check for interpolation: unescaped { followed by content and }
+                let mut has_interpolation = false;
+                let content_bytes = content.as_bytes();
+                let content_len = content_bytes.len();
+                let mut j = 0;
+                while j < content_len {
+                    if content_bytes[j] == b'\\' && j + 1 < content_len {
+                        // Skip escaped character
+                        j += 2;
+                    } else if content_bytes[j] == b'{' {
+                        // Found an unescaped { - check if there's a matching }
+                        let mut k = j + 1;
+                        let mut brace_depth = 1;
+                        while k < content_len && brace_depth > 0 {
+                            if content_bytes[k] == b'\\' && k + 1 < content_len {
+                                k += 2;
+                            } else if content_bytes[k] == b'{' {
+                                brace_depth += 1;
+                                k += 1;
+                            } else if content_bytes[k] == b'}' {
+                                brace_depth -= 1;
+                                if brace_depth == 0 {
+                                    // Found a matching } - this is interpolation
+                                    has_interpolation = true;
+                                    break;
+                                }
+                                k += 1;
+                            } else {
+                                k += 1;
+                            }
+                        }
+                        if has_interpolation {
+                            break;
+                        }
+                        j += 1;
+                    } else {
+                        j += 1;
+                    }
+                }
+
                 let index = out.string_table.len() as u32;
                 out.string_table.push(StringEntry {
                     content,

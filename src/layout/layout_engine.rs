@@ -3,7 +3,7 @@ use taffy::style::{AvailableSpace, Dimension};
 use taffy::style_helpers::{FromLength, FromPercent, TaffyAuto};
 use taffy::{LengthPercentage, LengthPercentageAuto, NodeId, Rect, Size, Style, TaffyTree};
 
-use crate::hir::{FuncId, HIRModule, HirElement, Id, Op, StyleAttributes};
+use crate::hir::{FuncId, HIRModule, HirElementOp, Id, Op, StyleAttributes};
 
 pub fn setup_layout(hlir_module: &HIRModule) -> LayoutEngine {
     let layout = LayoutEngine::build_from_hlir_module(hlir_module);
@@ -86,11 +86,11 @@ impl LayoutEngine {
                 // Document element - has metadata and computed styles
                 let element = hlir_module.elements.get(*index).expect("element not found");
                 let attributes_ref = match element {
-                    HirElement::Section { attributes, .. } => *attributes,
-                    HirElement::List { attributes, .. } => *attributes,
-                    HirElement::Text { attributes, .. } => *attributes,
-                    HirElement::Image { attributes, .. } => *attributes,
-                    HirElement::Table { attributes, .. } => *attributes,
+                    HirElementOp::Section { attributes, .. } => *attributes,
+                    HirElementOp::List { attributes, .. } => *attributes,
+                    HirElementOp::Text { attributes, .. } => *attributes,
+                    HirElementOp::Image { attributes, .. } => *attributes,
+                    HirElementOp::Table { attributes, .. } => *attributes,
                 };
                 self.create_node_from_metadata(*index, attributes_ref, hlir_module)
             }
@@ -148,11 +148,11 @@ impl LayoutEngine {
 
         // Get attributes_ref from the element and look up computed styles
         let attributes_ref = match element {
-            HirElement::Section { attributes, .. } => *attributes,
-            HirElement::List { attributes, .. } => *attributes,
-            HirElement::Text { attributes, .. } => *attributes,
-            HirElement::Image { attributes, .. } => *attributes,
-            HirElement::Table { attributes, .. } => *attributes,
+            HirElementOp::Section { attributes, .. } => *attributes,
+            HirElementOp::List { attributes, .. } => *attributes,
+            HirElementOp::Text { attributes, .. } => *attributes,
+            HirElementOp::Image { attributes, .. } => *attributes,
+            HirElementOp::Table { attributes, .. } => *attributes,
         };
 
         let attributes = match hlir_module.attributes.find_node(attributes_ref) {
@@ -183,17 +183,17 @@ impl LayoutEngine {
 
     fn process_element_children(
         &mut self,
-        element: &HirElement,
+        element: &HirElementOp,
         hlir_module: &HIRModule,
         parent_node: NodeId,
     ) {
         // HlirElement stores children as indices into hlir_module.elements
         let children = match element {
-            HirElement::Section { children, .. } => children,
-            HirElement::List { children, .. } => children,
-            HirElement::Text { .. } => return,  // No children
-            HirElement::Image { .. } => return, // No children
-            HirElement::Table { .. } => return, // No children,
+            HirElementOp::Section { children, .. } => children,
+            HirElementOp::List { children, .. } => children,
+            HirElementOp::Text { .. } => return,  // No children
+            HirElementOp::Image { .. } => return, // No children
+            HirElementOp::Table { .. } => return, // No children,
         };
 
         for child_idx in children {
@@ -416,7 +416,7 @@ impl LayoutEngine {
     ) {
         if let Some(element) = hlir.elements.get(element_index) {
             let (height, has_children) = match element {
-                HirElement::Text { attributes, .. } => {
+                HirElementOp::Text { attributes, .. } => {
                     let attrs = hlir.attributes.find_node(*attributes).map(|n| &n.computed);
                     let font_size = attrs
                         .and_then(|a| a.style.get("font-size"))
@@ -425,7 +425,7 @@ impl LayoutEngine {
                     // Line height is typically 1.2x font size
                     (font_size * 1.2, false)
                 }
-                HirElement::List { children, .. } => {
+                HirElementOp::List { children, .. } => {
                     // List container - process children with indentation
                     for child_idx in children {
                         self.process_element_for_layout(
@@ -439,7 +439,7 @@ impl LayoutEngine {
                     }
                     (0.0, true) // Height comes from children
                 }
-                HirElement::Section { children, .. } => {
+                HirElementOp::Section { children, .. } => {
                     // Section container - process children
                     for child_idx in children {
                         self.process_element_for_layout(
@@ -448,12 +448,12 @@ impl LayoutEngine {
                     }
                     (0.0, true) // Height comes from children
                 }
-                HirElement::Image { .. } => {
+                HirElementOp::Image { .. } => {
                     // Image - no layout needed, but we still need to advance the cursor
                     *current_y += 10.0;
                     (0.0, false)
                 }
-                HirElement::Table { .. } => {
+                HirElementOp::Table { .. } => {
                     // TODO this is wrong fix in the future, should adjust cursor based on table content
                     *current_y += 10.0;
                     (0.0, false)

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use super::parser::Parser;
 use super::parser_err::ParseError;
-use crate::ast::{ArgType, DocElement, DocElementKind, Expression};
+use crate::ast::{ArgType, DocElement, DocElementKind, Expression, ExpressionKind};
 use crate::error::SourceLocation;
 use crate::lexer::TokenKind;
 use crate::util::Spanned;
@@ -42,6 +42,7 @@ impl Parser {
                         let location = SourceLocation::new(
                             self.current_token_line(),
                             self.current_token_col(),
+                            self.file.clone(),
                         );
                         self.errors.push(ParseError::new(
                             format!(
@@ -51,11 +52,15 @@ impl Parser {
                             ),
                             self.current_token_line(),
                             self.current_token_col(),
+                            self.file.clone(),
                         ));
                         self.synchronize(DOC_SYNC);
                         elements.push(Spanned::new(
                             DocElementKind::Text {
-                                content: Expression::StringLiteral("".to_string()),
+                                content: Spanned::new(
+                                    ExpressionKind::StringLiteral("".to_string()),
+                                    location.clone(),
+                                ),
                                 attributes: HashMap::new(),
                             },
                             location,
@@ -80,7 +85,11 @@ impl Parser {
         if self.current_token_kind() == TokenKind::At {
             self.advance(); // consume @
         }
-        let location = SourceLocation::new(self.current_token_line(), self.current_token_col());
+        let location = SourceLocation::new(
+            self.current_token_line(),
+            self.current_token_col(),
+            self.file.clone(),
+        );
         match self.current_token_kind() {
             TokenKind::Text => {
                 self.advance(); // consume text label
@@ -98,11 +107,15 @@ impl Parser {
                             ),
                             self.current_token_line(),
                             self.current_token_col(),
+                            self.file.clone(),
                         ));
                         self.synchronize(DOC_SYNC);
                         return Spanned::new(
                             DocElementKind::Text {
-                                content: Expression::StringLiteral("".to_string()),
+                                content: Spanned::new(
+                                    ExpressionKind::StringLiteral("".to_string()),
+                                    location.clone(),
+                                ),
                                 attributes: HashMap::new(),
                             },
                             location,
@@ -135,6 +148,7 @@ impl Parser {
                             ),
                             self.current_token_line(),
                             self.current_token_col(),
+                            self.file.clone(),
                         ));
                         self.synchronize(DOC_SYNC);
                         return Spanned::new(
@@ -174,11 +188,15 @@ impl Parser {
                             ),
                             self.current_token_line(),
                             self.current_token_col(),
+                            self.file.clone(),
                         ));
                         self.synchronize(DOC_SYNC);
                         return Spanned::new(
                             DocElementKind::Image {
-                                src: Expression::StringLiteral("".to_string()),
+                                src: Spanned::new(
+                                    ExpressionKind::StringLiteral("".to_string()),
+                                    location.clone(),
+                                ),
                                 attributes: HashMap::new(),
                             },
                             location,
@@ -208,6 +226,7 @@ impl Parser {
                             ),
                             self.current_token_line(),
                             self.current_token_col(),
+                            self.file.clone(),
                         ));
                         self.synchronize(DOC_SYNC);
                         return Spanned::new(
@@ -239,6 +258,7 @@ impl Parser {
                             ),
                             self.current_token_line(),
                             self.current_token_col(),
+                            self.file.clone(),
                         ));
                         self.synchronize(DOC_SYNC);
                         return Spanned::new(
@@ -275,11 +295,15 @@ impl Parser {
                     ),
                     self.current_token_line(),
                     self.current_token_col(),
+                    self.file.clone(),
                 ));
                 self.synchronize(DOC_SYNC);
                 Spanned::new(
                     DocElementKind::Text {
-                        content: Expression::StringLiteral("".to_string()),
+                        content: Spanned::new(
+                            ExpressionKind::StringLiteral("".to_string()),
+                            location.clone(),
+                        ),
                         attributes: HashMap::new(),
                     },
                     location,
@@ -386,9 +410,20 @@ impl Parser {
 
         // If we found interpolation, parse it properly
         if has_interpolation {
-            self.parse_string_with_interpolation(&content)
+            let kind = self.parse_string_with_interpolation(&content);
+            let location = SourceLocation::new(
+                self.current_token_line(),
+                self.current_token_col(),
+                self.file.clone(),
+            );
+            Spanned::new(kind, location)
         } else {
-            Expression::StringLiteral(content)
+            let location = SourceLocation::new(
+                self.current_token_line(),
+                self.current_token_col(),
+                self.file.clone(),
+            );
+            Spanned::new(ExpressionKind::StringLiteral(content), location)
         }
     }
 
@@ -396,7 +431,11 @@ impl Parser {
         let mut items = Vec::new();
         let mut numbered = false;
         while self.current_token_kind() != TokenKind::RightBracket {
-            let location = SourceLocation::new(self.current_token_line(), self.current_token_col());
+            let location = SourceLocation::new(
+                self.current_token_line(),
+                self.current_token_col(),
+                self.file.clone(),
+            );
             match self.current_token_kind() {
                 TokenKind::Minus => {
                     self.advance();
@@ -432,6 +471,7 @@ impl Parser {
                         ),
                         self.current_token_line(),
                         self.current_token_col(),
+                        self.file.clone(),
                     ));
                     self.synchronize(DOC_SYNC);
                 }
@@ -453,6 +493,7 @@ impl Parser {
                     ),
                     self.current_token_line(),
                     self.current_token_col(),
+                    self.file.clone(),
                 ));
                 self.synchronize(DOC_SYNC);
                 break;
@@ -467,13 +508,20 @@ impl Parser {
         let mut row = Vec::new();
         while self.current_token_kind() == TokenKind::Pipe {
             self.advance(); // consume '|'
-            let location = SourceLocation::new(self.current_token_line(), self.current_token_col());
+            let location = SourceLocation::new(
+                self.current_token_line(),
+                self.current_token_col(),
+                self.file.clone(),
+            );
             if self.current_token_kind() == TokenKind::Pipe
                 || self.current_token_kind() == TokenKind::RightBracket
             {
                 row.push(Spanned::new(
                     DocElementKind::Text {
-                        content: Expression::StringLiteral(String::new()),
+                        content: Spanned::new(
+                            ExpressionKind::StringLiteral(String::new()),
+                            location.clone(),
+                        ),
                         attributes: HashMap::new(),
                     },
                     location,
@@ -501,13 +549,16 @@ impl Parser {
     }
 
     fn parse_table_delimiter_cell(&mut self) -> Expression {
+        let start_line = self.current_token_line();
+        let start_col = self.current_token_col();
         let mut content = String::new();
         if self.current_token_kind() == TokenKind::Colon {
             content.push(':');
             self.advance();
         }
         if self.current_token_kind() != TokenKind::Minus {
-            return Expression::StringLiteral(content);
+            let location = SourceLocation::new(start_line, start_col, self.file.clone());
+            return Spanned::new(ExpressionKind::StringLiteral(content), location);
         }
         while self.current_token_kind() == TokenKind::Minus {
             content.push('-');
@@ -517,11 +568,16 @@ impl Parser {
             content.push(':');
             self.advance();
         }
-        Expression::StringLiteral(content)
+        let location = SourceLocation::new(start_line, start_col, self.file.clone());
+        Spanned::new(ExpressionKind::StringLiteral(content), location)
     }
 
     fn parse_document_function_call(&mut self) -> DocElement {
-        let location = SourceLocation::new(self.current_token_line(), self.current_token_col());
+        let location = SourceLocation::new(
+            self.current_token_line(),
+            self.current_token_col(),
+            self.file.clone(),
+        );
         if self.toks.kinds.get(self.idx + 1) != Some(&TokenKind::LeftParen) {
             // check if it is a function call
             self.errors.push(ParseError::new(
@@ -532,6 +588,7 @@ impl Parser {
                 ),
                 self.current_token_line(),
                 self.current_token_col(),
+                self.file.clone(),
             ));
             self.synchronize(DOC_SYNC);
             return Spanned::new(
@@ -585,6 +642,7 @@ impl Parser {
                     ),
                     self.current_token_line(),
                     self.current_token_col(),
+                    self.file.clone(),
                 ));
                 self.synchronize(DOC_SYNC);
                 break;

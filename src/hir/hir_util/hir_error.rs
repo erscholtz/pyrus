@@ -29,7 +29,7 @@ impl Diagnostic for HirError {
     }
 
     fn location(&self) -> SourceLocation {
-        self.location
+        self.location.clone()
     }
 
     fn span(&self) -> Option<&Span> {
