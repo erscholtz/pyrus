@@ -94,7 +94,7 @@ impl LayoutEngine {
                 };
                 self.create_node_from_metadata(*index, attributes_ref, hlir_module)
             }
-            Op::Call { func, .. } => {
+            Op::FuncCall { func, .. } => {
                 // Template function call - element is in function's returned_element_ref
                 if let Some(function) = hlir_module.functions.get(func) {
                     if let Some(element_id) = function.body.returned_element_ref {
@@ -382,7 +382,7 @@ impl LayoutEngine {
                             0.0, // Initial x offset
                         );
                     }
-                    Op::Call { func, .. } => {
+                    Op::FuncCall { func, .. } => {
                         if let Some(function) = hlir.functions.get(func) {
                             if let Some(element_id) = function.body.returned_element_ref {
                                 self.process_element_for_layout(

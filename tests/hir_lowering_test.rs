@@ -286,13 +286,13 @@ document {
         .find(|f| f.name == "__document")
         .expect("Should have __document function");
 
-    // Should have a Call operation
+    // Should have a FuncCall operation
     let has_call = doc_func
         .body
         .ops
         .iter()
-        .any(|op| matches!(op, Op::Call { .. }));
-    assert!(has_call, "Should generate Call op for function call");
+        .any(|op| matches!(op, Op::FuncCall { .. }));
+    assert!(has_call, "Should generate FuncCall op for function call");
 }
 
 #[test]
@@ -319,11 +319,11 @@ document {
 
     // Find the call operation and check it has args
     let call_op = doc_func.body.ops.iter().find_map(|op| match op {
-        Op::Call { func, args, .. } => Some((func, args)),
+        Op::FuncCall { func, args, .. } => Some((func, args)),
         _ => None,
     });
 
-    assert!(call_op.is_some(), "Should have Call op");
+    assert!(call_op.is_some(), "Should have FuncCall op");
     let (_, args) = call_op.unwrap();
     assert_eq!(args.len(), 1, "Call should have 1 argument");
 }

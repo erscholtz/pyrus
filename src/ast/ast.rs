@@ -196,7 +196,7 @@ pub enum DocElementKind {
     Call {
         name: String,
         args: Vec<ArgType>,
-        children: Vec<DocElement>,
+        children: Vec<DocElement>, // NOTE: should be wrapped in a section
     },
     Link {
         href: String,

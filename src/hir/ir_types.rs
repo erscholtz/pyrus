@@ -70,9 +70,14 @@ pub enum Op {
         lhs: Id,
         rhs: Id,
     },
-    Call {
+    FuncCall {
         result: Option<Id>,
         func: Id,
+        args: Vec<Id>,
+    },
+    ElementCall {
+        result: Id,
+        element: Id,
         args: Vec<Id>,
     },
     Return {
@@ -161,6 +166,7 @@ pub struct HIRModule {
     pub file: String,
     pub globals: HashMap<Id, Global>, // TODO eventually remove IDs from actual struct and just refer to them (I think)
     pub functions: HashMap<Id, FuncDecl>,
+    pub element_decls: HashMap<Id, HirElementDecl>, // Custom element declarations
     pub attributes: AttributeTree,
     pub css_rules: Vec<StyleRule>, // Parsed CSS rules (unapplied)
     pub elements: Vec<HirElementOp>,

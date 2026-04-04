@@ -5,6 +5,7 @@ use std::time::Instant;
 
 use pyrus::backend;
 use pyrus::hir;
+use pyrus::hir::HirDisplayExt;
 use pyrus::hir::resolve_styles;
 use pyrus::layout::setup_layout;
 use pyrus::lexer;
@@ -45,7 +46,7 @@ fn main() {
     println!("{:#?}", ast);
 
     let mut hlir_module = hir::lower(&ast);
-    println!("{:#?}", hlir_module);
+    println!("{}", hlir_module.hir_display());
     // println!("HLIR before style resolution:");
     // println!("  Elements: {}", hlir_module.elements.len());
     // println!("  CSS Rules: {}", hlir_module.css_rules.len());

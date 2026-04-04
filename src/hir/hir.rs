@@ -5,8 +5,9 @@ use crate::error::{Diagnostic, Severity, SourceLocation, Span};
 use crate::hir::hir_util::hir_error::HirError;
 pub use crate::hir::hir_util::style_resolver::resolve_styles;
 pub use crate::hir::ir_types::{
-    AttributeNode, AttributeTree, ElementMetadata, FuncBlock, FuncDecl, FuncId, GlobalId,
-    HIRModule, HirElementOp, Id, Literal, Op, StyleAttributes, Type,
+    AttributeNode, AttributeTree, ElementId, ElementMetadata, FuncBlock, FuncDecl, FuncId,
+    GlobalId, HIRModule, HirElementDecl, HirElementOp, Id, Literal, Op, StyleAttributes, Type,
+    ValueId,
 };
 use crate::util::Spanned;
 
@@ -31,6 +32,7 @@ impl HIRPass {
             file: self.ast.file.clone(),
             globals: HashMap::new(),
             functions: HashMap::new(),
+            element_decls: HashMap::new(),
             attributes: AttributeTree::new(),
             css_rules: Vec::new(),
             elements: Vec::new(),
@@ -124,16 +126,35 @@ impl HIRPass {
                     );
                 }
                 StatementKind::ElementDecl { name, args, body } => {
-                    let element_id = hirmodule.elements.len();
+                    let element_decl_id = ElementId(hirmodule.element_decls.len());
+                    let id = Id::Element(element_decl_id);
                     let location = statement.location.clone();
+                    self.add_symbol(name.clone(), id);
+                    let mut arg_list = Vec::new();
+                    for arg in args {
+                        match arg.ty.as_str() {
+                            "Int" => arg_list.push(Type::Int),
+                            "Float" => arg_list.push(Type::Float),
+                            "String" => arg_list.push(Type::String),
+                            _ => panic!("type not known"),
+                        }
+                    }
+                    let hir_body = self.lower_element_body(body, hirmodule);
+                    let element_decl = HirElementDecl {
+                        id,
+                        name: name.clone(),
+                        args: arg_list,
+                        body: hir_body,
+                    };
+                    hirmodule.element_decls.insert(id, element_decl);
 
                     hirmodule.element_metadata.push(ElementMetadata {
-                        id: None,
+                        id: Some(name.clone()),
                         classes: Vec::new(),
                         element_type: name.clone(),
                         parent: None,
                         attributes_ref: 0,
-                        location: location,
+                        location,
                     });
                 }
                 _ => {}
@@ -190,13 +211,10 @@ impl HIRPass {
                 args,
                 children,
             } => {
-                let func_id = match self.find_symbol(name.as_str()) {
-                    Some(id) => Some(id),
-                    None => None,
-                };
-                if func_id.is_none() {
+                let symbol = self.find_symbol(name.as_str());
+                if symbol.is_none() {
                     hirmodule.errors.push(HirError::new(
-                        format!("Function not found: {}", name),
+                        format!("Function or element not found: {}", name),
                         Severity::Error,
                         location.clone(),
                         Span {
@@ -208,15 +226,113 @@ impl HIRPass {
                     return 0;
                 }
 
-                let arg_value_ids = self.handle_args(&args, ir_body);
-                ir_body.ops.push(Op::Call {
-                    func: func_id.unwrap(),
-                    result: None,
-                    args: arg_value_ids,
-                });
-                // Call ops don't need to return an index - they handle element emission separately
-                // The returned_element_ref in the function body is used instead
-                0 // TODO magic number
+                let symbol_id = symbol.unwrap();
+
+                // Check if this is an element declaration or a function
+                match symbol_id {
+                    Id::Element(_) => {
+                        // Element call: create wrapper section with nested children section
+                        let wrapper_index = hirmodule.elements.len();
+                        let wrapper_attr_node = AttributeNode::new_with_attributes(
+                            &std::collections::HashMap::new(),
+                            hirmodule.attributes.size,
+                        );
+                        let wrapper_attr_ref =
+                            hirmodule.attributes.add_attribute(wrapper_attr_node);
+
+                        hirmodule.element_metadata.push(ElementMetadata {
+                            id: Some(name.clone()),
+                            classes: vec![name.clone()],
+                            element_type: "section".to_string(),
+                            parent: parent_index,
+                            attributes_ref: wrapper_attr_ref,
+                            location: location.clone(),
+                        });
+
+                        // Reserve the wrapper section slot
+                        hirmodule.elements.push(HirElementOp::Section {
+                            children: Vec::new(),
+                            attributes: wrapper_attr_ref,
+                        });
+
+                        // Create a nested section for children if there are any
+                        let mut wrapper_children = Vec::new();
+
+                        if !children.is_empty() {
+                            let children_section_index = hirmodule.elements.len();
+                            let children_attr_node = AttributeNode::new_with_attributes(
+                                &std::collections::HashMap::new(),
+                                hirmodule.attributes.size,
+                            );
+                            let children_attr_ref =
+                                hirmodule.attributes.add_attribute(children_attr_node);
+
+                            hirmodule.element_metadata.push(ElementMetadata {
+                                id: None,
+                                classes: vec!["children".to_string()],
+                                element_type: "section".to_string(),
+                                parent: Some(wrapper_index),
+                                attributes_ref: children_attr_ref,
+                                location: location.clone(),
+                            });
+
+                            // Reserve children section slot
+                            hirmodule.elements.push(HirElementOp::Section {
+                                children: Vec::new(),
+                                attributes: children_attr_ref,
+                            });
+
+                            // Lower the children into the children section
+                            let mut children_indices = Vec::new();
+                            for child in children {
+                                children_indices.push(self.lower_document_element(
+                                    child,
+                                    hirmodule,
+                                    ir_body,
+                                    Some(children_section_index),
+                                ));
+                            }
+
+                            // Update children section with actual children
+                            hirmodule.elements[children_section_index] = HirElementOp::Section {
+                                children: children_indices,
+                                attributes: children_attr_ref,
+                            };
+
+                            wrapper_children.push(children_section_index);
+                        }
+
+                        // Handle arguments
+                        let arg_value_ids = self.handle_args(&args, ir_body);
+
+                        // Emit ElementCall op
+                        let result_id = Id::Value(ValueId(ir_body.ops.len()));
+                        ir_body.ops.push(Op::ElementCall {
+                            result: result_id,
+                            element: symbol_id,
+                            args: arg_value_ids,
+                        });
+
+                        // Update wrapper section with children section (if any)
+                        hirmodule.elements[wrapper_index] = HirElementOp::Section {
+                            children: wrapper_children,
+                            attributes: wrapper_attr_ref,
+                        };
+
+                        wrapper_index
+                    }
+                    _ => {
+                        // Function call: use FuncCall op (original behavior)
+                        let arg_value_ids = self.handle_args(&args, ir_body);
+                        ir_body.ops.push(Op::FuncCall {
+                            func: symbol_id,
+                            result: None,
+                            args: arg_value_ids,
+                        });
+                        // Function calls don't return an index - they handle element emission separately
+                        0 // TODO magic number
+                    }
+                }
             }
             crate::ast::DocElementKind::Text {
                 content,

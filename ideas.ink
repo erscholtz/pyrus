@@ -9,10 +9,10 @@ template {
         degree: String, minor: String,
         start_date: String, end_date: String
     ) {
-        @text [ institution ]
-        @text [ location ]
-        @text [ degree ]
-        @text [ minor ]
+        @text [ ${institution} ]
+        @text [ ${location} ]
+        @text [ ${degree} ]
+        @text [ ${minor} ]
         @text [ ${start_date} - ${end_date} ]
         children
     }

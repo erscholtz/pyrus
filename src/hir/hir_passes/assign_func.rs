@@ -134,4 +134,62 @@ impl HIRPass {
         self.symbol_table.pop();
         args
     }
+
+    pub fn lower_element_body(
+        &mut self,
+        body: &Vec<crate::ast::Statement>,
+        hirmodule: &mut HIRModule,
+    ) -> FuncBlock {
+        let mut ir_body = FuncBlock {
+            ops: Vec::new(),
+            returned_element_ref: None,
+        };
+
+        self.symbol_table.push(HashMap::new()); // add new scope (element)
+
+        for stmt in body {
+            match &stmt.node {
+                StatementKind::ConstAssign { name, value } => {
+                    let id = Id::Value(ValueId(ir_body.ops.len()));
+                    let value = self.assign_local(name.clone(), value.clone(), id, false);
+                    ir_body.ops.push(value);
+                    self.add_symbol(name.clone(), id);
+                }
+                StatementKind::VarAssign { name, value } => {
+                    let id = Id::Value(ValueId(ir_body.ops.len()));
+                    let value = self.assign_local(name.clone(), value.clone(), id, true);
+                    ir_body.ops.push(value);
+                    self.add_symbol(name.clone(), id);
+                }
+                StatementKind::Return { doc_element } => {
+                    let element_id =
+                        self.lower_document_element(doc_element, hirmodule, &mut ir_body, None);
+                    ir_body.ops.push(Op::Return {
+                        doc_element_ref: element_id,
+                    });
+                    ir_body.returned_element_ref = Some(element_id);
+                }
+                StatementKind::DocElementEmit { element } => {
+                    // Direct element emission without return
+                    let element_id =
+                        self.lower_document_element(element, hirmodule, &mut ir_body, None);
+                    ir_body.ops.push(Op::HirElementEmit { index: element_id });
+                    if ir_body.returned_element_ref.is_none() {
+                        ir_body.returned_element_ref = Some(element_id);
+                    }
+                }
+                StatementKind::Children { children } => { // TODO for now do nothing and see
+                }
+                _ => {
+                    todo!(
+                        "other statement types in element body not handled yet: {:?}",
+                        stmt.node
+                    )
+                }
+            }
+        }
+
+        self.symbol_table.pop(); // remove scope (element)
+        ir_body
+    }
 }
