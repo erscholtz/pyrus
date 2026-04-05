@@ -28,11 +28,9 @@ impl Parser {
 
             match self.current_token_kind() {
                 TokenKind::RightBrace => {
-                    // Don't consume the brace here - let the caller handle it
                     break;
                 }
                 TokenKind::RightBracket => {
-                    // Don't consume the bracket here - let the caller handle it
                     break;
                 }
                 TokenKind::Eof => break,
@@ -125,7 +123,7 @@ impl Parser {
                     }
                 };
                 self.expect(left_bracket);
-                let text_content = self.parse_document_text_content_until(right_bracket);
+                let text_content = self.parse_document_text_content_until(right_bracket, &[]);
                 self.expect(right_bracket);
                 Spanned::new(
                     DocElementKind::Text {
@@ -206,7 +204,7 @@ impl Parser {
                     }
                 };
                 self.expect(left_bracket);
-                let src = self.parse_document_text_content_until(right_bracket);
+                let src = self.parse_document_text_content_until(right_bracket, &[]);
                 self.expect(right_bracket);
                 Spanned::new(DocElementKind::Image { src, attributes }, location)
             }
@@ -332,18 +330,48 @@ impl Parser {
         attributes
     }
 
-    fn parse_document_text_content(&mut self) -> Expression {
-        self.parse_document_text_content_until(TokenKind::RightBracket)
+    fn parse_list_item_text_content(&mut self, numbered: bool) -> Expression {
+        // List items should stop at the next list delimiter
+        // For bullet lists, stop at Minus
+        // For numbered lists, stop at Int (the next numbered item)
+        if numbered {
+            self.parse_document_text_content_until(TokenKind::RightBracket, &[TokenKind::Int])
+        } else {
+            self.parse_document_text_content_until(TokenKind::RightBracket, &[TokenKind::Minus])
+        }
     }
 
-    fn parse_document_text_content_until(&mut self, end_token: TokenKind) -> Expression {
+    fn parse_document_text_content_until(
+        &mut self,
+        end_token: TokenKind,
+        stop_tokens: &[TokenKind],
+    ) -> Expression {
         let mut content = String::new();
         let mut has_interpolation = false;
+        let mut prev_end_pos: Option<usize> = None;
 
-        while self.current_token_kind() != end_token {
+        while self.current_token_kind() != end_token
+            && !stop_tokens.contains(&self.current_token_kind())
+        {
+            // Get current token's start position in source
+            let curr_start_pos = if self.idx < self.toks.ranges.len() {
+                self.toks.ranges[self.idx].start
+            } else {
+                0
+            };
+
+            // If there was a previous token and there's a gap, add a space
+            // (the lexer skips whitespace, so gaps indicate original whitespace)
+            if let Some(end) = prev_end_pos {
+                if curr_start_pos > end {
+                    content.push(' ');
+                }
+            }
+
             match self.current_token_kind() {
                 TokenKind::Whitespace => {
                     content.push(' ');
+                    prev_end_pos = Some(self.toks.ranges[self.idx].end);
                     self.advance();
                 }
                 TokenKind::StringLiteral(idx) => {
@@ -353,19 +381,23 @@ impl Parser {
                     if entry.has_interpolation {
                         has_interpolation = true;
                     }
+                    prev_end_pos = Some(self.toks.ranges[self.idx].end);
                     self.advance();
                 }
                 TokenKind::Dollarsign => {
+                    let start_pos = self.toks.ranges[self.idx].start;
                     self.advance(); // consume $
                     if self.current_token_kind() != TokenKind::LeftBrace {
                         content.push('$');
                         content.push_str(&self.current_text());
+                        prev_end_pos = Some(self.toks.ranges[self.idx].end);
                         self.advance();
                         continue;
                     }
                     // This is ${...} interpolation
                     has_interpolation = true;
                     content.push_str("${");
+                    prev_end_pos = Some(start_pos + 2); // After ${
                     self.advance(); // consume {
 
                     // Collect the expression inside ${...}
@@ -403,6 +435,7 @@ impl Parser {
                 _ => {
                     let text = self.current_text();
                     content.push_str(&text);
+                    prev_end_pos = Some(self.toks.ranges[self.idx].end);
                     self.advance();
                 }
             }
@@ -430,16 +463,19 @@ impl Parser {
     fn parse_document_list(&mut self) -> (Vec<DocElement>, bool) {
         let mut items = Vec::new();
         let mut numbered = false;
+
         while self.current_token_kind() != TokenKind::RightBracket {
             let location = SourceLocation::new(
                 self.current_token_line(),
                 self.current_token_col(),
                 self.file.clone(),
             );
+
             match self.current_token_kind() {
                 TokenKind::Minus => {
                     self.advance();
-                    let content = self.parse_document_text_content();
+                    let content = self.parse_list_item_text_content(numbered);
+
                     items.push(Spanned::new(
                         DocElementKind::Text {
                             content,
@@ -451,7 +487,7 @@ impl Parser {
                 TokenKind::Int => {
                     self.advance();
                     self.expect(TokenKind::Dot);
-                    let content = self.parse_document_text_content();
+                    let content = self.parse_list_item_text_content(numbered);
                     items.push(Spanned::new(
                         DocElementKind::Text {
                             content,
