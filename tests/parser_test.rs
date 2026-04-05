@@ -311,8 +311,8 @@ fn test_parse_float_literal() {
 
 #[test]
 fn test_parse_return_statement() {
-    // Return requires a document element (like text { ... }), not a plain string
-    let source = "template { return text { done } }";
+    // Return requires a document element (like @text[...]), not a plain string
+    let source = "template { return @text[done] }";
     let tokens = lex(source, "test_parse_return_statement").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let template = ast.template.unwrap();
@@ -331,26 +331,21 @@ fn test_parse_return_statement() {
 
 #[test]
 fn test_parse_function_declaration() {
-    // Function body needs proper document element in return
-    let source = "template { func greet(name: string) { return text { Hello } } }";
+    // Element declaration test (element keyword replaced func)
+    let source = "template { element greet(name: string) { return @text[Hello] } }";
     let tokens = lex(source, "test_parse_function_declaration").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let template = ast.template.unwrap();
     assert_eq!(template.statements.len(), 1);
 
     match &template.statements[0].node {
-        StatementKind::FunctionDecl {
-            name,
-            args,
-            body,
-            return_type,
-        } => {
+        StatementKind::ElementDecl { name, args, body } => {
             assert_eq!(name, "greet");
             assert_eq!(args.len(), 1);
             assert_eq!(args[0].ty, "string");
             assert!(body.len() > 0);
         }
-        _ => panic!("Expected FunctionDecl statement"),
+        _ => panic!("Expected ElementDecl statement"),
     }
 }
 
@@ -456,7 +451,7 @@ fn test_parse_dollar_sign_interpolation() {
 
 #[test]
 fn test_parse_nested_template_and_document() {
-    let source = "template { func render() { return text { html } } } document { greet() }";
+    let source = "template { element render() { return @text[html] } } document { greet() }";
     let tokens = lex(source, "test_parse_nested_template_and_document").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     assert!(ast.template.is_some());

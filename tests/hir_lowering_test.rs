@@ -3,8 +3,8 @@
 //! These tests define the expected behavior of the lowering pass and
 //! the validation pass that should catch errors.
 
-use pyrus::hir::{lower, resolve_styles};
 use pyrus::hir::{FuncId, HIRModule, Id, Op, Type};
+use pyrus::hir::{lower, resolve_styles};
 use pyrus::lexer::lex;
 use pyrus::parser::parse;
 
@@ -89,8 +89,8 @@ document {
 fn test_lower_simple_function() {
     let source = r#"
 template {
-    func greeting() -> DocElement {
-        return text { "Hello" }
+    element greeting() {
+        return @text[Hello]
     }
 }
 document {
@@ -100,27 +100,27 @@ document {
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower(&ast);
 
-    // Should have __document + greeting
-    assert_eq!(hlir.functions.len(), 2);
-    assert!(hlir.functions.values().any(|f| f.name == "greeting"));
+    // Should have __document function + 1 element declaration
+    assert_eq!(hlir.functions.len(), 1);
+    assert_eq!(hlir.element_decls.len(), 1);
+    assert!(hlir.element_decls.values().any(|e| e.name == "greeting"));
 
     let greeting = hlir
-        .functions
+        .element_decls
         .values()
-        .find(|f| f.name == "greeting")
+        .find(|e| e.name == "greeting")
         .unwrap();
     assert_eq!(greeting.args.len(), 0);
-    assert_eq!(greeting.return_type, Some(Type::DocElement));
 }
 
 #[test]
 fn test_lower_function_with_args() {
     let source = r#"
 template {
-    func section_with_title(title: String) -> DocElement {
-        return section {
-            text { title }
-        }
+    element section_with_title(title: String) {
+        return @section[
+            @text[title]
+        ]
     }
 }
 document {
@@ -130,21 +130,21 @@ document {
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower(&ast);
 
-    let func = hlir
-        .functions
+    let elem = hlir
+        .element_decls
         .values()
-        .find(|f| f.name == "section_with_title")
+        .find(|e| e.name == "section_with_title")
         .unwrap();
-    assert_eq!(func.args.len(), 1);
-    assert_eq!(func.args[0], Type::String);
+    assert_eq!(elem.args.len(), 1);
+    assert_eq!(elem.args[0], Type::String);
 }
 
 #[test]
 fn test_lower_function_with_multiple_args() {
     let source = r#"
 template {
-    func formatted_number(value: Int, prefix: String) -> DocElement {
-        return text { prefix }
+    element formatted_number(value: Int, prefix: String) {
+        return @text[prefix]
     }
 }
 document {
@@ -154,14 +154,14 @@ document {
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower(&ast);
 
-    let func = hlir
-        .functions
+    let elem = hlir
+        .element_decls
         .values()
-        .find(|f| f.name == "formatted_number")
+        .find(|e| e.name == "formatted_number")
         .unwrap();
-    assert_eq!(func.args.len(), 2);
-    assert_eq!(func.args[0], Type::Int);
-    assert_eq!(func.args[1], Type::String);
+    assert_eq!(elem.args.len(), 2);
+    assert_eq!(elem.args[0], Type::Int);
+    assert_eq!(elem.args[1], Type::String);
 }
 
 // ============================================================================
@@ -172,7 +172,7 @@ document {
 fn test_lower_text_element() {
     let source = r#"
 document {
-    text { "Hello World" }
+    @text[Hello World]
 }
 "#;
     let tokens = lex(source, "test_lower_text_element").expect("Lexing failed");
@@ -188,10 +188,10 @@ document {
 fn test_lower_section_with_children() {
     let source = r#"
 document {
-    section {
-        text { "Child 1" }
-        text { "Child 2" }
-    }
+    @section[
+        @text[Child 1]
+        @text[Child 2]
+    ]
 }
 "#;
     let tokens = lex(source, "test_lower_section_with_children").expect("Lexing failed");
@@ -221,7 +221,7 @@ document {
 fn test_lower_element_with_id_and_class() {
     let source = r#"
 document {
-    text (id="header", class="large bold") { "Title" }
+    @text(id="header", class="large bold")[Title]
 }
 "#;
     let tokens = lex(source, "test_lower_element_with_id_and_class").expect("Lexing failed");
@@ -241,7 +241,7 @@ document {
 fn test_lower_preserves_css_rules() {
     let source = r#"
 document {
-    text { "Content" }
+    @text[Content]
 }
 style {
     text {
@@ -267,8 +267,8 @@ style {
 fn test_lower_function_call_in_document() {
     let source = r#"
 template {
-    func header() -> DocElement {
-        return text { "Header" }
+    element header() {
+        return @text[Header]
     }
 }
 document {
@@ -286,21 +286,21 @@ document {
         .find(|f| f.name == "__document")
         .expect("Should have __document function");
 
-    // Should have a FuncCall operation
+    // Should have an ElementCall operation (element calls generate ElementCall, not FuncCall)
     let has_call = doc_func
         .body
         .ops
         .iter()
-        .any(|op| matches!(op, Op::FuncCall { .. }));
-    assert!(has_call, "Should generate FuncCall op for function call");
+        .any(|op| matches!(op, Op::ElementCall { .. }));
+    assert!(has_call, "Should generate ElementCall op for element call");
 }
 
 #[test]
 fn test_lower_function_call_with_args() {
     let source = r#"
 template {
-    func greet(name: String) -> DocElement {
-        return text { name }
+    element greet(name: String) {
+        return @text[name]
     }
 }
 document {
@@ -317,13 +317,13 @@ document {
         .find(|f| f.name == "__document")
         .unwrap();
 
-    // Find the call operation and check it has args
+    // Find the call operation and check it has args (element calls use ElementCall)
     let call_op = doc_func.body.ops.iter().find_map(|op| match op {
-        Op::FuncCall { func, args, .. } => Some((func, args)),
+        Op::ElementCall { element, args, .. } => Some((element, args)),
         _ => None,
     });
 
-    assert!(call_op.is_some(), "Should have FuncCall op");
+    assert!(call_op.is_some(), "Should have ElementCall op");
     let (_, args) = call_op.unwrap();
     assert_eq!(args.len(), 1, "Call should have 1 argument");
 }
@@ -336,8 +336,8 @@ document {
 fn test_lower_generates_doc_element_emit_ops() {
     let source = r#"
 document {
-    text { "First" }
-    text { "Second" }
+    @text[First]
+    @text[Second]
 }
 "#;
     let tokens = lex(source, "test_lower_generates_doc_element_emit_ops").expect("Lexing failed");
@@ -589,11 +589,11 @@ document {
 fn test_lower_preserves_element_order() {
     let source = r#"
 document {
-    text { "First" }
-    section {
-        text { "Nested" }
-    }
-    text { "Last" }
+    @text[First]
+    @section[
+        @text[Nested]
+    ]
+    @text[Last]
 }
 "#;
     let tokens = lex(source, "test_lower_preserves_element_order").expect("Lexing failed");
@@ -627,11 +627,11 @@ document {
 fn test_lower_nested_sections() {
     let source = r#"
 document {
-    section {
-        section {
-            text { "Deeply nested" }
-        }
-    }
+    @section[
+        @section[
+            @text[Deeply nested]
+        ]
+    ]
 }
 "#;
     let tokens = lex(source, "test_lower_nested_sections").expect("Lexing failed");

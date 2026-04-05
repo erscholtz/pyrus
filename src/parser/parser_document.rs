@@ -31,6 +31,10 @@ impl Parser {
                     // Don't consume the brace here - let the caller handle it
                     break;
                 }
+                TokenKind::RightBracket => {
+                    // Don't consume the bracket here - let the caller handle it
+                    break;
+                }
                 TokenKind::Eof => break,
                 TokenKind::Identifier => {
                     // Check if this is a function call (Identifier followed by LeftParen)
@@ -94,10 +98,8 @@ impl Parser {
             TokenKind::Text => {
                 self.advance(); // consume text label
                 let attributes = self.parse_style_attributes();
-                // Support both [content] and {content} syntax
                 let (left_bracket, right_bracket) = match self.current_token_kind() {
                     TokenKind::LeftBracket => (TokenKind::LeftBracket, TokenKind::RightBracket),
-                    TokenKind::LeftBrace => (TokenKind::LeftBrace, TokenKind::RightBrace),
                     _ => {
                         self.errors.push(ParseError::new(
                             format!(
@@ -216,7 +218,6 @@ impl Parser {
                 let attributes = self.parse_style_attributes();
                 let (left_bracket, right_bracket) = match self.current_token_kind() {
                     TokenKind::LeftBracket => (TokenKind::LeftBracket, TokenKind::RightBracket),
-                    TokenKind::LeftBrace => (TokenKind::LeftBrace, TokenKind::RightBrace),
                     _ => {
                         self.errors.push(ParseError::new(
                             format!(
@@ -248,7 +249,6 @@ impl Parser {
                 let attributes = self.parse_style_attributes();
                 let (left_bracket, right_bracket) = match self.current_token_kind() {
                     TokenKind::LeftBracket => (TokenKind::LeftBracket, TokenKind::RightBracket),
-                    TokenKind::LeftBrace => (TokenKind::LeftBrace, TokenKind::RightBrace),
                     _ => {
                         self.errors.push(ParseError::new(
                             format!(

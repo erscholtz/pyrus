@@ -12,7 +12,7 @@ use pyrus::parser::parse;
 fn test_id_selector() {
     let source = r#"
 document {
-    text (id="header") { "Header" }
+    @text(id="header")[Header]
 }
 style {
     #header {
@@ -45,7 +45,7 @@ style {
 fn test_class_selector() {
     let source = r#"
 document {
-    text (class="intro") { "Introduction" }
+    @text(class="intro")[Introduction]
 }
 style {
     .intro {
@@ -71,7 +71,7 @@ style {
 fn test_type_selector() {
     let source = r#"
 document {
-    text { "Some text" }
+    @text[Some text]
 }
 style {
     text {
@@ -101,7 +101,7 @@ style {
 fn test_specificity_inline_wins() {
     let source = r#"
 document {
-    text (id="mytext", style="font-size: 10") { "Text" }
+    @text(id="mytext", style="font-size: 10")[Text]
 }
 style {
     #mytext {
@@ -128,7 +128,7 @@ style {
 fn test_specificity_id_over_class() {
     let source = r#"
 document {
-    text (id="mytext", class="intro") { "Text" }
+    @text(id="mytext", class="intro")[Text]
 }
 style {
     #mytext {
@@ -158,7 +158,7 @@ style {
 fn test_specificity_class_over_type() {
     let source = r#"
 document {
-    text (class="intro") { "Text" }
+    @text(class="intro")[Text]
 }
 style {
     text {
@@ -192,7 +192,7 @@ style {
 fn test_multiple_rules_combine() {
     let source = r#"
 document {
-    text (class="intro") { "Text" }
+    @text(class="intro")[Text]
 }
 style {
     .intro {
@@ -223,7 +223,7 @@ style {
 fn test_same_property_last_wins() {
     let source = r#"
 document {
-    text (class="intro") { "Text" }
+    @text(class="intro")[Text]
 }
 style {
     .intro {
@@ -257,8 +257,8 @@ style {
 fn test_multiple_selectors_in_rule() {
     let source = r#"
 document {
-    text (class="header") { "Header" }
-    text (class="footer") { "Footer" }
+    @text(class="header")[Header]
+    @text(class="footer")[Footer]
 }
 style {
     .header, .footer {
@@ -292,13 +292,13 @@ style {
 fn test_style_inheritance() {
     let source = r#"
 document {
-    section {
-        text { "Nested text" }
-    }
+    @section[
+        @text[Nested text]
+    ]
 }
 style {
     section {
-        color: blue;;
+        color: blue;
     }
 }
 "#;
@@ -330,9 +330,9 @@ style {
 fn test_non_inherited_properties() {
     let source = r#"
 document {
-    section {
-        text { "Nested text" }
-    }
+    @section[
+        @text[Nested text]
+    ]
 }
 style {
     section {
@@ -380,7 +380,7 @@ style {
 fn test_multiple_classes_on_element() {
     let source = r#"
 document {
-    text (class="large bold") { "Text" }
+    @text(class="large bold")[Text]
 }
 style {
     .large {
@@ -420,7 +420,7 @@ style {
 fn test_typed_margin_property() {
     let source = r#"
 document {
-    text { "Text" }
+    @text[Text]
 }
 style {
     text {
@@ -444,7 +444,7 @@ style {
 fn test_typed_padding_property() {
     let source = r#"
 document {
-    text { "Text" }
+    @text[Text]
 }
 style {
     text {
@@ -471,7 +471,7 @@ style {
 fn test_no_matching_rules() {
     let source = r#"
 document {
-    text (id="mytext") { "Text" }
+    @text(id="mytext")[Text]
 }
 style {
     .nomatch {
@@ -496,7 +496,7 @@ style {
 fn test_empty_style_block() {
     let source = r#"
 document {
-    text { "Text" }
+    @text[Text]
 }
 style {
 }
@@ -517,7 +517,7 @@ style {
 fn test_no_style_block() {
     let source = r#"
 document {
-    text { "Text" }
+    @text[Text]
 }
 "#;
     let tokens = lex(source, "test_no_style_block").expect("Lexing failed");
@@ -543,19 +543,19 @@ document {
 fn test_complex_css_scenario() {
     let source = r#"
 document {
-    text (id="header", class="title") { "Header" }
-    section (class="content") {
-        text (class="body") { "Body text" }
-    }
-    text (class="footer") { "Footer" }
+    @text(id="header", class="title")[Header]
+    @section(class="content")[
+        @text(class="body")[Body text]
+    ]
+    @text(class="footer")[Footer]
 }
 style {
     #header {
         font-size: 32pt;
-        color: blue;;
+        color: blue;
     }
     .title {
-        font-weight: bold;;
+        font-weight: bold;
     }
     section {
         margin: 20pt;
@@ -569,7 +569,7 @@ style {
     }
     .footer {
         font-size: 10pt;
-        color: gray;;
+        color: gray;
     }
 }
 "#;
