@@ -96,24 +96,9 @@ impl HIRPass {
                     self.add_symbol(name.clone(), Id::Func(func_id)); // adds function name to symbol table
                     let mut arg_list = Vec::new();
                     for arg in args {
-                        match arg.ty.as_str() {
-                            "Int" => arg_list.push(Type::Int),
-                            "Float" => arg_list.push(Type::Float),
-                            "String" => arg_list.push(Type::String),
-                            _ => panic!("type not known"),
-                        }
+                        arg_list.push(self.parse_type(&arg.ty).unwrap());
                     }
-
-                    let return_type = match return_type {
-                        Some(t) => match t.as_str() {
-                            "Int" => Some(Type::Int),
-                            "Float" => Some(Type::Float),
-                            "String" => Some(Type::String),
-                            "DocElement" => Some(Type::DocElement),
-                            _ => panic!("type not known"),
-                        },
-                        None => None,
-                    };
+                    let return_type = self.parse_type(&return_type.as_deref().unwrap_or(""));
 
                     hirmodule.functions.insert(
                         Id::Func(func_id),
@@ -133,12 +118,7 @@ impl HIRPass {
                     self.add_symbol(name.clone(), id);
                     let mut arg_list = Vec::new();
                     for arg in args {
-                        match arg.ty.as_str() {
-                            "Int" => arg_list.push(Type::Int),
-                            "Float" => arg_list.push(Type::Float),
-                            "String" => arg_list.push(Type::String),
-                            _ => panic!("type not known"),
-                        }
+                        arg_list.push(self.parse_type(&arg.ty).unwrap());
                     }
                     let hir_body = self.lower_element_body(body, hirmodule);
                     let element_decl = HirElementDecl {
@@ -567,5 +547,15 @@ impl HIRPass {
         }
 
         (element_index, attributes_ref)
+    }
+
+    fn parse_type(&mut self, type_str: &str) -> Option<Type> {
+        match type_str {
+            "Int" => Some(Type::Int),
+            "Float" => Some(Type::Float),
+            "String" => Some(Type::String),
+            "DocElement" => Some(Type::DocElement),
+            _ => None,
+        }
     }
 }
