@@ -2,10 +2,10 @@ use crate::error::{Diagnostic, Severity, SourceLocation, Span};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct HirError {
-    message: String,
-    severity: Severity,
-    location: SourceLocation,
-    span: Span,
+    pub message: String,
+    pub severity: Severity,
+    pub location: SourceLocation,
+    pub span: Span,
 }
 
 impl HirError {

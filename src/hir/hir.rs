@@ -1,3 +1,4 @@
+use std::arch::x86_64::_mm_encodekey128_u32;
 use std::collections::HashMap;
 
 use crate::ast::{Ast, Expression, Statement, StatementKind};
@@ -231,56 +232,54 @@ impl HIRPass {
                 // Check if this is an element declaration or a function
                 match symbol_id {
                     Id::Element(_) => {
-                        // Element call: create wrapper section with nested children section
-                        let wrapper_index = hirmodule.elements.len();
-                        let wrapper_attr_node = AttributeNode::new_with_attributes(
-                            &std::collections::HashMap::new(),
-                            hirmodule.attributes.size,
+                        // Build wrapper attributes with element name as id and class
+                        let mut wrapper_attrs = std::collections::HashMap::new();
+                        wrapper_attrs.insert(
+                            "id".to_string(),
+                            Expression::new(
+                                crate::ast::ExpressionKind::StringLiteral(name.clone()),
+                                location.clone(),
+                            ),
                         );
-                        let wrapper_attr_ref =
-                            hirmodule.attributes.add_attribute(wrapper_attr_node);
+                        wrapper_attrs.insert(
+                            "class".to_string(),
+                            Expression::new(
+                                crate::ast::ExpressionKind::StringLiteral(name.clone()),
+                                location.clone(),
+                            ),
+                        );
 
-                        hirmodule.element_metadata.push(ElementMetadata {
-                            id: Some(name.clone()),
-                            classes: vec![name.clone()],
-                            element_type: "section".to_string(),
-                            parent: parent_index,
-                            attributes_ref: wrapper_attr_ref,
-                            location: location.clone(),
-                        });
+                        let (wrapper_index, wrapper_attr_ref) = self.reserve_element_slot(
+                            hirmodule,
+                            "section",
+                            &wrapper_attrs,
+                            parent_index,
+                            location.clone(),
+                        );
 
-                        // Reserve the wrapper section slot
-                        hirmodule.elements.push(HirElementOp::Section {
-                            children: Vec::new(),
-                            attributes: wrapper_attr_ref,
-                        });
-
-                        // Create a nested section for children if there are any
                         let mut wrapper_children = Vec::new();
 
                         if !children.is_empty() {
-                            let children_section_index = hirmodule.elements.len();
-                            let children_attr_node = AttributeNode::new_with_attributes(
-                                &std::collections::HashMap::new(),
-                                hirmodule.attributes.size,
+                            // Build children section attributes
+                            let mut children_attrs = std::collections::HashMap::new();
+                            children_attrs.insert(
+                                "class".to_string(),
+                                Expression::new(
+                                    crate::ast::ExpressionKind::StringLiteral(
+                                        "children".to_string(),
+                                    ),
+                                    location.clone(),
+                                ),
                             );
-                            let children_attr_ref =
-                                hirmodule.attributes.add_attribute(children_attr_node);
 
-                            hirmodule.element_metadata.push(ElementMetadata {
-                                id: None,
-                                classes: vec!["children".to_string()],
-                                element_type: "section".to_string(),
-                                parent: Some(wrapper_index),
-                                attributes_ref: children_attr_ref,
-                                location: location.clone(),
-                            });
-
-                            // Reserve children section slot
-                            hirmodule.elements.push(HirElementOp::Section {
-                                children: Vec::new(),
-                                attributes: children_attr_ref,
-                            });
+                            let (children_section_index, children_attr_ref) = self
+                                .reserve_element_slot(
+                                    hirmodule,
+                                    "section",
+                                    &children_attrs,
+                                    Some(wrapper_index),
+                                    location.clone(),
+                                );
 
                             // Lower the children into the children section
                             let mut children_indices = Vec::new();
@@ -338,51 +337,30 @@ impl HIRPass {
                 content,
                 attributes,
             } => {
-                let (id, classes) = self.extract_id_and_classes(&attributes);
-                let element_type = "text".to_string();
-                let attribute_node =
-                    AttributeNode::new_with_attributes(&attributes, hirmodule.attributes.size);
-                let attributes_ref = hirmodule.attributes.add_attribute(attribute_node);
-                let index = hirmodule.elements.len();
-                hirmodule.element_metadata.push(ElementMetadata {
-                    id,
-                    classes,
-                    element_type,
-                    parent: parent_index,
-                    attributes_ref,
+                let (index, attributes_ref) = self.reserve_element_slot(
+                    hirmodule,
+                    "text",
+                    &attributes,
+                    parent_index,
                     location,
-                });
-                hirmodule.elements.push(HirElementOp::Text {
+                );
+                hirmodule.elements[index] = HirElementOp::Text {
                     content: content.to_string(),
                     attributes: attributes_ref,
-                });
-
+                };
                 index
             }
             crate::ast::DocElementKind::Section {
                 elements: section_elements,
                 attributes,
             } => {
-                let (id, classes) = self.extract_id_and_classes(&attributes);
-                let element_type = "section".to_string();
-                let attribute_node =
-                    AttributeNode::new_with_attributes(&attributes, hirmodule.attributes.size);
-                let attributes_ref = hirmodule.attributes.add_attribute(attribute_node);
-                // Reserve index before processing children so children get correct parent
-                let index = hirmodule.elements.len();
-                hirmodule.element_metadata.push(ElementMetadata {
-                    id,
-                    classes,
-                    element_type,
-                    parent: parent_index,
-                    attributes_ref,
+                let (index, attributes_ref) = self.reserve_element_slot(
+                    hirmodule,
+                    "section",
+                    &attributes,
+                    parent_index,
                     location,
-                });
-                // Push placeholder first to reserve the slot
-                hirmodule.elements.push(HirElementOp::Section {
-                    children: Vec::new(), // Will be updated
-                    attributes: attributes_ref,
-                });
+                );
                 let mut children = Vec::new();
                 for child in section_elements {
                     children.push(self.lower_document_element(
@@ -392,39 +370,24 @@ impl HIRPass {
                         Some(index),
                     ));
                 }
-                // Update with actual children
                 hirmodule.elements[index] = HirElementOp::Section {
                     children,
                     attributes: attributes_ref,
                 };
-
                 index
             }
             crate::ast::DocElementKind::List {
                 items,
                 attributes,
-                numbered,
+                numbered: _,
             } => {
-                let (id, classes) = self.extract_id_and_classes(&attributes);
-                let element_type = "list".to_string();
-                let attribute_node =
-                    AttributeNode::new_with_attributes(&attributes, hirmodule.attributes.size);
-                let attributes_ref = hirmodule.attributes.add_attribute(attribute_node);
-                // Reserve index before processing children so children get correct parent
-                let index = hirmodule.elements.len();
-                hirmodule.element_metadata.push(ElementMetadata {
-                    id,
-                    classes,
+                let (index, attributes_ref) = self.reserve_element_slot(
+                    hirmodule,
+                    "list",
+                    &attributes,
+                    parent_index,
                     location,
-                    element_type,
-                    parent: parent_index,
-                    attributes_ref,
-                });
-                // Push placeholder first to reserve the slot
-                hirmodule.elements.push(HirElementOp::List {
-                    children: Vec::new(), // Will be updated
-                    attributes: attributes_ref,
-                });
+                );
                 let mut children = Vec::new();
                 for child in items {
                     children.push(self.lower_document_element(
@@ -434,54 +397,35 @@ impl HIRPass {
                         Some(index),
                     ));
                 }
-                // Update with actual children
                 hirmodule.elements[index] = HirElementOp::List {
                     children,
                     attributes: attributes_ref,
                 };
-
                 index
             }
             // TODO: Handle Image, Code, Link, Table similarly
             crate::ast::DocElementKind::Image { src, attributes } => {
-                let (id, classes) = self.extract_id_and_classes(&attributes);
-                let element_type = "list".to_string();
-                let attribute_node =
-                    AttributeNode::new_with_attributes(&attributes, hirmodule.attributes.size);
-                let attributes_ref = hirmodule.attributes.add_attribute(attribute_node);
-                // Reserve index before processing children so children get correct parent
-                let index = hirmodule.elements.len();
-                hirmodule.element_metadata.push(ElementMetadata {
-                    id,
-                    classes,
-                    element_type,
-                    parent: parent_index,
-                    attributes_ref,
+                let (index, attributes_ref) = self.reserve_element_slot(
+                    hirmodule,
+                    "image",
+                    &attributes,
+                    parent_index,
                     location,
-                });
-                hirmodule.elements.push(HirElementOp::Image {
+                );
+                hirmodule.elements[index] = HirElementOp::Image {
                     src: src.to_string(),
                     attributes: attributes_ref,
-                });
-
+                };
                 index
             }
             crate::ast::DocElementKind::Table { table, attributes } => {
-                let (id, classes) = self.extract_id_and_classes(&attributes);
-                let element_type = "list".to_string();
-                let attribute_node =
-                    AttributeNode::new_with_attributes(&attributes, hirmodule.attributes.size);
-                let attributes_ref = hirmodule.attributes.add_attribute(attribute_node);
-                // Reserve index before processing children so children get correct parent
-                let index = hirmodule.elements.len();
-                hirmodule.element_metadata.push(ElementMetadata {
-                    id,
-                    classes,
-                    element_type,
-                    parent: parent_index,
-                    attributes_ref,
+                let (index, attributes_ref) = self.reserve_element_slot(
+                    hirmodule,
+                    "table",
+                    &attributes,
+                    parent_index,
                     location,
-                });
+                );
                 let table = table
                     .into_iter()
                     .map(|row| {
@@ -492,11 +436,10 @@ impl HIRPass {
                             .collect()
                     })
                     .collect();
-                hirmodule.elements.push(HirElementOp::Table {
+                hirmodule.elements[index] = HirElementOp::Table {
                     table,
                     attributes: attributes_ref,
-                });
-
+                };
                 index
             }
             _ => {
@@ -551,5 +494,78 @@ impl HIRPass {
             }
         }
         None
+    }
+
+    fn reserve_element_slot(
+        &mut self,
+        hirmodule: &mut HIRModule,
+        element_type: &str,
+        attributes: &HashMap<String, Expression>,
+        parent_index: Option<usize>,
+        location: SourceLocation,
+    ) -> (usize, usize) {
+        // (element_index, attributes_ref)
+        let (id, classes) = self.extract_id_and_classes(&attributes);
+        let attribute_node =
+            AttributeNode::new_with_attributes(&attributes, hirmodule.attributes.size);
+        let attributes_ref = hirmodule.attributes.add_attribute(attribute_node);
+        hirmodule.element_metadata.push(ElementMetadata {
+            id,
+            classes,
+            element_type: element_type.to_string(),
+            parent: parent_index,
+            attributes_ref,
+            location: location.clone(),
+        });
+
+        let element_index = hirmodule.elements.len();
+
+        match element_type {
+            "section" => {
+                hirmodule.elements.push(HirElementOp::Section {
+                    children: Vec::new(),
+                    attributes: attributes_ref,
+                });
+            }
+            "list" => {
+                hirmodule.elements.push(HirElementOp::List {
+                    children: Vec::new(),
+                    attributes: attributes_ref,
+                });
+            }
+            "text" => {
+                hirmodule.elements.push(HirElementOp::Text {
+                    content: "".to_string(),
+                    attributes: attributes_ref,
+                });
+            }
+            "image" => {
+                hirmodule.elements.push(HirElementOp::Image {
+                    src: "".to_string(),
+                    attributes: attributes_ref,
+                });
+            }
+            "table" => {
+                hirmodule.elements.push(HirElementOp::Table {
+                    table: Vec::new(),
+                    attributes: attributes_ref,
+                });
+            }
+            _ => {
+                hirmodule.errors.push(HirError {
+                    // TODO: add span wonder why its not here or maybe return result instead and bubble up error
+                    message: format!("Unknown element type: {}", element_type),
+                    severity: Severity::Error,
+                    location: location.clone(),
+                    span: Span {
+                        start: 0,
+                        end: 0,
+                        file: "".to_string(),
+                    },
+                });
+            }
+        }
+
+        (element_index, attributes_ref)
     }
 }
