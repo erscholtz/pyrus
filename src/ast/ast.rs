@@ -1,4 +1,4 @@
-use crate::error::SourceLocation;
+use crate::diagnostic::SourceLocation;
 use crate::util::Spanned;
 use std::collections::HashMap;
 use std::fmt;

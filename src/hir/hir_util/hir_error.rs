@@ -1,4 +1,4 @@
-use crate::error::{Diagnostic, Severity, SourceLocation, Span};
+use crate::diagnostic::{Diagnostic, Severity, SourceLocation, Span};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct HirError {

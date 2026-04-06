@@ -158,7 +158,7 @@ pub struct ElementMetadata {
     pub element_type: String,
     pub parent: Option<usize>, // Index into elements vector
     pub attributes_ref: usize, // Index into AttributeTree
-    pub location: crate::error::SourceLocation, // Source location for error reporting
+    pub location: crate::diagnostic::SourceLocation, // Source location for error reporting
 }
 
 #[derive(Debug, Clone)]

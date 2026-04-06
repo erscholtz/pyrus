@@ -147,7 +147,7 @@ impl<'a> StyleResolver<'a> {
                             // Create a temporary Expression wrapper for the ExpressionKind
                             let temp_expr = crate::ast::Expression::new(
                                 expr_kind.clone(),
-                                crate::error::SourceLocation::new(0, 0, self.hir.file.clone()),
+                                crate::diagnostic::SourceLocation::new(0, 0, self.hir.file.clone()),
                             );
                             result.push_str(&self.expr_to_string(&temp_expr))
                         }

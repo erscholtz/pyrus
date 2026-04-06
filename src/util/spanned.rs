@@ -1,4 +1,4 @@
-use crate::error::SourceLocation;
+use crate::diagnostic::SourceLocation;
 use std::fmt;
 
 /// A wrapper type that attaches source location information to any AST or IR node.

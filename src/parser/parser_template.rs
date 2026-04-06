@@ -1,7 +1,7 @@
 use super::parser::Parser;
 use super::parser_err::ParseError;
 use crate::ast::{Statement, StatementKind};
-use crate::error::SourceLocation;
+use crate::diagnostic::SourceLocation;
 use crate::lexer::TokenKind;
 use crate::util::Spanned;
 

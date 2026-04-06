@@ -34,17 +34,17 @@ impl ParseError {
 }
 
 // Implement the Diagnostic trait for unified error handling
-impl crate::error::Diagnostic for ParseError {
+impl crate::diagnostic::Diagnostic for ParseError {
     fn message(&self) -> &str {
         &self.error_message
     }
 
-    fn location(&self) -> crate::error::SourceLocation {
-        crate::error::SourceLocation::new(self.line, self.column, self.file.clone())
+    fn location(&self) -> crate::diagnostic::SourceLocation {
+        crate::diagnostic::SourceLocation::new(self.line, self.column, self.file.clone())
     }
 
-    fn severity(&self) -> crate::error::Severity {
-        crate::error::Severity::Error
+    fn severity(&self) -> crate::diagnostic::Severity {
+        crate::diagnostic::Severity::Error
     }
 
     fn recoverable(&self) -> bool {

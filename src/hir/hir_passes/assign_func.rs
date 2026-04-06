@@ -83,7 +83,7 @@ impl HIRPass {
                         var_name.clone(),
                         crate::ast::Expression::new(
                             crate::ast::ExpressionKind::Int(value),
-                            crate::error::SourceLocation::new(0, 0, self.ast.file.clone()),
+                            crate::diagnostic::SourceLocation::new(0, 0, self.ast.file.clone()),
                         ),
                         Id::Value(id),
                         false,
@@ -99,7 +99,7 @@ impl HIRPass {
                         var_name.clone(),
                         crate::ast::Expression::new(
                             crate::ast::ExpressionKind::Float(value),
-                            crate::error::SourceLocation::new(0, 0, self.ast.file.clone()),
+                            crate::diagnostic::SourceLocation::new(0, 0, self.ast.file.clone()),
                         ),
                         Id::Value(id),
                         false,
@@ -120,7 +120,7 @@ impl HIRPass {
                         var_name.clone(),
                         crate::ast::Expression::new(
                             crate::ast::ExpressionKind::StringLiteral(value),
-                            crate::error::SourceLocation::new(0, 0, self.ast.file.clone()),
+                            crate::diagnostic::SourceLocation::new(0, 0, self.ast.file.clone()),
                         ),
                         Id::Value(id),
                         false,

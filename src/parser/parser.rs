@@ -1,7 +1,7 @@
 use crate::ast::{
     Ast, DocumentBlock, Expression, ExpressionKind, InterpPart, StyleBlock, TemplateBlock,
 };
-use crate::error::SourceLocation;
+use crate::diagnostic::SourceLocation;
 use crate::lexer::{TokenKind, TokenStream};
 use crate::parser::parser_err::ParseError;
 use crate::util::Spanned;

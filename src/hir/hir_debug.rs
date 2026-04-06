@@ -5,7 +5,7 @@
 
 use std::fmt;
 
-use crate::error::Diagnostic;
+use crate::diagnostic::Diagnostic;
 use crate::hir::ir_types::*;
 
 /// Trait for types that can be printed in a compact HIR format

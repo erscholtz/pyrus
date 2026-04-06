@@ -2,7 +2,7 @@ use std::arch::x86_64::_mm_encodekey128_u32;
 use std::collections::HashMap;
 
 use crate::ast::{Ast, Expression, Statement, StatementKind};
-use crate::error::{Diagnostic, Severity, SourceLocation, Span};
+use crate::diagnostic::{Diagnostic, Severity, SourceLocation, Span};
 use crate::hir::hir_util::hir_error::HirError;
 pub use crate::hir::hir_util::style_resolver::resolve_styles;
 pub use crate::hir::ir_types::{

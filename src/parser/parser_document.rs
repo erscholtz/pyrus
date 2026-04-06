@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use super::parser::Parser;
 use super::parser_err::ParseError;
 use crate::ast::{ArgType, DocElement, DocElementKind, Expression, ExpressionKind};
-use crate::error::SourceLocation;
+use crate::diagnostic::SourceLocation;
 use crate::lexer::TokenKind;
 use crate::util::Spanned;
 
