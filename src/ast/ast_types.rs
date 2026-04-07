@@ -26,7 +26,9 @@ pub enum UnaryOp {
 #[derive(Debug, Clone)]
 pub enum ExpressionKind {
     StringLiteral(String),
-    InterpolatedString(Vec<InterpPart>),
+    InterpolatedString {
+        parts: Vec<Expression>,
+    },
     Int(i64),
     Float(f64),
     Identifier(String),
@@ -54,13 +56,10 @@ impl ExpressionKind {
     pub fn to_string(&self) -> String {
         match self {
             ExpressionKind::StringLiteral(s) => s.clone(),
-            ExpressionKind::InterpolatedString(parts) => {
+            ExpressionKind::InterpolatedString { parts } => {
                 let mut result = String::new();
                 for part in parts {
-                    match part {
-                        InterpPart::Text(text) => result.push_str(text),
-                        InterpPart::Expression(expr) => result.push_str(&expr.to_string()),
-                    }
+                    result.push_str(&part.to_string());
                 }
                 result
             }
@@ -83,12 +82,6 @@ impl fmt::Display for ExpressionKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.to_string())
     }
-}
-
-#[derive(Debug, Clone)]
-pub enum InterpPart {
-    Text(String),
-    Expression(ExpressionKind), // interpolated portion
 }
 
 #[derive(Debug, Clone)]
@@ -162,10 +155,6 @@ pub enum StatementKind {
     },
     Children {
         children: String,
-    },
-    ErrorLocation {
-        line: usize,
-        col: usize,
     },
 }
 

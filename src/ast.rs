@@ -1,7 +1,7 @@
-mod ast;
+mod ast_types;
 
-pub use ast::{
+pub use ast_types::{
     ArgType, Ast, BinaryOp, DocElement, DocElementKind, DocumentBlock, Expression, ExpressionKind,
-    FuncParam, InterpPart, KeyValue, Selector, Statement, StatementKind, StyleBlock, StyleRule,
-    TemplateBlock, UnaryOp,
+    FuncParam, KeyValue, Selector, Statement, StatementKind, StyleBlock, StyleRule, TemplateBlock,
+    UnaryOp,
 };
