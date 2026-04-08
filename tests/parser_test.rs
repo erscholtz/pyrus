@@ -1,4 +1,4 @@
-use pyrus::ast::{BinaryOp, DocElementKind, ExpressionKind, InterpPart, StatementKind, UnaryOp};
+use pyrus::ast::{BinaryOp, DocElementKind, ExpressionKind, StatementKind, UnaryOp};
 use pyrus::lexer::lex;
 use pyrus::parser::parse;
 
@@ -466,29 +466,30 @@ fn test_parse_nested_template_and_document() {
 
 #[test]
 fn test_parse_string_interpolation_simple() {
-    let source = r#"template { let msg = "Hello, {name}!" }"#;
+    // Use ${...} syntax for interpolation
+    let source = r#"template { let msg = "Hello, ${name}!" }"#;
     let tokens = lex(source, "test_parse_string_interpolation_simple").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let template = ast.template.unwrap();
 
     match &template.statements[0].node {
         StatementKind::VarAssign { value, .. } => match &value.node {
-            ExpressionKind::InterpolatedString(parts) => {
+            ExpressionKind::InterpolatedString { parts } => {
                 assert_eq!(parts.len(), 3);
+                // First part: "Hello, " (StringLiteral)
                 match &parts[0] {
-                    InterpPart::Text(text) => assert_eq!(text, "Hello, "),
-                    _ => panic!("Expected Text part"),
+                    ExpressionKind::StringLiteral(text) => assert_eq!(text, "Hello, "),
+                    _ => panic!("Expected StringLiteral part, got {:?}", parts[0]),
                 }
+                // Second part: name (Identifier)
                 match &parts[1] {
-                    InterpPart::Expression(expr) => match expr {
-                        ExpressionKind::Identifier(id) => assert_eq!(id, "name"),
-                        _ => panic!("Expected Identifier expression"),
-                    },
-                    _ => panic!("Expected Expression part"),
+                    ExpressionKind::Identifier(id) => assert_eq!(id, "name"),
+                    _ => panic!("Expected Identifier expression, got {:?}", parts[1]),
                 }
+                // Third part: "!" (StringLiteral)
                 match &parts[2] {
-                    InterpPart::Text(text) => assert_eq!(text, "!"),
-                    _ => panic!("Expected Text part"),
+                    ExpressionKind::StringLiteral(text) => assert_eq!(text, "!"),
+                    _ => panic!("Expected StringLiteral part, got {:?}", parts[2]),
                 }
             }
             _ => panic!("Expected InterpolatedString, got {:?}", value),
@@ -499,40 +500,35 @@ fn test_parse_string_interpolation_simple() {
 
 #[test]
 fn test_parse_string_interpolation_multiple() {
-    let source = r#"template { let msg = "{greeting}, {name}!" }"#;
+    // Use ${...} syntax for multiple interpolations
+    let source = r#"template { let msg = "${greeting}, ${name}!" }"#;
     let tokens = lex(source, "test_parse_string_interpolation_multiple").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let template = ast.template.unwrap();
 
     match &template.statements[0].node {
         StatementKind::VarAssign { value, .. } => match &value.node {
-            ExpressionKind::InterpolatedString(parts) => {
+            ExpressionKind::InterpolatedString { parts } => {
                 assert_eq!(parts.len(), 4);
-                // {greeting}
+                // ${greeting}
                 match &parts[0] {
-                    InterpPart::Expression(expr) => match expr {
-                        ExpressionKind::Identifier(id) => assert_eq!(id, "greeting"),
-                        _ => panic!("Expected Identifier"),
-                    },
-                    _ => panic!("Expected Expression part"),
+                    ExpressionKind::Identifier(id) => assert_eq!(id, "greeting"),
+                    _ => panic!("Expected Identifier, got {:?}", parts[0]),
                 }
-                // ,
+                // ", "
                 match &parts[1] {
-                    InterpPart::Text(text) => assert_eq!(text, ", "),
-                    _ => panic!("Expected Text part"),
+                    ExpressionKind::StringLiteral(text) => assert_eq!(text, ", "),
+                    _ => panic!("Expected StringLiteral part, got {:?}", parts[1]),
                 }
-                // {name}
+                // ${name}
                 match &parts[2] {
-                    InterpPart::Expression(expr) => match expr {
-                        ExpressionKind::Identifier(id) => assert_eq!(id, "name"),
-                        _ => panic!("Expected Identifier"),
-                    },
-                    _ => panic!("Expected Expression part"),
+                    ExpressionKind::Identifier(id) => assert_eq!(id, "name"),
+                    _ => panic!("Expected Identifier, got {:?}", parts[2]),
                 }
-                // !
+                // "!"
                 match &parts[3] {
-                    InterpPart::Text(text) => assert_eq!(text, "!"),
-                    _ => panic!("Expected Text part"),
+                    ExpressionKind::StringLiteral(text) => assert_eq!(text, "!"),
+                    _ => panic!("Expected StringLiteral part, got {:?}", parts[3]),
                 }
             }
             _ => panic!("Expected InterpolatedString"),
@@ -543,25 +539,22 @@ fn test_parse_string_interpolation_multiple() {
 
 #[test]
 fn test_parse_string_interpolation_with_number() {
-    let source = r#"template { let msg = "Count: {count}" }"#;
+    let source = r#"template { let msg = "Count: ${count}" }"#;
     let tokens = lex(source, "test_parse_string_interpolation_with_number").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let template = ast.template.unwrap();
 
     match &template.statements[0].node {
         StatementKind::VarAssign { value, .. } => match &value.node {
-            ExpressionKind::InterpolatedString(parts) => {
+            ExpressionKind::InterpolatedString { parts } => {
                 assert_eq!(parts.len(), 2);
                 match &parts[0] {
-                    InterpPart::Text(text) => assert_eq!(text, "Count: "),
-                    _ => panic!("Expected Text part"),
+                    ExpressionKind::StringLiteral(text) => assert_eq!(text, "Count: "),
+                    _ => panic!("Expected StringLiteral part"),
                 }
                 match &parts[1] {
-                    InterpPart::Expression(expr) => match expr {
-                        ExpressionKind::Identifier(id) => assert_eq!(id, "count"),
-                        _ => panic!("Expected Identifier expression"),
-                    },
-                    _ => panic!("Expected Expression part"),
+                    ExpressionKind::Identifier(id) => assert_eq!(id, "count"),
+                    _ => panic!("Expected Identifier expression, got {:?}", parts[1]),
                 }
             }
             _ => panic!("Expected InterpolatedString"),
@@ -572,7 +565,8 @@ fn test_parse_string_interpolation_with_number() {
 
 #[test]
 fn test_parse_string_without_interpolation() {
-    // Plain strings without {} should remain as StringLiteral
+    // Plain strings without ${} should remain as StringLiteral
+    // Curly braces alone are NOT interpolation
     let source = r#"template { let msg = "Hello, World!" }"#;
     let tokens = lex(source, "test_parse_string_without_interpolation").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
@@ -582,6 +576,44 @@ fn test_parse_string_without_interpolation() {
         StatementKind::VarAssign { value, .. } => match &value.node {
             ExpressionKind::StringLiteral(s) => assert_eq!(s, "Hello, World!"),
             _ => panic!("Expected StringLiteral for plain string, got {:?}", value),
+        },
+        _ => panic!("Expected VarAssign statement"),
+    }
+}
+
+#[test]
+fn test_parse_string_with_literal_braces() {
+    // Curly braces without $ should be treated as literal text
+    let source = r#"template { let msg = "Use {brackets} freely" }"#;
+    let tokens = lex(source, "test_parse_string_with_literal_braces").expect("Lexing failed");
+    let ast = parse(tokens).expect("Parsing failed");
+    let template = ast.template.unwrap();
+
+    match &template.statements[0].node {
+        StatementKind::VarAssign { value, .. } => match &value.node {
+            ExpressionKind::StringLiteral(s) => assert_eq!(s, "Use {brackets} freely"),
+            _ => panic!(
+                "Expected StringLiteral for string with literal braces, got {:?}",
+                value
+            ),
+        },
+        _ => panic!("Expected VarAssign statement"),
+    }
+}
+
+#[test]
+fn test_parse_double_dollar_preserved() {
+    // $$ is reserved for future display math support (like LaTeX $$...$$)
+    // For now, $$ is treated as literal text in strings (not an escape sequence)
+    let source = r#"template { let msg = "Price: $$100" }"#;
+    let tokens = lex(source, "test_parse_double_dollar").expect("Lexing failed");
+    let ast = parse(tokens).expect("Parsing failed");
+    let template = ast.template.unwrap();
+
+    match &template.statements[0].node {
+        StatementKind::VarAssign { value, .. } => match &value.node {
+            ExpressionKind::StringLiteral(s) => assert_eq!(s, "Price: $$100"),
+            _ => panic!("Expected StringLiteral, got {:?}", value),
         },
         _ => panic!("Expected VarAssign statement"),
     }

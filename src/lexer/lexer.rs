@@ -219,7 +219,7 @@ pub fn lex(source: &str, file: &str) -> Result<TokenStream, Vec<LexError>> {
                 // Extract string content (without quotes) and add to string table
                 let content = source[start + 1..i - 1].to_string();
 
-                // Check for interpolation: unescaped { followed by content and }
+                // Check for interpolation: unescaped ${ followed by content and }
                 let mut has_interpolation = false;
                 let content_bytes = content.as_bytes();
                 let content_len = content_bytes.len();
@@ -228,9 +228,12 @@ pub fn lex(source: &str, file: &str) -> Result<TokenStream, Vec<LexError>> {
                     if content_bytes[j] == b'\\' && j + 1 < content_len {
                         // Skip escaped character
                         j += 2;
-                    } else if content_bytes[j] == b'{' {
-                        // Found an unescaped { - check if there's a matching }
-                        let mut k = j + 1;
+                    } else if content_bytes[j] == b'$'
+                        && j + 1 < content_len
+                        && content_bytes[j + 1] == b'{'
+                    {
+                        // Found an unescaped ${ - check if there's a matching }
+                        let mut k = j + 2;
                         let mut brace_depth = 1;
                         while k < content_len && brace_depth > 0 {
                             if content_bytes[k] == b'\\' && k + 1 < content_len {

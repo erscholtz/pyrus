@@ -202,44 +202,38 @@ impl Parser {
         let mut current_text = String::new();
 
         while let Some(ch) = chars.next() {
-            if ch == '{' {
+            if ch == '$' {
+                // NOTE: $$ is reserved for future display math support (like LaTeX)
+                // For now, $$ is treated as literal text
                 if chars.peek() == Some(&'{') {
-                    chars.next();
-                    current_text.push('{');
-                    continue;
-                }
-                if !current_text.is_empty() {
-                    parts.push(ExpressionKind::StringLiteral(current_text.clone()));
-                    current_text.clear();
-                }
-                let mut expr_str = String::new();
-                let mut brace_depth = 1;
+                    chars.next(); // consume {
+                    if !current_text.is_empty() {
+                        parts.push(ExpressionKind::StringLiteral(current_text.clone()));
+                        current_text.clear();
+                    }
+                    let mut expr_str = String::new();
+                    let mut brace_depth = 1;
 
-                while let Some(ch) = chars.next() {
-                    if ch == '{' {
-                        brace_depth += 1;
-                        expr_str.push(ch);
-                    } else if ch == '}' {
-                        brace_depth -= 1;
-                        if brace_depth == 0 {
-                            break;
+                    while let Some(ch) = chars.next() {
+                        if ch == '{' {
+                            brace_depth += 1;
+                            expr_str.push(ch);
+                        } else if ch == '}' {
+                            brace_depth -= 1;
+                            if brace_depth == 0 {
+                                break;
+                            } else {
+                                expr_str.push(ch);
+                            }
                         } else {
                             expr_str.push(ch);
                         }
-                    } else {
-                        expr_str.push(ch);
                     }
-                }
 
-                let expr = self.parse_expression_from_str(&expr_str.trim());
-                parts.push(expr);
-            } else if ch == '}' {
-                if chars.peek() == Some(&'}') {
-                    chars.next(); // consume second }
-                    current_text.push('}');
+                    let expr = self.parse_expression_from_str(&expr_str.trim());
+                    parts.push(expr);
                 } else {
-                    // Single } is just added to text (or could be an error)
-                    current_text.push(ch);
+                    current_text.push('$');
                 }
             } else if ch == '\\' {
                 // Handle escape sequences
