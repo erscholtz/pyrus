@@ -41,11 +41,6 @@ impl Parser {
                         elements.push(statement);
                     } else {
                         // Unexpected identifier without @
-                        let location = SourceLocation::new(
-                            self.current_token_line(),
-                            self.current_token_col(),
-                            self.file.clone(),
-                        );
                         self.errors.push(ParseError::new(
                             format!(
                                 "Parse error: expected @ before identifier at {}:{}",
@@ -57,16 +52,6 @@ impl Parser {
                             self.file.clone(),
                         ));
                         self.synchronize(DOC_SYNC);
-                        elements.push(Spanned::new(
-                            DocElementKind::Text {
-                                content: Spanned::new(
-                                    ExpressionKind::StringLiteral("".to_string()),
-                                    location.clone(),
-                                ),
-                                attributes: HashMap::new(),
-                            },
-                            location,
-                        ));
                     }
                 }
                 _ => {
@@ -319,8 +304,9 @@ impl Parser {
                 let name = self.current_text();
                 self.advance(); // consume identifier
                 self.expect(TokenKind::Equals);
-                let value = self.parse_expression();
-                attributes.insert(name, value);
+                if let Some(value) = self.parse_expression() {
+                    attributes.insert(name, value);
+                }
                 if self.current_token_kind() == TokenKind::Comma {
                     self.advance(); // consume comma
                 }

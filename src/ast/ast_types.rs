@@ -27,7 +27,7 @@ pub enum UnaryOp {
 pub enum ExpressionKind {
     StringLiteral(String),
     InterpolatedString {
-        parts: Vec<Expression>,
+        parts: Vec<ExpressionKind>,
     },
     Int(i64),
     Float(f64),

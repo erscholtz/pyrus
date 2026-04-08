@@ -40,14 +40,16 @@ impl Parser {
                 TokenKind::Eof => break,
                 _ => {
                     let statement = self.parse_statement();
-                    statements.push(statement);
+                    if let Some(statement) = statement {
+                        statements.push(statement);
+                    }
                 }
             }
         }
         statements
     }
 
-    fn parse_statement(&mut self) -> Statement {
+    fn parse_statement(&mut self) -> Option<Statement> {
         let start_line = self.current_token_line();
         let start_col = self.current_token_col();
 
@@ -56,10 +58,13 @@ impl Parser {
                 let varname = self.current_text();
                 self.advance();
                 self.expect(TokenKind::Equals);
-                let expr = self.parse_expression();
-                StatementKind::DefaultSet {
-                    key: varname,
-                    value: expr,
+                if let Some(expr) = self.parse_expression() {
+                    StatementKind::DefaultSet {
+                        key: varname,
+                        value: expr,
+                    }
+                } else {
+                    return None;
                 }
             }
             TokenKind::Let => {
@@ -67,10 +72,13 @@ impl Parser {
                 let varname = self.current_text();
                 self.advance();
                 self.expect(TokenKind::Equals);
-                let expr = self.parse_expression();
-                StatementKind::VarAssign {
-                    name: varname,
-                    value: expr,
+                if let Some(expr) = self.parse_expression() {
+                    StatementKind::VarAssign {
+                        name: varname,
+                        value: expr,
+                    }
+                } else {
+                    return None;
                 }
             }
             TokenKind::Const => {
@@ -78,10 +86,13 @@ impl Parser {
                 let varname = self.current_text();
                 self.advance();
                 self.expect(TokenKind::Equals);
-                let expr = self.parse_expression();
-                StatementKind::ConstAssign {
-                    name: varname,
-                    value: expr,
+                if let Some(expr) = self.parse_expression() {
+                    StatementKind::ConstAssign {
+                        name: varname,
+                        value: expr,
+                    }
+                } else {
+                    return None;
                 }
             }
             TokenKind::At => {
@@ -122,15 +133,12 @@ impl Parser {
                     self.file.clone(),
                 ));
                 self.synchronize(TEMPLATE_SYNC);
-                StatementKind::ErrorLocation {
-                    line: self.current_token_line(),
-                    col: self.current_token_col(),
-                }
+                return None;
             }
         };
 
         let location = SourceLocation::new(start_line, start_col, self.file.clone());
-        Spanned::new(kind, location)
+        Some(Spanned::new(kind, location))
     }
 
     fn parse_func_decl(&mut self) -> Statement {
@@ -202,15 +210,18 @@ impl Parser {
             match self.current_token_kind() {
                 TokenKind::RightParen => break,
                 TokenKind::Identifier => {
-                    let param_name = self.parse_expression();
-                    self.expect(TokenKind::Colon);
-                    let param_type = self.current_text();
-                    self.advance();
-                    params.push(crate::ast::FuncParam {
-                        ty: param_type,
-                        value: param_name,
-                    });
-                    self.match_kind(TokenKind::Comma);
+                    if let Some(param_name) = self.parse_expression() {
+                        self.expect(TokenKind::Colon);
+                        let param_type = self.current_text();
+                        self.advance();
+                        params.push(crate::ast::FuncParam {
+                            ty: param_type,
+                            value: param_name,
+                        });
+                        self.match_kind(TokenKind::Comma);
+                    } else {
+                        return params;
+                    }
                 }
                 _ => {
                     self.errors.push(ParseError::new(
@@ -257,7 +268,9 @@ impl Parser {
                 }
                 _ => {
                     let statement = self.parse_statement();
-                    statements.push(statement);
+                    if let Some(statement) = statement {
+                        statements.push(statement);
+                    }
                 }
             }
         }

@@ -138,19 +138,18 @@ impl<'a> StyleResolver<'a> {
             ExpressionKind::Float(f) => f.to_string(),
             ExpressionKind::Identifier(s) => s.clone(),
             ExpressionKind::StructDefault(s) => format!("default({})", s),
-            ExpressionKind::InterpolatedString(parts) => {
+            ExpressionKind::InterpolatedString { parts } => {
                 let mut result = String::new();
                 for part in parts {
                     match part {
-                        crate::ast::InterpPart::Text(text) => result.push_str(text),
-                        crate::ast::InterpPart::Expression(expr_kind) => {
-                            // Create a temporary Expression wrapper for the ExpressionKind
-                            let temp_expr = crate::ast::Expression::new(
-                                expr_kind.clone(),
-                                crate::diagnostic::SourceLocation::new(0, 0, self.hir.file.clone()),
-                            );
-                            result.push_str(&self.expr_to_string(&temp_expr))
+                        ExpressionKind::StringLiteral(s) => result.push_str(s),
+                        ExpressionKind::Int(n) => result.push_str(&n.to_string()),
+                        ExpressionKind::Float(f) => result.push_str(&f.to_string()),
+                        ExpressionKind::Identifier(s) => result.push_str(s),
+                        ExpressionKind::StructDefault(s) => {
+                            result.push_str(&format!("default({})", s))
                         }
+                        _ => {}
                     }
                 }
                 result

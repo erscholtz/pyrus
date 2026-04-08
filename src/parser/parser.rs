@@ -1,6 +1,4 @@
-use crate::ast::{
-    Ast, DocumentBlock, Expression, ExpressionKind, InterpPart, StyleBlock, TemplateBlock,
-};
+use crate::ast::{Ast, DocumentBlock, Expression, ExpressionKind, StyleBlock, TemplateBlock};
 use crate::diagnostic::SourceLocation;
 use crate::lexer::{TokenKind, TokenStream};
 use crate::parser::parser_err::ParseError;
@@ -103,26 +101,34 @@ impl Parser {
         })
     }
 
-    pub fn parse_expression(&mut self) -> Expression {
+    pub fn parse_expression(&mut self) -> Option<Spanned<ExpressionKind>> {
         let start_line = self.current_token_line();
         let start_col = self.current_token_col();
 
         let kind = match self.current_token_kind() {
             TokenKind::Minus => {
                 self.advance();
-                let right = self.parse_expression();
-                ExpressionKind::Unary {
+                let right = if let Some(expr) = self.parse_expression() {
+                    expr
+                } else {
+                    return None;
+                };
+                Some(ExpressionKind::Unary {
                     operator: crate::ast::UnaryOp::Negate,
                     expression: Box::new(right),
-                }
+                })
             }
             TokenKind::Bang => {
                 self.advance();
-                let right = self.parse_expression();
-                ExpressionKind::Unary {
+                let right = if let Some(expr) = self.parse_expression() {
+                    expr
+                } else {
+                    return None;
+                };
+                Some(ExpressionKind::Unary {
                     operator: crate::ast::UnaryOp::Not,
                     expression: Box::new(right),
-                }
+                })
             }
             TokenKind::StringLiteral(idx) => {
                 let idx_usize = idx as usize;
@@ -130,30 +136,35 @@ impl Parser {
                 self.advance();
                 // Check if the string contains interpolation patterns
                 if entry.has_interpolation {
-                    self.parse_string_with_interpolation(&entry.content)
+                    let result = self.parse_string_with_interpolation(&entry.content);
+                    Some(result)
                 } else {
                     // Process escape sequences even for non-interpolated strings
                     let processed = self.process_escape_sequences(&entry.content);
-                    ExpressionKind::StringLiteral(processed)
+                    Some(ExpressionKind::StringLiteral(processed))
                 }
             }
             TokenKind::Float => {
                 let value = self.current_text();
                 self.advance();
-                ExpressionKind::Float(value.parse().unwrap())
+                Some(ExpressionKind::Float(value.parse().unwrap()))
             }
             TokenKind::Int => {
                 let value = self.current_text();
                 self.advance();
-                ExpressionKind::Int(value.parse().unwrap())
+                Some(ExpressionKind::Int(value.parse().unwrap()))
             }
             TokenKind::Dollarsign => {
                 self.advance(); // first $
-                let expression = self.parse_expression();
+                let expression = if let Some(expr) = self.parse_expression() {
+                    expr
+                } else {
+                    return None;
+                };
                 self.advance(); // other $
-                return expression; // Return directly to preserve location from inner expression
+                Some(expression.node) // Return directly to preserve location from inner expression
             }
-            TokenKind::Identifier => self.parse_binary_expr(),
+            TokenKind::Identifier => Some(self.parse_binary_expr()),
             _ => {
                 self.errors.push(ParseError::new(
                     format!(
@@ -167,12 +178,15 @@ impl Parser {
                     self.file.clone(),
                 ));
                 self.advance();
-                ExpressionKind::Int(0)
+                None
             }
         };
-
         let location = SourceLocation::new(start_line, start_col, self.file.clone());
-        Spanned::new(kind, location)
+        if let Some(kind) = kind {
+            Some(Spanned::new(kind, location))
+        } else {
+            None
+        }
     }
 
     pub fn parse_string_with_interpolation(&mut self, s: &str) -> ExpressionKind {
@@ -194,12 +208,10 @@ impl Parser {
                     current_text.push('{');
                     continue;
                 }
-
                 if !current_text.is_empty() {
-                    parts.push(InterpPart::Text(current_text.clone()));
+                    parts.push(ExpressionKind::StringLiteral(current_text.clone()));
                     current_text.clear();
                 }
-
                 let mut expr_str = String::new();
                 let mut brace_depth = 1;
 
@@ -220,7 +232,7 @@ impl Parser {
                 }
 
                 let expr = self.parse_expression_from_str(&expr_str.trim());
-                parts.push(InterpPart::Expression(expr));
+                parts.push(expr);
             } else if ch == '}' {
                 if chars.peek() == Some(&'}') {
                     chars.next(); // consume second }
@@ -256,25 +268,19 @@ impl Parser {
 
         // Add remaining text
         if !current_text.is_empty() {
-            parts.push(InterpPart::Text(current_text));
+            parts.push(ExpressionKind::StringLiteral(current_text));
         }
 
         if parts.is_empty() {
             ExpressionKind::StringLiteral(String::new())
-        } else if parts.len() == 1 {
-            match &parts[0] {
-                InterpPart::Text(text) => ExpressionKind::StringLiteral(text.clone()),
-                InterpPart::Expression(_) => ExpressionKind::InterpolatedString(parts),
-            }
         } else {
-            ExpressionKind::InterpolatedString(parts)
+            ExpressionKind::InterpolatedString { parts }
         }
     }
 
     fn process_escape_sequences(&self, s: &str) -> String {
         let mut result = String::new();
         let mut chars = s.chars().peekable();
-
         while let Some(ch) = chars.next() {
             if ch == '\\' {
                 if let Some(next_ch) = chars.next() {
@@ -394,17 +400,18 @@ impl Parser {
                 _ => unreachable!(),
             };
             self.advance(); // consume operator
-            let right = self.parse_expression();
-            let left_span = SourceLocation::new(
-                self.current_token_line(),
-                self.current_token_col(),
-                self.file.clone(),
-            );
-            return ExpressionKind::Binary {
-                left: Box::new(Spanned::new(left, left_span)),
-                operator,
-                right: Box::new(right),
-            };
+            if let Some(right) = self.parse_expression() {
+                let left_span = SourceLocation::new(
+                    self.current_token_line(),
+                    self.current_token_col(),
+                    self.file.clone(),
+                );
+                return ExpressionKind::Binary {
+                    left: Box::new(Spanned::new(left, left_span)),
+                    operator,
+                    right: Box::new(right),
+                };
+            }
         }
         left
     }

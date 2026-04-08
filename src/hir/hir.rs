@@ -1,4 +1,3 @@
-use std::arch::x86_64::_mm_encodekey128_u32;
 use std::collections::HashMap;
 
 use crate::ast::{Ast, Expression, Statement, StatementKind};
@@ -10,7 +9,6 @@ pub use crate::hir::ir_types::{
     GlobalId, HIRModule, HirElementDecl, HirElementOp, Id, Literal, Op, StyleAttributes, Type,
     ValueId,
 };
-use crate::util::Spanned;
 
 pub fn lower(ast: &Ast) -> HIRModule {
     let mut pass = HIRPass {
