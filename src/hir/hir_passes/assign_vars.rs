@@ -1,8 +1,8 @@
 use crate::ast::{Expression, ExpressionKind};
-use crate::hir::HIRPass;
+use crate::hir::HIRPass_old;
 use crate::hir::ir_types::{Global, GlobalId, Id, Literal, Op, Type, ValueId};
 
-impl HIRPass {
+impl<'ast_lifetime> HIRPass_old<'ast_lifetime> {
     pub fn assign_global(
         &mut self,
         name: &String,

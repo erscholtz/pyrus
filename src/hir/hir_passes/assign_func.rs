@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 
-use crate::hir::HIRPass;
+use crate::hir::HIRPass_old;
 use crate::hir::ir_types::{FuncBlock, HIRModule, Id, Op, ValueId};
 
 use crate::ast::{ArgType, Expression, StatementKind};
 
-impl HIRPass {
+impl<'ast_lifetime> HIRPass_old<'ast_lifetime> {
     pub fn lower_function_block(
         &mut self,
         body: &Vec<crate::ast::Statement>,

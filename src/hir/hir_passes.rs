@@ -2,3 +2,79 @@ pub mod assign_func;
 pub mod assign_vars;
 pub mod style_pass;
 pub mod validation_pass;
+
+use crate::hir::HIRModule;
+use crate::hir::hir_util::hir_error::HirError;
+
+/// Represents a pass to be executed on an HIR module.
+pub trait HIRPass {
+    fn run(&mut self, hir: &mut HIRModule) -> Result<(), Vec<HirError>>;
+    fn name(&self) -> &'static str;
+}
+
+/// Type alias for pass functions (used in run_pipeline)
+type PassFn = fn(&mut HIRModule, &mut PassManager) -> Result<(), Vec<HirError>>;
+
+/// Manages a pipeline of HIR passes to be executed on a module.
+pub struct PassManager {
+    stop_on_error: bool,
+    failed: bool,
+    executed_passes: Vec<&'static str>,
+    failed_passes: Vec<&'static str>,
+    errors: Vec<HirError>,
+}
+
+impl PassManager {
+    pub fn new(stop_on_error: bool) -> Self {
+        Self {
+            stop_on_error,
+            failed: false,
+            failed_passes: Vec::new(),
+            executed_passes: Vec::new(),
+            errors: Vec::new(),
+        }
+    }
+    pub fn continue_on_error(&mut self) -> &mut Self {
+        self.stop_on_error = false;
+        self
+    }
+
+    pub fn run<P: HIRPass + Default>(&mut self, hir: &mut HIRModule) -> &mut Self {
+        let mut pass = P::default();
+        match pass.run(hir) {
+            Ok(()) => {}
+            Err(errors) => {
+                self.failed = true;
+                self.failed_passes.push(pass.name());
+                self.errors.extend(errors);
+                if self.stop_on_error {
+                    return self;
+                }
+            }
+        }
+        self.executed_passes.push(pass.name());
+        self
+    }
+
+    pub fn executed_passes(&self) -> &[&'static str] {
+        &self.executed_passes
+    }
+
+    pub fn failed_passes(&self) -> &[&'static str] {
+        &self.failed_passes
+    }
+
+    pub fn finished(&self) -> Result<(), Vec<HirError>> {
+        if self.failed {
+            Err(self.errors.clone())
+        } else {
+            Ok(())
+        }
+    }
+}
+
+impl Default for PassManager {
+    fn default() -> Self {
+        Self::new(true)
+    }
+}

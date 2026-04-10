@@ -3,9 +3,13 @@ use std::fmt;
 /// Severity level for diagnostics
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Severity {
+    /// error in the code (e.g. a syntax error)
     Error,
+    /// bad form in the code (e.g. a unused variable)
     Warning,
+    /// no error/warning but something that could be improved (e.g. spelling)
     Note,
+    /// error the compiler cannot recover from
     Fatal,
 }
 

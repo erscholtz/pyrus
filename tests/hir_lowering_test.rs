@@ -3,8 +3,7 @@
 //! These tests define the expected behavior of the lowering pass and
 //! the validation pass that should catch errors.
 
-use pyrus::hir::{FuncId, HIRModule, Id, Op, Type};
-use pyrus::hir::{lower, resolve_styles};
+use pyrus::hir::{Op, Type, lower};
 use pyrus::lexer::lex;
 use pyrus::parser::parse;
 
@@ -20,7 +19,7 @@ document {
 "#;
     let tokens = lex(source, "test_lower_empty_document").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
-    let hlir = lower(&ast);
+    let hlir = lower(&ast).expect("Lowering failed");
 
     // Should have the implicit __document function
     assert_eq!(
@@ -44,7 +43,7 @@ document {
 "#;
     let tokens = lex(source, "test_lower_global_const").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
-    let hlir = lower(&ast);
+    let hlir = lower(&ast).expect("Lowering failed");
 
     assert_eq!(hlir.globals.len(), 1, "Should have one global");
     assert!(hlir.globals.values().any(|g| g.name == "PI"));
@@ -61,7 +60,7 @@ document {
 "#;
     let tokens = lex(source, "test_lower_global_var").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
-    let hlir = lower(&ast);
+    let hlir = lower(&ast).expect("Lowering failed");
 
     assert_eq!(hlir.globals.len(), 1);
     assert!(hlir.globals.values().any(|g| g.name == "counter"));
@@ -80,7 +79,7 @@ document {
 "#;
     let tokens = lex(source, "test_lower_multiple_globals").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
-    let hlir = lower(&ast);
+    let hlir = lower(&ast).expect("Lowering failed");
 
     assert_eq!(hlir.globals.len(), 3);
 }
@@ -98,7 +97,7 @@ document {
 "#;
     let tokens = lex(source, "test_lower_simple_function").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
-    let hlir = lower(&ast);
+    let hlir = lower(&ast).expect("Lowering failed");
 
     // Should have __document function + 1 element declaration
     assert_eq!(hlir.functions.len(), 1);
@@ -128,7 +127,7 @@ document {
 "#;
     let tokens = lex(source, "test_lower_function_with_args").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
-    let hlir = lower(&ast);
+    let hlir = lower(&ast).expect("Lowering failed");
 
     let elem = hlir
         .element_decls
@@ -152,7 +151,7 @@ document {
 "#;
     let tokens = lex(source, "test_lower_function_with_multiple_args").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
-    let hlir = lower(&ast);
+    let hlir = lower(&ast).expect("Lowering failed");
 
     let elem = hlir
         .element_decls
@@ -177,7 +176,7 @@ document {
 "#;
     let tokens = lex(source, "test_lower_text_element").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
-    let hlir = lower(&ast);
+    let hlir = lower(&ast).expect("Lowering failed");
 
     assert_eq!(hlir.elements.len(), 1);
     assert_eq!(hlir.element_metadata.len(), 1);
@@ -196,7 +195,7 @@ document {
 "#;
     let tokens = lex(source, "test_lower_section_with_children").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
-    let hlir = lower(&ast);
+    let hlir = lower(&ast).expect("Lowering failed");
 
     // Should have: 1 section + 2 text elements
     assert_eq!(hlir.elements.len(), 3);
@@ -226,7 +225,7 @@ document {
 "#;
     let tokens = lex(source, "test_lower_element_with_id_and_class").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
-    let hlir = lower(&ast);
+    let hlir = lower(&ast).expect("Lowering failed");
 
     let meta = &hlir.element_metadata[0];
     assert_eq!(meta.id, Some("header".to_string()));
@@ -254,7 +253,7 @@ style {
 "#;
     let tokens = lex(source, "test_lower_preserves_css_rules").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
-    let hlir = lower(&ast);
+    let hlir = lower(&ast).expect("Lowering failed");
 
     assert_eq!(hlir.css_rules.len(), 2);
 }
@@ -277,7 +276,7 @@ document {
 "#;
     let tokens = lex(source, "test_lower_function_call_in_document").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
-    let hlir = lower(&ast);
+    let hlir = lower(&ast).expect("Lowering failed");
 
     // Find __document function body
     let doc_func = hlir
@@ -309,7 +308,7 @@ document {
 "#;
     let tokens = lex(source, "test_lower_function_call_with_args").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
-    let hlir = lower(&ast);
+    let hlir = lower(&ast).expect("Lowering failed");
 
     let doc_func = hlir
         .functions
@@ -342,7 +341,7 @@ document {
 "#;
     let tokens = lex(source, "test_lower_generates_doc_element_emit_ops").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
-    let hlir = lower(&ast);
+    let hlir = lower(&ast).expect("Lowering failed");
 
     let doc_func = hlir
         .functions
@@ -371,7 +370,7 @@ document {
 "#;
     let tokens = lex(source, "test_lower_const_generates_const_op").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
-    let hlir = lower(&ast);
+    let hlir = lower(&ast).expect("Lowering failed");
 
     // The global should have been created with the right value
     let global = hlir
@@ -598,7 +597,7 @@ document {
 "#;
     let tokens = lex(source, "test_lower_preserves_element_order").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
-    let hlir = lower(&ast);
+    let hlir = lower(&ast).expect("Lowering failed");
 
     // Elements should be in document order
     assert_eq!(hlir.element_metadata[0].element_type, "text");
@@ -617,7 +616,7 @@ document {
 "#;
     let tokens = lex(source, "test_lower_empty_template_is_ok").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
-    let hlir = lower(&ast);
+    let hlir = lower(&ast).expect("Lowering failed");
 
     assert!(hlir.globals.is_empty());
     assert_eq!(hlir.functions.len(), 1); // Just __document
@@ -636,7 +635,7 @@ document {
 "#;
     let tokens = lex(source, "test_lower_nested_sections").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
-    let hlir = lower(&ast);
+    let hlir = lower(&ast).expect("Lowering failed");
 
     // Should have: outer section (0), inner section (1), text (2)
     assert_eq!(hlir.elements.len(), 3);

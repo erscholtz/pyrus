@@ -6,3 +6,4 @@ pub mod ir_types;
 
 pub use hir::*;
 pub use hir_debug::HirDisplayExt;
+pub use hir_passes::PassManager;

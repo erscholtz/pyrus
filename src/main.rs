@@ -6,7 +6,6 @@ use std::time::Instant;
 use pyrus::backend;
 use pyrus::hir;
 use pyrus::hir::HirDisplayExt;
-use pyrus::hir::resolve_styles;
 use pyrus::layout::setup_layout;
 use pyrus::lexer;
 use pyrus::parser;
@@ -45,15 +44,15 @@ fn main() {
     let ast = parser::parse(tokens).expect("Should be able to parse tokens to AST");
     println!("{:#?}", ast);
 
-    let mut hlir_module = hir::lower(&ast);
-    println!("{}", hlir_module.hir_display());
+    let hir_module = hir::lower(&ast).expect("Should be able to lower AST to HIR");
+    println!("{}", hir_module.hir_display());
+
     // println!("HLIR before style resolution:");
     // println!("  Elements: {}", hlir_module.elements.len());
     // println!("  CSS Rules: {}", hlir_module.css_rules.len());
     // println!("  Element Metadata: {}", hlir_module.element_metadata.len());
 
     // Run CSS style resolution
-    resolve_styles(&mut hlir_module);
 
     // println!("\n=== Computed Styles ===");
     // for (idx, metadata) in hlir_module.element_metadata.iter().enumerate() {
@@ -77,15 +76,15 @@ fn main() {
     //     }
     // }
 
-    let layout = setup_layout(&hlir_module);
+    let layout = setup_layout(&hir_module);
 
     // Compute document flow layout (simple vertical stacking)
-    let computed_layouts = layout.compute_document_flow(&hlir_module);
+    let computed_layouts = layout.compute_document_flow(&hir_module);
 
     // Print computed layouts for each element
     println!("\n=== Computed Layouts ===");
     for computed in &computed_layouts {
-        if let Some(metadata) = hlir_module.element_metadata.get(computed.element_index) {
+        if let Some(metadata) = hir_module.element_metadata.get(computed.element_index) {
             println!(
                 "Element {} (type: {:?}, id: {:?}): x={:.1}, y={:.1}, w={:.1}, h={:.1}",
                 computed.element_index,
@@ -101,7 +100,7 @@ fn main() {
 
     // Render to PDF using backend
     let backend = backend::Backend::new(backend::Renderer::Pdf);
-    if let Err(e) = backend.render(hlir_module, &layout, &computed_layouts) {
+    if let Err(e) = backend.render(hir_module, &layout, &computed_layouts) {
         eprintln!("Failed to render PDF: {}", e);
     } else {
         println!("\nPDF rendered successfully to generated/output.pdf");

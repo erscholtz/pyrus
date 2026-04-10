@@ -2,31 +2,32 @@ use std::collections::HashMap;
 
 use crate::ast::{Ast, Expression, Statement, StatementKind};
 use crate::diagnostic::{Diagnostic, Severity, SourceLocation, Span};
+use crate::hir::PassManager;
+pub use crate::hir::hir_passes::style_pass::StylePass;
 use crate::hir::hir_util::hir_error::HirError;
-pub use crate::hir::hir_util::style_resolver::resolve_styles;
 pub use crate::hir::ir_types::{
     AttributeNode, AttributeTree, ElementId, ElementMetadata, FuncBlock, FuncDecl, FuncId,
     GlobalId, HIRModule, HirElementDecl, HirElementOp, Id, Literal, Op, StyleAttributes, Type,
     ValueId,
 };
 
-pub fn lower(ast: &Ast) -> HIRModule {
-    let mut pass = HIRPass {
-        ast: ast.clone(),
+pub fn lower(ast: &Ast) -> Option<HIRModule> {
+    let mut pass = HIRPass_old {
+        ast: ast,
         symbol_table: Vec::new(),
     };
     pass.lower()
 }
 
-pub struct HIRPass {
+pub struct HIRPass_old<'ast_lifetime> {
     // Fields and methods for the Hir struct
-    pub ast: Ast,
+    pub ast: &'ast_lifetime Ast,
     pub symbol_table: Vec<HashMap<String, Id>>, // Scope stack
 }
 
-impl HIRPass {
+impl<'ast_lifetime> HIRPass_old<'ast_lifetime> {
     // Methods for the Hir struct
-    fn lower(&mut self) -> HIRModule {
+    fn lower(&mut self) -> Option<HIRModule> {
         let mut hirmodule = HIRModule {
             file: self.ast.file.clone(),
             globals: HashMap::new(),
@@ -41,16 +42,28 @@ impl HIRPass {
 
         self.symbol_table.push(HashMap::new()); // add new scope (global)
 
+        // defaults, globals, functions, and element declarations
         self.lower_template_block(&mut hirmodule);
+
+        // document element invocations
         self.lower_document_block(&mut hirmodule);
+
         // Store CSS rules from AST
         if let Some(style) = &self.ast.style {
             hirmodule.css_rules = style.statements.clone();
         }
 
+        let pm = PassManager::default()
+            .continue_on_error()
+            .run::<StylePass>(&mut hirmodule) // CSS slyling
+            .finished()
+            .unwrap_or_else(|e| {
+                hirmodule.errors.extend(e);
+            });
+
         self.symbol_table.pop(); // remove scope (global)
 
-        hirmodule
+        Some(hirmodule)
     }
 
     fn lower_template_block(&mut self, hirmodule: &mut HIRModule) {

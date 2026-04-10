@@ -1,6 +1,6 @@
 //! Tests for CSS style resolution in HLIR
 
-use pyrus::hir::{lower, resolve_styles};
+use pyrus::hir::lower;
 use pyrus::lexer::lex;
 use pyrus::parser::parse;
 
@@ -23,12 +23,10 @@ style {
 "#;
     let tokens = lex(source, "test_id_selector").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
-    let mut hlir = lower(&ast);
+    let hlir = lower(&ast).expect("Lowering failed");
 
     assert_eq!(hlir.element_metadata.len(), 1);
     assert_eq!(hlir.css_rules.len(), 1);
-
-    resolve_styles(&mut hlir);
 
     let metadata = &hlir.element_metadata[0];
     let node = hlir.attributes.find_node(metadata.attributes_ref).unwrap();
@@ -55,8 +53,7 @@ style {
 "#;
     let tokens = lex(source, "test_class_selector").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
-    let mut hlir = lower(&ast);
-    resolve_styles(&mut hlir);
+    let hlir = lower(&ast).expect("Lowering failed");
 
     let metadata = &hlir.element_metadata[0];
     let node = hlir.attributes.find_node(metadata.attributes_ref).unwrap();
@@ -81,8 +78,7 @@ style {
 "#;
     let tokens = lex(source, "test_type_selector").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
-    let mut hlir = lower(&ast);
-    resolve_styles(&mut hlir);
+    let hlir = lower(&ast).expect("Lowering failed");
 
     let metadata = &hlir.element_metadata[0];
     let node = hlir.attributes.find_node(metadata.attributes_ref).unwrap();
@@ -111,8 +107,7 @@ style {
 "#;
     let tokens = lex(source, "test_specificity_inline_wins").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
-    let mut hlir = lower(&ast);
-    resolve_styles(&mut hlir);
+    let hlir = lower(&ast).expect("Lowering failed");
 
     let metadata = &hlir.element_metadata[0];
     let node = hlir.attributes.find_node(metadata.attributes_ref).unwrap();
@@ -141,8 +136,7 @@ style {
 "#;
     let tokens = lex(source, "test_specificity_id_over_class").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
-    let mut hlir = lower(&ast);
-    resolve_styles(&mut hlir);
+    let hlir = lower(&ast).expect("Lowering failed");
 
     let metadata = &hlir.element_metadata[0];
     let node = hlir.attributes.find_node(metadata.attributes_ref).unwrap();
@@ -171,8 +165,7 @@ style {
 "#;
     let tokens = lex(source, "test_specificity_class_over_type").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
-    let mut hlir = lower(&ast);
-    resolve_styles(&mut hlir);
+    let hlir = lower(&ast).expect("Lowering failed");
 
     let metadata = &hlir.element_metadata[0];
     let node = hlir.attributes.find_node(metadata.attributes_ref).unwrap();
@@ -205,8 +198,7 @@ style {
 "#;
     let tokens = lex(source, "test_multiple_rules_combine").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
-    let mut hlir = lower(&ast);
-    resolve_styles(&mut hlir);
+    let hlir = lower(&ast).expect("Lowering failed");
 
     let metadata = &hlir.element_metadata[0];
     let node = hlir.attributes.find_node(metadata.attributes_ref).unwrap();
@@ -236,8 +228,7 @@ style {
 "#;
     let tokens = lex(source, "test_same_property_last_wins").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
-    let mut hlir = lower(&ast);
-    resolve_styles(&mut hlir);
+    let hlir = lower(&ast).expect("Lowering failed");
 
     let metadata = &hlir.element_metadata[0];
     let node = hlir.attributes.find_node(metadata.attributes_ref).unwrap();
@@ -268,8 +259,7 @@ style {
 "#;
     let tokens = lex(source, "test_multiple_selectors_in_rule").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
-    let mut hlir = lower(&ast);
-    resolve_styles(&mut hlir);
+    let hlir = lower(&ast).expect("Lowering failed");
 
     // Both elements should get the style
     for i in 0..2 {
@@ -304,8 +294,7 @@ style {
 "#;
     let tokens = lex(source, "test_style_inheritance").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
-    let mut hlir = lower(&ast);
-    resolve_styles(&mut hlir);
+    let hlir = lower(&ast).expect("Lowering failed");
 
     // Find the nested text element (should be index 1, section is index 0)
     let text_metadata = hlir
@@ -342,8 +331,7 @@ style {
 "#;
     let tokens = lex(source, "test_non_inherited_properties").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
-    let mut hlir = lower(&ast);
-    resolve_styles(&mut hlir);
+    let hlir = lower(&ast).expect("Lowering failed");
 
     let section_metadata = hlir
         .element_metadata
@@ -393,8 +381,7 @@ style {
 "#;
     let tokens = lex(source, "test_multiple_classes_on_element").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
-    let mut hlir = lower(&ast);
-    resolve_styles(&mut hlir);
+    let hlir = lower(&ast).expect("Lowering failed");
 
     let metadata = &hlir.element_metadata[0];
     assert_eq!(metadata.classes, vec!["large", "bold"]);
@@ -430,8 +417,7 @@ style {
 "#;
     let tokens = lex(source, "test_typed_margin_property").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
-    let mut hlir = lower(&ast);
-    resolve_styles(&mut hlir);
+    let hlir = lower(&ast).expect("Lowering failed");
 
     let metadata = &hlir.element_metadata[0];
     let node = hlir.attributes.find_node(metadata.attributes_ref).unwrap();
@@ -454,8 +440,7 @@ style {
 "#;
     let tokens = lex(source, "test_typed_padding_property").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
-    let mut hlir = lower(&ast);
-    resolve_styles(&mut hlir);
+    let hlir = lower(&ast).expect("Lowering failed");
 
     let metadata = &hlir.element_metadata[0];
     let node = hlir.attributes.find_node(metadata.attributes_ref).unwrap();
@@ -481,8 +466,7 @@ style {
 "#;
     let tokens = lex(source, "test_no_matching_rules").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
-    let mut hlir = lower(&ast);
-    resolve_styles(&mut hlir);
+    let hlir = lower(&ast).expect("Lowering failed");
 
     let metadata = &hlir.element_metadata[0];
     let node = hlir.attributes.find_node(metadata.attributes_ref).unwrap();
@@ -503,8 +487,7 @@ style {
 "#;
     let tokens = lex(source, "test_empty_style_block").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
-    let mut hlir = lower(&ast);
-    resolve_styles(&mut hlir);
+    let hlir = lower(&ast).expect("Lowering failed");
 
     let metadata = &hlir.element_metadata[0];
     let node = hlir.attributes.find_node(metadata.attributes_ref).unwrap();
@@ -522,11 +505,9 @@ document {
 "#;
     let tokens = lex(source, "test_no_style_block").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
-    let mut hlir = lower(&ast);
+    let hlir = lower(&ast).expect("Lowering failed");
 
     assert!(hlir.css_rules.is_empty());
-
-    resolve_styles(&mut hlir);
 
     let metadata = &hlir.element_metadata[0];
     let node = hlir.attributes.find_node(metadata.attributes_ref).unwrap();
@@ -575,8 +556,7 @@ style {
 "#;
     let tokens = lex(source, "test_complex_css_scenario").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
-    let mut hlir = lower(&ast);
-    resolve_styles(&mut hlir);
+    let hlir = lower(&ast).expect("Lowering failed");
 
     // Header: id + class
     let header = hlir
@@ -653,7 +633,7 @@ fn test_css_from_file() {
         fs::read_to_string("tests/input/css_test.ink").expect("Should be able to read test file");
     let tokens = lex(&data, "test_css_from_file").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
-    let mut hlir = lower(&ast);
+    let hlir = lower(&ast).expect("Lowering failed");
 
     // Check that we have the expected structure
     assert!(
@@ -661,8 +641,6 @@ fn test_css_from_file() {
         "Should have at least 3 elements"
     );
     assert!(!hlir.css_rules.is_empty(), "Should have CSS rules");
-
-    resolve_styles(&mut hlir);
 
     // Check that styles were applied
     let header = hlir
