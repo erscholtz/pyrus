@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 
-use crate::ast::{Ast, Expression, Statement, StatementKind};
-use crate::diagnostic::{Diagnostic, Severity, SourceLocation, Span};
+use crate::ast::{Ast, Expression, StatementKind};
+use crate::diagnostic::{Severity, SourceLocation, Span};
 use crate::hir::PassManager;
 pub use crate::hir::hir_passes::style_pass::StylePass;
+pub use crate::hir::hir_passes::var_pass::VarPass;
 use crate::hir::hir_util::hir_error::HirError;
 pub use crate::hir::ir_types::{
     AttributeNode, AttributeTree, ElementId, ElementMetadata, FuncBlock, FuncDecl, FuncId,
@@ -48,14 +49,10 @@ impl<'ast_lifetime> HIRPass_old<'ast_lifetime> {
         // document element invocations
         self.lower_document_block(&mut hirmodule);
 
-        // Store CSS rules from AST
-        if let Some(style) = &self.ast.style {
-            hirmodule.css_rules = style.statements.clone();
-        }
-
         let pm = PassManager::default()
             .continue_on_error()
-            .run::<StylePass>(&mut hirmodule) // CSS slyling
+            .run::<VarPass>(&mut hirmodule, &self.ast)
+            .run::<StylePass>(&mut hirmodule, &self.ast) // CSS slyling
             .finished()
             .unwrap_or_else(|e| {
                 hirmodule.errors.extend(e);
@@ -77,25 +74,6 @@ impl<'ast_lifetime> HIRPass_old<'ast_lifetime> {
         let statements = template.statements.clone();
         for statement in &statements {
             match &statement.node {
-                StatementKind::DefaultSet { key, value } => {
-                    let global_id = Id::Global(GlobalId(hirmodule.globals.len()));
-                    let global_name = "__".to_string() + &key.clone();
-                    let global = self.assign_global(&global_name, &value, global_id, false);
-                    hirmodule.globals.insert(global_id, global);
-                    self.add_symbol(key.clone(), global_id);
-                }
-                StatementKind::ConstAssign { name, value } => {
-                    let global_id = Id::Global(GlobalId(hirmodule.globals.len()));
-                    let global = self.assign_global(&name, &value, global_id, false);
-                    hirmodule.globals.insert(global_id, global);
-                    self.add_symbol(name.clone(), global_id);
-                }
-                StatementKind::VarAssign { name, value } => {
-                    let global_id = Id::Global(GlobalId(hirmodule.globals.len()));
-                    let global = self.assign_global(&name, &value, global_id, true);
-                    hirmodule.globals.insert(global_id, global);
-                    self.add_symbol(name.clone(), global_id);
-                }
                 StatementKind::FunctionDecl {
                     name,
                     args,

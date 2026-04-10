@@ -1,9 +1,8 @@
 use std::collections::HashMap;
 
+use crate::ast::{ArgType, Expression, StatementKind};
 use crate::hir::HIRPass_old;
 use crate::hir::ir_types::{FuncBlock, HIRModule, Id, Op, ValueId};
-
-use crate::ast::{ArgType, Expression, StatementKind};
 
 impl<'ast_lifetime> HIRPass_old<'ast_lifetime> {
     pub fn lower_function_block(
@@ -22,13 +21,17 @@ impl<'ast_lifetime> HIRPass_old<'ast_lifetime> {
             match &stmt.node {
                 StatementKind::ConstAssign { name, value } => {
                     let id = Id::Value(ValueId(ir_body.ops.len()));
-                    let value = self.assign_local(name.clone(), value.clone(), id, false);
+                    let value = self
+                        .assign_local(name.clone(), value.clone(), id, false)
+                        .unwrap(); // TODO: this is overstretching
                     ir_body.ops.push(value);
                     self.add_symbol(name.clone(), id);
                 }
                 StatementKind::VarAssign { name, value } => {
                     let id = Id::Value(ValueId(ir_body.ops.len()));
-                    let value = self.assign_local(name.clone(), value.clone(), id, true);
+                    let value = self
+                        .assign_local(name.clone(), value.clone(), id, true)
+                        .unwrap(); // TODO: this is overstretching
                     ir_body.ops.push(value);
                     self.add_symbol(name.clone(), id);
                 }
@@ -79,15 +82,18 @@ impl<'ast_lifetime> HIRPass_old<'ast_lifetime> {
                     let value = name.as_str().parse::<i64>().unwrap();
                     let id = ValueId(ir_body.ops.len());
                     let var_name = format!("raw_arg_{}", id.0);
-                    let var = self.assign_local(
-                        var_name.clone(),
-                        crate::ast::Expression::new(
-                            crate::ast::ExpressionKind::Int(value),
-                            crate::diagnostic::SourceLocation::new(0, 0, self.ast.file.clone()),
-                        ),
-                        Id::Value(id),
-                        false,
-                    );
+                    let var = self
+                        .assign_local(
+                            // TODO: this is overstretching
+                            var_name.clone(),
+                            crate::ast::Expression::new(
+                                crate::ast::ExpressionKind::Int(value),
+                                crate::diagnostic::SourceLocation::new(0, 0, self.ast.file.clone()),
+                            ),
+                            Id::Value(id),
+                            false,
+                        )
+                        .unwrap();
                     ir_body.ops.push(var);
                     args.push(Id::Value(id));
                 }
@@ -95,15 +101,18 @@ impl<'ast_lifetime> HIRPass_old<'ast_lifetime> {
                     let value = name.as_str().parse::<f64>().unwrap();
                     let id = ValueId(ir_body.ops.len());
                     let var_name = format!("raw_arg_{}", id.0);
-                    let var = self.assign_local(
-                        var_name.clone(),
-                        crate::ast::Expression::new(
-                            crate::ast::ExpressionKind::Float(value),
-                            crate::diagnostic::SourceLocation::new(0, 0, self.ast.file.clone()),
-                        ),
-                        Id::Value(id),
-                        false,
-                    );
+                    let var = self
+                        .assign_local(
+                            // TODO: this is overstretching
+                            var_name.clone(),
+                            crate::ast::Expression::new(
+                                crate::ast::ExpressionKind::Float(value),
+                                crate::diagnostic::SourceLocation::new(0, 0, self.ast.file.clone()),
+                            ),
+                            Id::Value(id),
+                            false,
+                        )
+                        .unwrap();
                     ir_body.ops.push(var);
                     args.push(Id::Value(id));
                 }
@@ -116,15 +125,18 @@ impl<'ast_lifetime> HIRPass_old<'ast_lifetime> {
                         .to_string();
                     let id = ValueId(ir_body.ops.len());
                     let var_name = format!("raw_arg_{}", id.0);
-                    let var = self.assign_local(
-                        var_name.clone(),
-                        crate::ast::Expression::new(
-                            crate::ast::ExpressionKind::StringLiteral(value),
-                            crate::diagnostic::SourceLocation::new(0, 0, self.ast.file.clone()),
-                        ),
-                        Id::Value(id),
-                        false,
-                    );
+                    let var = self
+                        .assign_local(
+                            // TODO: this is overstretching
+                            var_name.clone(),
+                            crate::ast::Expression::new(
+                                crate::ast::ExpressionKind::StringLiteral(value),
+                                crate::diagnostic::SourceLocation::new(0, 0, self.ast.file.clone()),
+                            ),
+                            Id::Value(id),
+                            false,
+                        )
+                        .unwrap();
                     ir_body.ops.push(var);
                     args.push(Id::Value(id));
                 }
@@ -151,13 +163,17 @@ impl<'ast_lifetime> HIRPass_old<'ast_lifetime> {
             match &stmt.node {
                 StatementKind::ConstAssign { name, value } => {
                     let id = Id::Value(ValueId(ir_body.ops.len()));
-                    let value = self.assign_local(name.clone(), value.clone(), id, false);
+                    let value = self
+                        .assign_local(name.clone(), value.clone(), id, false)
+                        .unwrap(); // TODO: this is overstretching
                     ir_body.ops.push(value);
                     self.add_symbol(name.clone(), id);
                 }
                 StatementKind::VarAssign { name, value } => {
                     let id = Id::Value(ValueId(ir_body.ops.len()));
-                    let value = self.assign_local(name.clone(), value.clone(), id, true);
+                    let value = self
+                        .assign_local(name.clone(), value.clone(), id, true)
+                        .unwrap(); // TODO: this is overstretching
                     ir_body.ops.push(value);
                     self.add_symbol(name.clone(), id);
                 }

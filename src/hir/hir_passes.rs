@@ -1,14 +1,15 @@
-pub mod assign_func;
-pub mod assign_vars;
+pub mod func_pass;
 pub mod style_pass;
 pub mod validation_pass;
+pub mod var_pass;
 
+use crate::ast::Ast;
 use crate::hir::HIRModule;
 use crate::hir::hir_util::hir_error::HirError;
 
 /// Represents a pass to be executed on an HIR module.
 pub trait HIRPass {
-    fn run(&mut self, hir: &mut HIRModule) -> Result<(), Vec<HirError>>;
+    fn run(&mut self, hir: &mut HIRModule, ast: &Ast) -> Result<(), Vec<HirError>>;
     fn name(&self) -> &'static str;
 }
 
@@ -39,9 +40,9 @@ impl PassManager {
         self
     }
 
-    pub fn run<P: HIRPass + Default>(&mut self, hir: &mut HIRModule) -> &mut Self {
+    pub fn run<P: HIRPass + Default>(&mut self, hir: &mut HIRModule, ast: &Ast) -> &mut Self {
         let mut pass = P::default();
-        match pass.run(hir) {
+        match pass.run(hir, ast) {
             Ok(()) => {}
             Err(errors) => {
                 self.failed = true;
