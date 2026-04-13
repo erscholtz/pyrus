@@ -5,7 +5,6 @@ static KEYWORD_TABLE: phf::Map<&'static str, TokenKind> = phf::phf_map! {
     "document" => TokenKind::Document,
     "style" => TokenKind::Style,
     "func" => TokenKind::Func,
-    "element" => TokenKind::Element,
     "children" => TokenKind::Children,
     "let" => TokenKind::Let,
     "const" => TokenKind::Const,
@@ -20,6 +19,9 @@ static KEYWORD_TABLE: phf::Map<&'static str, TokenKind> = phf::phf_map! {
     "section" => TokenKind::Section,
     "table" => TokenKind::Table,
     "link" => TokenKind::Link,
+    "String" => TokenKind::String,
+    "Int" => TokenKind::Int,
+    "Float" => TokenKind::Float,
 };
 
 static SYMBOL_LOOKUP_TABLE: [Option<TokenKind>; 256] = {

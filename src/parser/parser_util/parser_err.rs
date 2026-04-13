@@ -1,18 +1,16 @@
+use crate::diagnostic::SourceLocation;
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct ParseError {
     error_message: String,
-    line: usize,
-    column: usize,
-    file: String,
+    source: SourceLocation,
 }
 
 impl ParseError {
-    pub fn new(error_message: String, line: usize, column: usize, file: String) -> Self {
+    pub fn new(error_message: String, source: SourceLocation) -> Self {
         Self {
             error_message,
-            line,
-            column,
-            file,
+            source,
         }
     }
 
@@ -21,15 +19,15 @@ impl ParseError {
     }
 
     pub fn line(&self) -> usize {
-        self.line
+        self.source.line
     }
 
     pub fn column(&self) -> usize {
-        self.column
+        self.source.column
     }
 
     pub fn file(&self) -> &str {
-        &self.file
+        &self.source.file
     }
 }
 
@@ -40,7 +38,7 @@ impl crate::diagnostic::Diagnostic for ParseError {
     }
 
     fn location(&self) -> crate::diagnostic::SourceLocation {
-        crate::diagnostic::SourceLocation::new(self.line, self.column, self.file.clone())
+        self.source.clone()
     }
 
     fn severity(&self) -> crate::diagnostic::Severity {

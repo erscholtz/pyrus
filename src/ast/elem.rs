@@ -6,41 +6,117 @@ use crate::util::Spanned;
 
 pub type DocElem = Spanned<DocElemKind>;
 
+/// Thin wrapper types for document elements.
+/// Each element type can be parsed independently, then converted to DocElemKind.
+#[derive(Debug, Clone)]
+pub struct TextElem {
+    pub content: Expr,
+    pub attributes: HashMap<String, Expr>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ImageElem {
+    pub src: String,
+    pub attributes: HashMap<String, Expr>,
+}
+
+#[derive(Debug, Clone)]
+pub struct TableElem {
+    pub table: Vec<Vec<DocElem>>,
+    pub attributes: HashMap<String, Expr>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ListElem {
+    pub items: Vec<DocElem>,
+    pub attributes: HashMap<String, Expr>,
+    pub numbered: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct CodeElem {
+    pub content: String,
+    pub attributes: HashMap<String, Expr>,
+}
+
+#[derive(Debug, Clone)]
+pub struct CallElem {
+    pub name: String,
+    pub args: Vec<ArgType>,
+    pub children: Vec<DocElem>,
+}
+
+#[derive(Debug, Clone)]
+pub struct LinkElem {
+    pub href: String,
+    pub content: String,
+    pub attributes: HashMap<String, Expr>,
+}
+
+#[derive(Debug, Clone)]
+pub struct SectionElem {
+    pub elements: Vec<DocElem>,
+    pub attributes: HashMap<String, Expr>,
+}
+
+/// The kind of document element - used within Spanned<DocElemKind>
 #[derive(Debug, Clone)]
 pub enum DocElemKind {
-    Text {
-        content: Expr,
-        attributes: HashMap<String, Expr>,
-    },
-    Image {
-        src: String,
-        attributes: HashMap<String, Expr>,
-    },
-    Table {
-        table: Vec<Vec<DocElem>>,
-        attributes: HashMap<String, Expr>,
-    },
-    List {
-        items: Vec<DocElem>,
-        attributes: HashMap<String, Expr>,
-        numbered: bool,
-    },
-    Code {
-        content: String,
-        attributes: HashMap<String, Expr>,
-    },
-    Call {
-        name: String,
-        args: Vec<ArgType>,
-        children: Vec<DocElem>, // NOTE: maybe should be wrapped in a section
-    },
-    Link {
-        href: String,
-        content: String,
-        attributes: HashMap<String, Expr>,
-    },
-    Section {
-        elements: Vec<DocElem>,
-        attributes: HashMap<String, Expr>,
-    },
+    Text(TextElem),
+    Image(ImageElem),
+    Table(TableElem),
+    List(ListElem),
+    Code(CodeElem),
+    Call(CallElem),
+    Link(LinkElem),
+    Section(SectionElem),
+}
+
+// Conversions from wrapper types to DocElemKind
+impl From<TextElem> for DocElemKind {
+    fn from(e: TextElem) -> Self {
+        DocElemKind::Text(e)
+    }
+}
+
+impl From<ImageElem> for DocElemKind {
+    fn from(e: ImageElem) -> Self {
+        DocElemKind::Image(e)
+    }
+}
+
+impl From<TableElem> for DocElemKind {
+    fn from(e: TableElem) -> Self {
+        DocElemKind::Table(e)
+    }
+}
+
+impl From<ListElem> for DocElemKind {
+    fn from(e: ListElem) -> Self {
+        DocElemKind::List(e)
+    }
+}
+
+impl From<CodeElem> for DocElemKind {
+    fn from(e: CodeElem) -> Self {
+        DocElemKind::Code(e)
+    }
+}
+
+impl From<CallElem> for DocElemKind {
+    fn from(e: CallElem) -> Self {
+        DocElemKind::Call(e)
+    }
+}
+
+impl From<LinkElem> for DocElemKind {
+    fn from(e: LinkElem) -> Self {
+        DocElemKind::Link(e)
+    }
+}
+
+impl From<SectionElem> for DocElemKind {
+    fn from(e: SectionElem) -> Self {
+        DocElemKind::Section(e)
+    }
 }

@@ -4,7 +4,7 @@ template {
 
     // custom elements
 
-    element education_heading(
+    func education_heading(
         institution: String, location: String,
         degree: String, minor: String,
         start_date: String, end_date: String

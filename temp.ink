@@ -6,15 +6,16 @@ template {
     font_size = 12              // this is a default variable for the document
 
     // Simple formula
-    let total_price = "$price * quantity$" // this is not a default value and needs to be defined with "let" or "const"
 
     const tax_rate = 0.08       // this is a constant value that can be used throughout the document
 
-    element intro_section(param1: String, param2: Int) { // functions called in document section must be of type DocElement
-        return @text[introduction, the total price is {total_price}]
+    func intro_section(param1: String, param2: Int) { // functions called in document section must be of type DocElement
+        let price = param1
+        let total_price = "$price * quantity$" // this is not a default value and needs to be defined with "let" or "const"
+        return @text[introduction, the total price is ${total_price}]
     }
 
-    element more_complex_section() { // docElement returned here
+    func more_complex_section() { // docElement returned here
         return @section[
             @text[This is a more complex section]
             @text[This is another text element]

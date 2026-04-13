@@ -9,9 +9,18 @@ mod root;
 mod stmt;
 mod style;
 
-pub use elem::{DocElem, DocElemKind};
-pub use expr::{BinOp, Expr, ExprKind, UnaryOp};
-pub use func::{ArgType, FuncParam};
-pub use root::{Ast, DocumentBlock, StyleBlock, TemplateBlock};
-pub use stmt::{Stmt, StmtKind};
+pub use elem::{
+    CallElem, CodeElem, DocElem, DocElemKind, ImageElem, LinkElem, ListElem, SectionElem,
+    TableElem, TextElem,
+};
+pub use expr::{
+    BinOp, BinaryExpr, Expr, ExprKind, InterpolatedStringExpr, StructDefaultExpr, UnaryExpr,
+    UnaryOp,
+};
+pub use func::{ArgType, FuncDeclStmt, FuncParam};
+pub use root::{Ast, DocumentBlock, StyleBlock, TemplateBlock, Type};
+pub use stmt::{
+    ChildrenStmt, ConstAssignStmt, DefaultSetStmt, DocElemEmitStmt, ForStmt, IfStmt, ReturnStmt,
+    Stmt, StmtKind, VarAssignStmt, WhileStmt,
+};
 pub use style::{KeyValue, Selector, StyleRule};

@@ -26,3 +26,12 @@ pub struct Ast {
     pub document: Option<DocumentBlock>,
     pub style: Option<StyleBlock>,
 }
+
+#[derive(Debug, Clone)]
+pub enum Type {
+    String,
+    Int,
+    Float,
+    DocElem,
+    Var, // for args
+}

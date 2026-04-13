@@ -3,12 +3,13 @@ use std::ffi::OsString;
 use std::fs;
 use std::time::Instant;
 
-use pyrus::backend;
-use pyrus::hir;
-use pyrus::hir::HirDisplayExt;
-use pyrus::layout::setup_layout;
+// use pyrus::backend;
+// use pyrus::hir;
+// use pyrus::hir::HirDisplayExt;
+// use pyrus::layout::setup_layout;
+use pyrus::ast::Ast;
 use pyrus::lexer;
-use pyrus::parser;
+use pyrus::parser::Parser;
 
 fn main() {
     let last = Instant::now();
@@ -41,11 +42,13 @@ fn main() {
     };
     println!("{:?}", &tokens);
 
-    let ast = parser::parse(tokens).expect("Should be able to parse tokens to AST");
+    let ast = Parser::new(tokens)
+        .parse::<Ast>()
+        .expect("Should be able to parse tokens to AST");
     println!("{:#?}", ast);
 
-    let hir_module = hir::lower(&ast).expect("Should be able to lower AST to HIR");
-    println!("{}", hir_module.hir_display());
+    // let hir_module = hir::lower(&ast).expect("Should be able to lower AST to HIR");
+    // println!("{}", hir_module.hir_display());
 
     // println!("HLIR before style resolution:");
     // println!("  Elements: {}", hlir_module.elements.len());
@@ -76,35 +79,35 @@ fn main() {
     //     }
     // }
 
-    let layout = setup_layout(&hir_module);
+    // let layout = setup_layout(&hir_module);
 
     // Compute document flow layout (simple vertical stacking)
-    let computed_layouts = layout.compute_document_flow(&hir_module);
+    // let computed_layouts = layout.compute_document_flow(&hir_module);
 
     // Print computed layouts for each element
-    println!("\n=== Computed Layouts ===");
-    for computed in &computed_layouts {
-        if let Some(metadata) = hir_module.element_metadata.get(computed.element_index) {
-            println!(
-                "Element {} (type: {:?}, id: {:?}): x={:.1}, y={:.1}, w={:.1}, h={:.1}",
-                computed.element_index,
-                metadata.element_type,
-                metadata.id,
-                computed.x,
-                computed.y,
-                computed.width,
-                computed.height
-            );
-        }
-    }
+    // println!("\n=== Computed Layouts ===");
+    // for computed in &computed_layouts {
+    //     if let Some(metadata) = hir_module.element_metadata.get(computed.element_index) {
+    //         println!(
+    //             "Element {} (type: {:?}, id: {:?}): x={:.1}, y={:.1}, w={:.1}, h={:.1}",
+    //             computed.element_index,
+    //             metadata.element_type,
+    //             metadata.id,
+    //             computed.x,
+    //             computed.y,
+    //             computed.width,
+    //             computed.height
+    //         );
+    //     }
+    // }
 
     // Render to PDF using backend
-    let backend = backend::Backend::new(backend::Renderer::Pdf);
-    if let Err(e) = backend.render(hir_module, &layout, &computed_layouts) {
-        eprintln!("Failed to render PDF: {}", e);
-    } else {
-        println!("\nPDF rendered successfully to generated/output.pdf");
-    }
+    // let backend = backend::Backend::new(backend::Renderer::Pdf);
+    // if let Err(e) = backend.render(hir_module, &layout, &computed_layouts) {
+    //     eprintln!("Failed to render PDF: {}", e);
+    // } else {
+    //     println!("\nPDF rendered successfully to generated/output.pdf");
+    // }
 
     let now = Instant::now();
     let time = now - last;

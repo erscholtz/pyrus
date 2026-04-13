@@ -3,14 +3,14 @@ use std::collections::HashMap;
 use crate::ast::{Ast, Expression, StatementKind};
 use crate::diagnostic::{Severity, SourceLocation, Span};
 use crate::hir::PassManager;
+pub use crate::hir::hir_passes::global_pass::GlobalPass;
 pub use crate::hir::hir_passes::style_pass::StylePass;
-pub use crate::hir::hir_passes::var_pass::VarPass;
-use crate::hir::hir_util::hir_error::HirError;
-pub use crate::hir::ir_types::{
+pub use crate::hir::hir_types::{
     AttributeNode, AttributeTree, ElementId, ElementMetadata, FuncBlock, FuncDecl, FuncId,
     GlobalId, HIRModule, HirElementDecl, HirElementOp, Id, Literal, Op, StyleAttributes, Type,
     ValueId,
 };
+use crate::hir::hir_util::hir_error::HirError;
 
 pub fn lower(ast: &Ast) -> Option<HIRModule> {
     let mut pass = HIRPass_old {
@@ -42,17 +42,18 @@ impl<'ast_lifetime> HIRPass_old<'ast_lifetime> {
         };
 
         self.symbol_table.push(HashMap::new()); // add new scope (global)
-
+        /// OLD ----------------------------------------------------------
         // defaults, globals, functions, and element declarations
         self.lower_template_block(&mut hirmodule);
 
         // document element invocations
         self.lower_document_block(&mut hirmodule);
 
-        let pm = PassManager::default()
+        /// NEW ----------------------------------------------------------
+        let pm = passmanager::default()
             .continue_on_error()
-            .run::<VarPass>(&mut hirmodule, &self.ast)
-            .run::<StylePass>(&mut hirmodule, &self.ast) // CSS slyling
+            .run::<globalpass>(&mut hirmodule, &self.ast)
+            .run::<stylepass>(&mut hirmodule, &self.ast) // css slyling
             .finished()
             .unwrap_or_else(|e| {
                 hirmodule.errors.extend(e);
@@ -74,32 +75,6 @@ impl<'ast_lifetime> HIRPass_old<'ast_lifetime> {
         let statements = template.statements.clone();
         for statement in &statements {
             match &statement.node {
-                StatementKind::FunctionDecl {
-                    name,
-                    args,
-                    body,
-                    return_type,
-                } => {
-                    let func_id = FuncId(hirmodule.functions.len());
-                    let hir_body = self.lower_function_block(body, hirmodule);
-                    self.add_symbol(name.clone(), Id::Func(func_id)); // adds function name to symbol table
-                    let mut arg_list = Vec::new();
-                    for arg in args {
-                        arg_list.push(self.parse_type(&arg.ty).unwrap());
-                    }
-                    let return_type = self.parse_type(&return_type.as_deref().unwrap_or(""));
-
-                    hirmodule.functions.insert(
-                        Id::Func(func_id),
-                        FuncDecl {
-                            id: Id::Func(func_id),
-                            name: name.clone(),
-                            args: arg_list,
-                            return_type: return_type,
-                            body: hir_body,
-                        },
-                    );
-                }
                 StatementKind::ElementDecl { name, args, body } => {
                     let element_decl_id = ElementId(hirmodule.element_decls.len());
                     let id = Id::Element(element_decl_id);
@@ -123,7 +98,7 @@ impl<'ast_lifetime> HIRPass_old<'ast_lifetime> {
                         classes: Vec::new(),
                         element_type: name.clone(),
                         parent: None,
-                        attributes_ref: 0,
+                        attributes_ref: 0, // TODO magic
                         location,
                     });
                 }
@@ -537,14 +512,60 @@ impl<'ast_lifetime> HIRPass_old<'ast_lifetime> {
 
         (element_index, attributes_ref)
     }
+    pub fn lower_element_body(
+        &mut self,
+        body: &Vec<crate::ast::Statement>,
+        hirmodule: &mut HIRModule,
+    ) -> FuncBlock {
+        let mut ir_body = FuncBlock {
+            ops: Vec::new(),
+            returned_element_ref: None,
+        };
 
-    fn parse_type(&mut self, type_str: &str) -> Option<Type> {
-        match type_str {
-            "Int" => Some(Type::Int),
-            "Float" => Some(Type::Float),
-            "String" => Some(Type::String),
-            "DocElement" => Some(Type::DocElement),
-            _ => None,
+        for stmt in body {
+            match &stmt.node {
+                StatementKind::ConstAssign { name, value } => {
+                    let id = Id::Value(ValueId(ir_body.ops.len()));
+                    let value = self
+                        .assign_local(name.clone(), value.clone(), id, false)
+                        .unwrap(); // TODO: this is overstretching
+                    ir_body.ops.push(value);
+                }
+                StatementKind::VarAssign { name, value } => {
+                    let id = Id::Value(ValueId(ir_body.ops.len()));
+                    let value = self
+                        .assign_local(name.clone(), value.clone(), id, true)
+                        .unwrap(); // TODO: this is overstretching
+                    ir_body.ops.push(value);
+                }
+                StatementKind::Return { expression } => {
+                    let element_id =
+                        self.lower_document_element(doc_element, hirmodule, &mut ir_body, None);
+                    ir_body.ops.push(Op::Return {
+                        doc_element_ref: element_id,
+                    });
+                    ir_body.returned_element_ref = Some(element_id);
+                }
+                StatementKind::DocElementEmit { element } => {
+                    // Direct element emission without return
+                    let element_id =
+                        self.lower_document_element(element, hirmodule, &mut ir_body, None);
+                    ir_body.ops.push(Op::HirElementEmit { index: element_id });
+                    if ir_body.returned_element_ref.is_none() {
+                        ir_body.returned_element_ref = Some(element_id);
+                    }
+                }
+                StatementKind::Children { children } => { // TODO for now do nothing and see
+                }
+                _ => {
+                    todo!(
+                        "other statement types in element body not handled yet: {:?}",
+                        stmt.node
+                    )
+                }
+            }
         }
+
+        ir_body
     }
 }

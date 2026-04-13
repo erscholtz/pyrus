@@ -1,4 +1,4 @@
-use pyrus::ast::{BinaryOp, DocElementKind, ExpressionKind, StatementKind, UnaryOp};
+use pyrus::ast::{BinOp, DocElemKind, ExprKind, StmtKind, UnaryOp};
 use pyrus::lexer::lex;
 use pyrus::parser::parse;
 
@@ -57,11 +57,11 @@ fn test_parse_variable_assignment() {
     assert_eq!(template.statements.len(), 1);
 
     match &template.statements[0].node {
-        StatementKind::VarAssign { name, value } => {
+        StmtKind::VarAssign { name, value } => {
             assert_eq!(name, "x");
             match &value.node {
-                ExpressionKind::StringLiteral(s) => assert_eq!(s, "hello"),
-                _ => panic!("Expected StringLiteral expression"),
+                ExprKind::StringLiteral(s) => assert_eq!(s, "hello"),
+                _ => panic!("Expected StringLiteral expr"),
             }
         }
         _ => panic!("Expected VarAssign statement"),
@@ -77,11 +77,11 @@ fn test_parse_const_assignment() {
     assert_eq!(template.statements.len(), 1);
 
     match &template.statements[0].node {
-        StatementKind::ConstAssign { name, value } => {
+        StmtKind::ConstAssign { name, value } => {
             assert_eq!(name, "PI");
             match &value.node {
-                ExpressionKind::StringLiteral(s) => assert_eq!(s, "3.14"),
-                _ => panic!("Expected StringLiteral expression"),
+                ExprKind::StringLiteral(s) => assert_eq!(s, "3.14"),
+                _ => panic!("Expected StringLiteral expr"),
             }
         }
         _ => panic!("Expected ConstAssign statement"),
@@ -96,20 +96,17 @@ fn test_parse_unary_negation() {
     let template = ast.template.unwrap();
 
     match &template.statements[0].node {
-        StatementKind::VarAssign { name, value } => {
+        StmtKind::VarAssign { name, value } => {
             assert_eq!(name, "x");
             match &value.node {
-                ExpressionKind::Unary {
-                    operator,
-                    expression: _,
-                } => {
+                ExprKind::Unary { operator, expr: _ } => {
                     match operator {
                         UnaryOp::Negate => {}
                         _ => panic!("Expected Negate operator"),
                     }
-                    // Inner expression should be parsed
+                    // Inner expr should be parsed
                 }
-                _ => panic!("Expected Unary expression"),
+                _ => panic!("Expected Unary expr"),
             }
         }
         _ => panic!("Expected VarAssign statement"),
@@ -124,27 +121,27 @@ fn test_parse_binary_addition() {
     let template = ast.template.unwrap();
 
     match &template.statements[0].node {
-        StatementKind::VarAssign { name, value } => {
+        StmtKind::VarAssign { name, value } => {
             assert_eq!(name, "sum");
             match &value.node {
-                ExpressionKind::Binary {
+                ExprKind::Binary {
                     left,
                     operator,
                     right,
                 } => {
                     match operator {
-                        BinaryOp::Add => {}
+                        BinOp::Add => {}
                         _ => panic!("Expected Add operator"),
                     }
                     match (&left.node, &right.node) {
-                        (ExpressionKind::Identifier(l), ExpressionKind::Identifier(r)) => {
+                        (ExprKind::Identifier(l), ExprKind::Identifier(r)) => {
                             assert_eq!(l, "x");
                             assert_eq!(r, "y");
                         }
-                        _ => panic!("Expected identifier expressions"),
+                        _ => panic!("Expected identifier exprs"),
                     }
                 }
-                _ => panic!("Expected Binary expression"),
+                _ => panic!("Expected Bin expr"),
             }
         }
         _ => panic!("Expected VarAssign statement"),
@@ -159,12 +156,12 @@ fn test_parse_binary_subtraction() {
     let template = ast.template.unwrap();
 
     match &template.statements[0].node {
-        StatementKind::VarAssign { value, .. } => match &value.node {
-            ExpressionKind::Binary { operator, .. } => match operator {
-                BinaryOp::Subtract => {}
+        StmtKind::VarAssign { value, .. } => match &value.node {
+            ExprKind::Binary { operator, .. } => match operator {
+                BinOp::Subtract => {}
                 _ => panic!("Expected Subtract operator"),
             },
-            _ => panic!("Expected Binary expression"),
+            _ => panic!("Expected Bin expr"),
         },
         _ => panic!("Expected VarAssign statement"),
     }
@@ -178,12 +175,12 @@ fn test_parse_binary_multiplication() {
     let template = ast.template.unwrap();
 
     match &template.statements[0].node {
-        StatementKind::VarAssign { value, .. } => match &value.node {
-            ExpressionKind::Binary { operator, .. } => match operator {
-                BinaryOp::Multiply => {}
+        StmtKind::VarAssign { value, .. } => match &value.node {
+            ExprKind::Binary { operator, .. } => match operator {
+                BinOp::Multiply => {}
                 _ => panic!("Expected Multiply operator"),
             },
-            _ => panic!("Expected Binary expression"),
+            _ => panic!("Expected Bin expr"),
         },
         _ => panic!("Expected VarAssign statement"),
     }
@@ -197,12 +194,12 @@ fn test_parse_binary_division() {
     let template = ast.template.unwrap();
 
     match &template.statements[0].node {
-        StatementKind::VarAssign { value, .. } => match &value.node {
-            ExpressionKind::Binary { operator, .. } => match operator {
-                BinaryOp::Divide => {}
+        StmtKind::VarAssign { value, .. } => match &value.node {
+            ExprKind::Binary { operator, .. } => match operator {
+                BinOp::Divide => {}
                 _ => panic!("Expected Divide operator"),
             },
-            _ => panic!("Expected Binary expression"),
+            _ => panic!("Expected Bin expr"),
         },
         _ => panic!("Expected VarAssign statement"),
     }
@@ -216,12 +213,12 @@ fn test_parse_binary_equals() {
     let template = ast.template.unwrap();
 
     match &template.statements[0].node {
-        StatementKind::VarAssign { value, .. } => match &value.node {
-            ExpressionKind::Binary { operator, .. } => match operator {
-                BinaryOp::Equals => {}
+        StmtKind::VarAssign { value, .. } => match &value.node {
+            ExprKind::Binary { operator, .. } => match operator {
+                BinOp::Equals => {}
                 _ => panic!("Expected Equals operator"),
             },
-            _ => panic!("Expected Binary expression"),
+            _ => panic!("Expected Bin expr"),
         },
         _ => panic!("Expected VarAssign statement"),
     }
@@ -235,9 +232,9 @@ fn test_parse_string_literal() {
     let template = ast.template.unwrap();
 
     match &template.statements[0].node {
-        StatementKind::VarAssign { value, .. } => match &value.node {
-            ExpressionKind::StringLiteral(s) => assert_eq!(s, "Hello, World!"),
-            _ => panic!("Expected StringLiteral expression"),
+        StmtKind::VarAssign { value, .. } => match &value.node {
+            ExprKind::StringLiteral(s) => assert_eq!(s, "Hello, World!"),
+            _ => panic!("Expected StringLiteral expr"),
         },
         _ => panic!("Expected VarAssign statement"),
     }
@@ -251,12 +248,12 @@ fn test_parse_string_with_escaped_quote() {
     let template = ast.template.unwrap();
 
     match &template.statements[0].node {
-        StatementKind::VarAssign { value, .. } => match &value.node {
-            ExpressionKind::StringLiteral(s) => assert_eq!(
+        StmtKind::VarAssign { value, .. } => match &value.node {
+            ExprKind::StringLiteral(s) => assert_eq!(
                 s, "foo\"bar",
                 "Escaped quote should be preserved as literal quote"
             ),
-            _ => panic!("Expected StringLiteral expression, got {:?}", value),
+            _ => panic!("Expected StringLiteral expr, got {:?}", value),
         },
         _ => panic!("Expected VarAssign statement"),
     }
@@ -285,9 +282,9 @@ fn test_parse_integer_literal() {
     let template = ast.template.unwrap();
 
     match &template.statements[0].node {
-        StatementKind::VarAssign { value, .. } => match &value.node {
-            ExpressionKind::Int(n) => assert_eq!(*n, 42),
-            _ => panic!("Expected Int expression"),
+        StmtKind::VarAssign { value, .. } => match &value.node {
+            ExprKind::Int(n) => assert_eq!(*n, 42),
+            _ => panic!("Expected Int expr"),
         },
         _ => panic!("Expected VarAssign statement"),
     }
@@ -301,9 +298,9 @@ fn test_parse_float_literal() {
     let template = ast.template.unwrap();
 
     match &template.statements[0].node {
-        StatementKind::VarAssign { value, .. } => match &value.node {
-            ExpressionKind::Float(f) => assert!((f - 3.14).abs() < 0.001),
-            _ => panic!("Expected Float expression"),
+        StmtKind::VarAssign { value, .. } => match &value.node {
+            ExprKind::Float(f) => assert!((f - 3.14).abs() < 0.001),
+            _ => panic!("Expected Float expr"),
         },
         _ => panic!("Expected VarAssign statement"),
     }
@@ -311,6 +308,7 @@ fn test_parse_float_literal() {
 
 #[test]
 fn test_parse_return_statement() {
+    // FIXME rerturn type wrong
     // Return requires a document element (like @text[...]), not a plain string
     let source = "template { return @text[done] }";
     let tokens = lex(source, "test_parse_return_statement").expect("Lexing failed");
@@ -318,12 +316,12 @@ fn test_parse_return_statement() {
     let template = ast.template.unwrap();
 
     match &template.statements[0].node {
-        StatementKind::Return { doc_element } => match &doc_element.node {
-            DocElementKind::Text { content, .. } => match &content.node {
-                ExpressionKind::StringLiteral(s) => assert_eq!(s, "done"),
+        StmtKind::Return { doc_element } => match &doc_element.node {
+            DocElemKind::Text { content, .. } => match &content.node {
+                ExprKind::StringLiteral(s) => assert_eq!(s, "done"),
                 _ => panic!("Expected StringLiteral content"),
             },
-            _ => panic!("Expected Text DocElement in return"),
+            _ => panic!("Expected Text DocElem in return"),
         },
         _ => panic!("Expected Return statement"),
     }
@@ -331,7 +329,7 @@ fn test_parse_return_statement() {
 
 #[test]
 fn test_parse_function_declaration() {
-    // Element declaration test (element keyword replaced func)
+    // Elem declaration test (element keyword replaced func)
     let source = "template { element greet(name: string) { return @text[Hello] } }";
     let tokens = lex(source, "test_parse_function_declaration").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
@@ -339,13 +337,19 @@ fn test_parse_function_declaration() {
     assert_eq!(template.statements.len(), 1);
 
     match &template.statements[0].node {
-        StatementKind::ElementDecl { name, args, body } => {
+        StmtKind::FuncDecl {
+            name,
+            args,
+            body,
+            return_type,
+        } => {
             assert_eq!(name, "greet");
             assert_eq!(args.len(), 1);
             assert_eq!(args[0].ty, "string");
             assert!(body.len() > 0);
+            assert_eq!(return_type, None); // FIXME return type wrong
         }
-        _ => panic!("Expected ElementDecl statement"),
+        _ => panic!("Expected FuncDecl statement"),
     }
 }
 
@@ -357,11 +361,11 @@ fn test_parse_function_call_no_args() {
     let doc = ast.document.unwrap();
 
     match &doc.elements[0].node {
-        DocElementKind::Call { name, args, .. } => {
+        DocElemKind::Call { name, args, .. } => {
             assert_eq!(name, "greet");
             assert_eq!(args.len(), 0);
         }
-        _ => panic!("Expected Call DocElement"),
+        _ => panic!("Expected Call DocElem"),
     }
 }
 
@@ -373,11 +377,11 @@ fn test_parse_function_call_with_args() {
     let doc = ast.document.unwrap();
 
     match &doc.elements[0].node {
-        DocElementKind::Call { name, args, .. } => {
+        DocElemKind::Call { name, args, .. } => {
             assert_eq!(name, "print");
             assert_eq!(args.len(), 2);
         }
-        _ => panic!("Expected Call DocElement"),
+        _ => panic!("Expected Call DocElem"),
     }
 }
 
@@ -389,11 +393,11 @@ fn test_parse_default_set() {
     let template = ast.template.unwrap();
 
     match &template.statements[0].node {
-        StatementKind::DefaultSet { key, value } => {
+        StmtKind::DefaultSet { key, value } => {
             assert_eq!(key, "width");
             match &value.node {
-                ExpressionKind::Int(n) => assert_eq!(*n, 100),
-                _ => panic!("Expected Int expression"),
+                ExprKind::Int(n) => assert_eq!(*n, 100),
+                _ => panic!("Expected Int expr"),
             }
         }
         _ => panic!("Expected DefaultSet statement"),
@@ -418,15 +422,15 @@ fn test_parse_mixed_statements() {
     assert_eq!(template.statements.len(), 3);
 
     match &template.statements[0].node {
-        StatementKind::VarAssign { .. } => {}
+        StmtKind::VarAssign { .. } => {}
         _ => panic!("Expected VarAssign"),
     }
     match &template.statements[1].node {
-        StatementKind::ConstAssign { .. } => {}
+        StmtKind::ConstAssign { .. } => {}
         _ => panic!("Expected ConstAssign"),
     }
     match &template.statements[2].node {
-        StatementKind::DefaultSet { .. } => {}
+        StmtKind::DefaultSet { .. } => {}
         _ => panic!("Expected DefaultSet"),
     }
 }
@@ -439,11 +443,11 @@ fn test_parse_dollar_sign_interpolation() {
     let template = ast.template.unwrap();
 
     match &template.statements[0].node {
-        StatementKind::VarAssign { value, .. } => match &value.node {
-            ExpressionKind::Identifier(id) => {
+        StmtKind::VarAssign { value, .. } => match &value.node {
+            ExprKind::Identifier(id) => {
                 assert_eq!(id, "x");
             }
-            _ => panic!("Expected Identifier expression"),
+            _ => panic!("Expected Identifier expr"),
         },
         _ => panic!("Expected VarAssign statement"),
     }
@@ -473,22 +477,22 @@ fn test_parse_string_interpolation_simple() {
     let template = ast.template.unwrap();
 
     match &template.statements[0].node {
-        StatementKind::VarAssign { value, .. } => match &value.node {
-            ExpressionKind::InterpolatedString { parts } => {
+        StmtKind::VarAssign { value, .. } => match &value.node {
+            ExprKind::InterpolatedString { parts } => {
                 assert_eq!(parts.len(), 3);
                 // First part: "Hello, " (StringLiteral)
                 match &parts[0] {
-                    ExpressionKind::StringLiteral(text) => assert_eq!(text, "Hello, "),
+                    ExprKind::StringLiteral(text) => assert_eq!(text, "Hello, "),
                     _ => panic!("Expected StringLiteral part, got {:?}", parts[0]),
                 }
                 // Second part: name (Identifier)
                 match &parts[1] {
-                    ExpressionKind::Identifier(id) => assert_eq!(id, "name"),
-                    _ => panic!("Expected Identifier expression, got {:?}", parts[1]),
+                    ExprKind::Identifier(id) => assert_eq!(id, "name"),
+                    _ => panic!("Expected Identifier expr, got {:?}", parts[1]),
                 }
                 // Third part: "!" (StringLiteral)
                 match &parts[2] {
-                    ExpressionKind::StringLiteral(text) => assert_eq!(text, "!"),
+                    ExprKind::StringLiteral(text) => assert_eq!(text, "!"),
                     _ => panic!("Expected StringLiteral part, got {:?}", parts[2]),
                 }
             }
@@ -507,27 +511,27 @@ fn test_parse_string_interpolation_multiple() {
     let template = ast.template.unwrap();
 
     match &template.statements[0].node {
-        StatementKind::VarAssign { value, .. } => match &value.node {
-            ExpressionKind::InterpolatedString { parts } => {
+        StmtKind::VarAssign { value, .. } => match &value.node {
+            ExprKind::InterpolatedString { parts } => {
                 assert_eq!(parts.len(), 4);
                 // ${greeting}
                 match &parts[0] {
-                    ExpressionKind::Identifier(id) => assert_eq!(id, "greeting"),
+                    ExprKind::Identifier(id) => assert_eq!(id, "greeting"),
                     _ => panic!("Expected Identifier, got {:?}", parts[0]),
                 }
                 // ", "
                 match &parts[1] {
-                    ExpressionKind::StringLiteral(text) => assert_eq!(text, ", "),
+                    ExprKind::StringLiteral(text) => assert_eq!(text, ", "),
                     _ => panic!("Expected StringLiteral part, got {:?}", parts[1]),
                 }
                 // ${name}
                 match &parts[2] {
-                    ExpressionKind::Identifier(id) => assert_eq!(id, "name"),
+                    ExprKind::Identifier(id) => assert_eq!(id, "name"),
                     _ => panic!("Expected Identifier, got {:?}", parts[2]),
                 }
                 // "!"
                 match &parts[3] {
-                    ExpressionKind::StringLiteral(text) => assert_eq!(text, "!"),
+                    ExprKind::StringLiteral(text) => assert_eq!(text, "!"),
                     _ => panic!("Expected StringLiteral part, got {:?}", parts[3]),
                 }
             }
@@ -545,16 +549,16 @@ fn test_parse_string_interpolation_with_number() {
     let template = ast.template.unwrap();
 
     match &template.statements[0].node {
-        StatementKind::VarAssign { value, .. } => match &value.node {
-            ExpressionKind::InterpolatedString { parts } => {
+        StmtKind::VarAssign { value, .. } => match &value.node {
+            ExprKind::InterpolatedString { parts } => {
                 assert_eq!(parts.len(), 2);
                 match &parts[0] {
-                    ExpressionKind::StringLiteral(text) => assert_eq!(text, "Count: "),
+                    ExprKind::StringLiteral(text) => assert_eq!(text, "Count: "),
                     _ => panic!("Expected StringLiteral part"),
                 }
                 match &parts[1] {
-                    ExpressionKind::Identifier(id) => assert_eq!(id, "count"),
-                    _ => panic!("Expected Identifier expression, got {:?}", parts[1]),
+                    ExprKind::Identifier(id) => assert_eq!(id, "count"),
+                    _ => panic!("Expected Identifier expr, got {:?}", parts[1]),
                 }
             }
             _ => panic!("Expected InterpolatedString"),
@@ -573,8 +577,8 @@ fn test_parse_string_without_interpolation() {
     let template = ast.template.unwrap();
 
     match &template.statements[0].node {
-        StatementKind::VarAssign { value, .. } => match &value.node {
-            ExpressionKind::StringLiteral(s) => assert_eq!(s, "Hello, World!"),
+        StmtKind::VarAssign { value, .. } => match &value.node {
+            ExprKind::StringLiteral(s) => assert_eq!(s, "Hello, World!"),
             _ => panic!("Expected StringLiteral for plain string, got {:?}", value),
         },
         _ => panic!("Expected VarAssign statement"),
@@ -590,8 +594,8 @@ fn test_parse_string_with_literal_braces() {
     let template = ast.template.unwrap();
 
     match &template.statements[0].node {
-        StatementKind::VarAssign { value, .. } => match &value.node {
-            ExpressionKind::StringLiteral(s) => assert_eq!(s, "Use {brackets} freely"),
+        StmtKind::VarAssign { value, .. } => match &value.node {
+            ExprKind::StringLiteral(s) => assert_eq!(s, "Use {brackets} freely"),
             _ => panic!(
                 "Expected StringLiteral for string with literal braces, got {:?}",
                 value
@@ -611,8 +615,8 @@ fn test_parse_double_dollar_preserved() {
     let template = ast.template.unwrap();
 
     match &template.statements[0].node {
-        StatementKind::VarAssign { value, .. } => match &value.node {
-            ExpressionKind::StringLiteral(s) => assert_eq!(s, "Price: $$100"),
+        StmtKind::VarAssign { value, .. } => match &value.node {
+            ExprKind::StringLiteral(s) => assert_eq!(s, "Price: $$100"),
             _ => panic!("Expected StringLiteral, got {:?}", value),
         },
         _ => panic!("Expected VarAssign statement"),

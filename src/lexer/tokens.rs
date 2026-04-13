@@ -36,6 +36,7 @@ pub enum TokenKind {
     Identifier,
     Int,
     Float,
+    String,
     StringLiteral(u32),
 
     // Document elements
@@ -51,11 +52,9 @@ pub enum TokenKind {
     Document,
     Style,
     Func,
-    Element,
     Children,
     Let,
     Const,
-    Var,
     If,
     Else,
     For,
