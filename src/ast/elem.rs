@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use crate::ast::ArgType;
 use crate::ast::Expr;
+use crate::ast::InterpolatedStringExpr;
 use crate::util::Spanned;
 
 pub type DocElem = Spanned<DocElemKind>;
@@ -59,6 +60,11 @@ pub struct SectionElem {
     pub attributes: HashMap<String, Expr>,
 }
 
+#[derive(Debug, Clone)]
+pub struct ChildrenElem {
+    pub render_childen: bool,
+}
+
 /// The kind of document element - used within Spanned<DocElemKind>
 #[derive(Debug, Clone)]
 pub enum DocElemKind {
@@ -70,6 +76,7 @@ pub enum DocElemKind {
     Call(CallElem),
     Link(LinkElem),
     Section(SectionElem),
+    Children(ChildrenElem),
 }
 
 // Conversions from wrapper types to DocElemKind
@@ -118,5 +125,11 @@ impl From<LinkElem> for DocElemKind {
 impl From<SectionElem> for DocElemKind {
     fn from(e: SectionElem) -> Self {
         DocElemKind::Section(e)
+    }
+}
+
+impl From<ChildrenElem> for DocElemKind {
+    fn from(e: ChildrenElem) -> Self {
+        DocElemKind::Children(e)
     }
 }

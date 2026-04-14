@@ -64,3 +64,22 @@ fn lexes_sample_file_tokens() {
     // final token should be EOF
     assert_eq!(*tokens.kinds.last().unwrap(), lexer::TokenKind::Eof);
 }
+
+#[test]
+fn lexes_text_body_as_single_string_literal() {
+    let source = "@text[${price} * quantity]";
+    let tokens = lexer::lex(source, "lexes_text_body_as_single_string_literal")
+        .expect("Lexing failed");
+
+    assert_eq!(tokens.kinds[0], lexer::TokenKind::At);
+    assert_eq!(tokens.kinds[1], lexer::TokenKind::Text);
+
+    let body_idx = match tokens.kinds[2] {
+        lexer::TokenKind::StringLiteral(idx) => idx,
+        ref other => panic!("Expected text body to be captured as StringLiteral, got {other:?}"),
+    };
+
+    assert_eq!(tokens.string_table[body_idx as usize].content, "${price} * quantity");
+    assert!(tokens.string_table[body_idx as usize].has_interpolation);
+    assert_eq!(tokens.kinds[3], lexer::TokenKind::Eof);
+}

@@ -84,14 +84,6 @@ impl From<StructDefaultExpr> for ExprKind {
 }
 
 impl ExprKind {
-    // TODO this is not good find a way to remove
-    pub fn as_number(&self) -> Option<i64> {
-        match self {
-            ExprKind::Int(n) => Some(*n),
-            _ => None,
-        }
-    }
-
     pub fn to_string(&self) -> String {
         match self {
             ExprKind::StringLiteral(s) => s.clone(),

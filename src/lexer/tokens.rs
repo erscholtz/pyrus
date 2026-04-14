@@ -37,7 +37,7 @@ pub enum TokenKind {
     Int,
     Float,
     String,
-    StringLiteral(u32),
+    StringLiteral(usize),
 
     // Document elements
     Text,

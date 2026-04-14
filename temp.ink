@@ -11,7 +11,7 @@ template {
 
     func intro_section(param1: String, param2: Int) { // functions called in document section must be of type DocElement
         let price = param1
-        let total_price = "$price * quantity$" // this is not a default value and needs to be defined with "let" or "const"
+        let total_price = "${price} * quantity" // this is not a default value and needs to be defined with "let" or "const"
         return @text[introduction, the total price is ${total_price}]
     }
 

@@ -114,6 +114,45 @@ fn is_ident_continue(c: u8) -> bool {
     is_ident_start(c) || (c >= b'0' && c <= b'9')
 }
 
+fn has_unescaped_interpolation(content: &str) -> bool {
+    let bytes = content.as_bytes();
+    let mut i = 0;
+
+    while i < bytes.len() {
+        if bytes[i] == b'\\' && i + 1 < bytes.len() {
+            i += 2;
+            continue;
+        }
+
+        if bytes[i] == b'$' && i + 1 < bytes.len() && bytes[i + 1] == b'{' {
+            let mut brace_depth = 1;
+            let mut j = i + 2;
+
+            while j < bytes.len() && brace_depth > 0 {
+                if bytes[j] == b'\\' && j + 1 < bytes.len() {
+                    j += 2;
+                } else if bytes[j] == b'{' {
+                    brace_depth += 1;
+                    j += 1;
+                } else if bytes[j] == b'}' {
+                    brace_depth -= 1;
+                    j += 1;
+                } else {
+                    j += 1;
+                }
+            }
+
+            if brace_depth == 0 {
+                return true;
+            }
+        }
+
+        i += 1;
+    }
+
+    false
+}
+
 pub fn lex(source: &str, file: &str) -> Result<TokenStream, Vec<LexError>> {
     let mut out = TokenStream::new(source.to_string(), file.to_string());
     let bytes = source.as_bytes();
@@ -155,6 +194,83 @@ pub fn lex(source: &str, file: &str) -> Result<TokenStream, Vec<LexError>> {
             out.push(kind, start, i, line, col);
 
             col += i - start;
+
+            if kind == TokenKind::Text
+                && matches!(out.kinds.iter().rev().nth(1), Some(TokenKind::At))
+            {
+                while i < len && bytes[i].is_ascii_whitespace() {
+                    if bytes[i] == b'\n' {
+                        line += 1;
+                        col = 1;
+                    } else {
+                        col += 1;
+                    }
+                    i += 1;
+                }
+
+                if i < len && bytes[i] == b'[' {
+                    i += 1;
+                    col += 1;
+
+                    let body_start = i;
+                    let body_line = line;
+                    let body_col = col;
+                    let mut interpolation_depth = 0usize;
+
+                    while i < len {
+                        if i + 1 < len && bytes[i] == b'$' && bytes[i + 1] == b'{' {
+                            interpolation_depth += 1;
+                            i += 2;
+                            col += 2;
+                            continue;
+                        }
+
+                        if bytes[i] == b'}' && interpolation_depth > 0 {
+                            interpolation_depth -= 1;
+                            i += 1;
+                            col += 1;
+                            continue;
+                        }
+
+                        if bytes[i] == b']' && interpolation_depth == 0 {
+                            break;
+                        }
+
+                        if bytes[i] == b'\n' {
+                            line += 1;
+                            col = 1;
+                        } else {
+                            col += 1;
+                        }
+                        i += 1;
+                    }
+
+                    if i >= len {
+                        out.errors.push(LexError::new(
+                            "Unterminated text element body".to_string(),
+                            body_line,
+                            body_col,
+                        ));
+                    } else {
+                        let content = source[body_start..i].to_string();
+                        let index = out.string_table.len();
+                        out.string_table.push(StringEntry {
+                            content,
+                            has_interpolation: has_unescaped_interpolation(&source[body_start..i]),
+                        });
+                        out.push(
+                            TokenKind::StringLiteral(index),
+                            body_start,
+                            i,
+                            body_line,
+                            body_col,
+                        );
+
+                        i += 1;
+                        col += 1;
+                    }
+                }
+            }
             continue;
         }
 
@@ -221,53 +337,10 @@ pub fn lex(source: &str, file: &str) -> Result<TokenStream, Vec<LexError>> {
                 // Extract string content (without quotes) and add to string table
                 let content = source[start + 1..i - 1].to_string();
 
-                // Check for interpolation: unescaped ${ followed by content and }
-                let mut has_interpolation = false;
-                let content_bytes = content.as_bytes();
-                let content_len = content_bytes.len();
-                let mut j = 0;
-                while j < content_len {
-                    if content_bytes[j] == b'\\' && j + 1 < content_len {
-                        // Skip escaped character
-                        j += 2;
-                    } else if content_bytes[j] == b'$'
-                        && j + 1 < content_len
-                        && content_bytes[j + 1] == b'{'
-                    {
-                        // Found an unescaped ${ - check if there's a matching }
-                        let mut k = j + 2;
-                        let mut brace_depth = 1;
-                        while k < content_len && brace_depth > 0 {
-                            if content_bytes[k] == b'\\' && k + 1 < content_len {
-                                k += 2;
-                            } else if content_bytes[k] == b'{' {
-                                brace_depth += 1;
-                                k += 1;
-                            } else if content_bytes[k] == b'}' {
-                                brace_depth -= 1;
-                                if brace_depth == 0 {
-                                    // Found a matching } - this is interpolation
-                                    has_interpolation = true;
-                                    break;
-                                }
-                                k += 1;
-                            } else {
-                                k += 1;
-                            }
-                        }
-                        if has_interpolation {
-                            break;
-                        }
-                        j += 1;
-                    } else {
-                        j += 1;
-                    }
-                }
-
-                let index = out.string_table.len() as u32;
+                let index = out.string_table.len();
                 out.string_table.push(StringEntry {
+                    has_interpolation: has_unescaped_interpolation(&content),
                     content,
-                    has_interpolation,
                 });
                 out.push(TokenKind::StringLiteral(index), start, i, line, col);
             }

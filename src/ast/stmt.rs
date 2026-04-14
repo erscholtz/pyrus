@@ -46,8 +46,9 @@ pub struct ForStmt {
 }
 
 #[derive(Debug, Clone)]
-pub struct ReturnStmt {
-    pub expr: Expr,
+pub enum ReturnStmt {
+    Expr(Expr),
+    DocElem(DocElem),
 }
 
 #[derive(Debug, Clone)]

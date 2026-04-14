@@ -10,8 +10,8 @@ mod stmt;
 mod style;
 
 pub use elem::{
-    CallElem, CodeElem, DocElem, DocElemKind, ImageElem, LinkElem, ListElem, SectionElem,
-    TableElem, TextElem,
+    CallElem, ChildrenElem, CodeElem, DocElem, DocElemKind, ImageElem, LinkElem, ListElem,
+    SectionElem, TableElem, TextElem,
 };
 pub use expr::{
     BinOp, BinaryExpr, Expr, ExprKind, InterpolatedStringExpr, StructDefaultExpr, UnaryExpr,
