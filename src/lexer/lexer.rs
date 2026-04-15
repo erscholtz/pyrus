@@ -209,6 +209,8 @@ pub fn lex(source: &str, file: &str) -> Result<TokenStream, Vec<LexError>> {
                 }
 
                 if i < len && bytes[i] == b'[' {
+                    out.push(TokenKind::LeftBracket, i, i + 1, line, col);
+
                     i += 1;
                     col += 1;
 
@@ -266,6 +268,7 @@ pub fn lex(source: &str, file: &str) -> Result<TokenStream, Vec<LexError>> {
                             body_col,
                         );
 
+                        out.push(TokenKind::RightBracket, i, i + 1, line, col);
                         i += 1;
                         col += 1;
                     }

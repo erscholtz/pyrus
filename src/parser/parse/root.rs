@@ -1,5 +1,5 @@
 use crate::{
-    ast::{Ast, DocumentBlock, Stmt, StyleBlock, TemplateBlock},
+    ast::{Ast, DocElem, DocumentBlock, Stmt, StyleBlock, TemplateBlock},
     lexer::TokenKind,
     parser::parse::Parse,
     parser::parser::Parser,
@@ -97,7 +97,10 @@ impl Parse for DocumentBlock {
         p.cursor.expect(TokenKind::Document)?;
         p.cursor.expect(TokenKind::LeftBrace)?;
 
-        let elements = Vec::new();
+        let elements = match p.parse_until::<DocElem>(TokenKind::RightBrace) {
+            Ok(elements) => elements,
+            Err(errors) => return Err(errors.into_iter().next().unwrap()),
+        };
 
         Ok(DocumentBlock { elements })
     }

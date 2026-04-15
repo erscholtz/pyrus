@@ -10,13 +10,46 @@ use crate::{
 pub struct Cursor {
     tokens: TokenStream,
     pos: usize,
+    trace_enabled: bool,
+    trace_context: String,
 }
 
 impl Cursor {
+    pub fn set_trace_context<S: Into<String>>(&mut self, context: S) {
+        self.trace_context = context.into();
+    }
+
+    pub fn trace_context(&self) -> &str {
+        &self.trace_context
+    }
+
+    pub fn enable_tracing(&mut self) -> bool {
+        self.trace_enabled = true;
+        self.trace_enabled
+    }
+
+    fn trace(&self, event: &str) {
+        if self.trace_enabled {
+            return;
+        }
+
+        eprintln!(
+            "[parse:{}:{event}] pos={} tok={:?} text={:?} line={} col={}",
+            self.trace_context,
+            self.pos,
+            self.cur_tok(),
+            self.cur_text(),
+            self.cur_line(),
+            self.cur_col(),
+        );
+    }
+
     pub fn new(toks: TokenStream) -> Self {
         Self {
             tokens: toks,
             pos: 0,
+            trace_enabled: false,
+            trace_context: "main".to_string(),
         }
     }
 
@@ -61,9 +94,11 @@ impl Cursor {
     }
 
     pub fn advance(&mut self) -> &TokenKind {
+        self.trace("advance:before");
         if self.pos < self.tokens.kinds.len() {
             self.pos += 1;
         }
+        self.trace("advance:after");
         self.cur_tok()
     }
 
@@ -73,6 +108,17 @@ impl Cursor {
     }
 
     pub fn expect(&mut self, kind: TokenKind) -> Result<TokenKind, ParseError> {
+        if self.trace_enabled {
+            eprintln!(
+                "[parse:{}:expect] want={:?} have={:?} text={:?} line={} col={}",
+                self.trace_context,
+                kind,
+                self.cur_tok(),
+                self.cur_text(),
+                self.cur_line(),
+                self.cur_col(),
+            );
+        }
         if self.check(kind) {
             self.advance();
             Ok(kind)
@@ -87,11 +133,22 @@ impl Cursor {
     // backtracking
 
     pub fn checkpoint(&self) -> usize {
+        self.trace("checkpoint");
         self.pos
     }
 
     pub fn restore(&mut self, checkpoint: usize) {
+        if self.trace_enabled {
+            eprintln!(
+                "[parse:{}:restore] from={} to={} current_tok={:?}",
+                self.trace_context,
+                self.pos,
+                checkpoint,
+                self.cur_tok(),
+            );
+        }
         self.pos = checkpoint;
+        self.trace("restore:after");
     }
 
     // lookahead

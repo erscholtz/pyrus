@@ -73,13 +73,15 @@ fn lexes_text_body_as_single_string_literal() {
 
     assert_eq!(tokens.kinds[0], lexer::TokenKind::At);
     assert_eq!(tokens.kinds[1], lexer::TokenKind::Text);
+    assert_eq!(tokens.kinds[2], lexer::TokenKind::LeftBracket);
 
-    let body_idx = match tokens.kinds[2] {
+    let body_idx = match tokens.kinds[3] {
         lexer::TokenKind::StringLiteral(idx) => idx,
         ref other => panic!("Expected text body to be captured as StringLiteral, got {other:?}"),
     };
 
     assert_eq!(tokens.string_table[body_idx as usize].content, "${price} * quantity");
     assert!(tokens.string_table[body_idx as usize].has_interpolation);
-    assert_eq!(tokens.kinds[3], lexer::TokenKind::Eof);
+    assert_eq!(tokens.kinds[4], lexer::TokenKind::RightBracket);
+    assert_eq!(tokens.kinds[5], lexer::TokenKind::Eof);
 }

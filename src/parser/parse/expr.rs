@@ -132,9 +132,7 @@ impl ExprKind {
                 p.cursor.location(),
             )
         })?;
-
         p.cursor.advance();
-
         if value.has_interpolation {
             Ok(ExprKind::InterpolatedString(
                 InterpolatedStringExpr::from_string_entry(&value, p.cursor.location())?,
@@ -320,6 +318,7 @@ impl InterpolatedStringExpr {
         })?;
 
         let mut parser = Parser::new(tokens);
+        parser.cursor.set_trace_context("embedded-expr");
         ExprKind::parse(&mut parser)
     }
 }

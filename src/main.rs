@@ -43,6 +43,8 @@ fn main() {
     println!("{:?}", &tokens);
 
     let ast = Parser::new(tokens)
+        .enable_tracing()
+        .continue_on_error()
         .parse::<Ast>()
         .expect("Should be able to parse tokens to AST");
     println!("{:#?}", ast);

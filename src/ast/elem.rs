@@ -2,42 +2,44 @@ use std::collections::HashMap;
 
 use crate::ast::ArgType;
 use crate::ast::Expr;
-use crate::ast::InterpolatedStringExpr;
 use crate::util::Spanned;
 
+/// A document element, with a location in the source file.
 pub type DocElem = Spanned<DocElemKind>;
+/// A map of attribute names to expressions. can be `None` if there are no attributes.
+pub type Attributes = Option<HashMap<String, Expr>>;
 
 /// Thin wrapper types for document elements.
 /// Each element type can be parsed independently, then converted to DocElemKind.
 #[derive(Debug, Clone)]
 pub struct TextElem {
     pub content: Expr,
-    pub attributes: HashMap<String, Expr>,
+    pub attributes: Attributes,
 }
 
 #[derive(Debug, Clone)]
 pub struct ImageElem {
     pub src: String,
-    pub attributes: HashMap<String, Expr>,
+    pub attributes: Attributes,
 }
 
 #[derive(Debug, Clone)]
 pub struct TableElem {
     pub table: Vec<Vec<DocElem>>,
-    pub attributes: HashMap<String, Expr>,
+    pub attributes: Attributes,
 }
 
 #[derive(Debug, Clone)]
 pub struct ListElem {
     pub items: Vec<DocElem>,
-    pub attributes: HashMap<String, Expr>,
+    pub attributes: Attributes,
     pub numbered: bool,
 }
 
 #[derive(Debug, Clone)]
 pub struct CodeElem {
     pub content: String,
-    pub attributes: HashMap<String, Expr>,
+    pub attributes: Attributes,
 }
 
 #[derive(Debug, Clone)]
@@ -51,13 +53,13 @@ pub struct CallElem {
 pub struct LinkElem {
     pub href: String,
     pub content: String,
-    pub attributes: HashMap<String, Expr>,
+    pub attributes: Attributes,
 }
 
 #[derive(Debug, Clone)]
 pub struct SectionElem {
     pub elements: Vec<DocElem>,
-    pub attributes: HashMap<String, Expr>,
+    pub attributes: Attributes,
 }
 
 #[derive(Debug, Clone)]

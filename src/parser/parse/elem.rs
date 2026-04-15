@@ -2,14 +2,11 @@ use std::collections::HashMap;
 
 use crate::{
     ast::{
-        CallElem, ChildrenElem, DocElem, DocElemEmitStmt, DocElemKind, Expr, ImageElem,
-        InterpolatedStringExpr, LinkElem, ListElem, SectionElem, TableElem, TextElem,
+        CallElem, ChildrenElem, DocElem, DocElemEmitStmt, DocElemKind, Expr, ImageElem, LinkElem,
+        ListElem, SectionElem, TableElem, TextElem,
     },
     lexer::TokenKind,
-    parser::parse::Parse,
-    parser::parser::Parser,
-    parser::parser_err::ParseError,
-    util::Spanned,
+    parser::{parse::Parse, parser::Parser, parser_err::ParseError},
 };
 
 impl Parse for DocElem {
@@ -60,17 +57,47 @@ impl Parse for DocElemKind {
     }
 }
 
+impl DocElemKind {
+    fn parse_style_attributes(p: &mut Parser) -> Option<HashMap<String, Expr>> {
+        if !p.cursor.check(TokenKind::LeftParen) {
+            return None;
+        }
+
+        p.cursor.expect(TokenKind::LeftParen).ok()?;
+
+        let mut attributes = HashMap::new();
+        while !p.cursor.check(TokenKind::RightParen) {
+            let name = p.cursor.cur_text().to_owned();
+            p.cursor.advance(); // consume identifier
+
+            p.cursor.expect(TokenKind::Equals).ok()?;
+            let value = Expr::parse(p).ok()?;
+            attributes.insert(name, value);
+
+            if p.cursor.check(TokenKind::Comma) {
+                p.cursor.advance(); // consume comma
+            }
+        }
+        p.cursor.expect(TokenKind::RightParen).ok()?; // consume right paren
+        Some(attributes)
+    }
+}
+
 impl Parse for TextElem {
     /// Parses a text element,
     ///
     /// `@Text() [ hello ]` -> `TextElem { content: "hello", attributes: HashMap::new() }`.
     fn parse(p: &mut Parser) -> Result<Self, ParseError> {
-        let location = p.cursor.location();
         p.cursor.expect(TokenKind::Text)?;
+
+        let attributes = DocElemKind::parse_style_attributes(p);
+
+        p.cursor.expect(TokenKind::LeftBracket)?;
         let content = Expr::parse(p)?;
+        p.cursor.expect(TokenKind::RightBracket)?;
         Ok(Self {
             content,
-            attributes: HashMap::new(),
+            attributes,
         })
     }
 
@@ -86,11 +113,10 @@ impl Parse for ImageElem {
     fn parse(p: &mut Parser) -> Result<Self, ParseError> {
         p.cursor.expect(TokenKind::Image)?;
 
-        // attributes
+        let attributes = DocElemKind::parse_style_attributes(p);
 
         p.cursor.expect(TokenKind::LeftBracket)?;
         let src = Expr::parse(p)?.to_string();
-        let attributes = HashMap::new();
         p.cursor.expect(TokenKind::RightBracket)?;
         Ok(Self { src, attributes })
     }
@@ -132,18 +158,18 @@ impl Parse for ListElem {
     fn parse(p: &mut Parser) -> Result<Self, ParseError> {
         p.cursor.expect(TokenKind::List)?;
 
-        //attributes
+        let attributes = DocElemKind::parse_style_attributes(p);
 
         p.cursor.expect(TokenKind::LeftBracket)?;
-
         let items = match p.parse_until::<DocElem>(TokenKind::RightBracket) {
+            // FIX this might have to be its own funcion due to specific style of lists
             Ok(items) => items,
             Err(errors) => return Err(errors.into_iter().next().unwrap()),
         };
 
         Ok(Self {
             items,
-            attributes: HashMap::new(),
+            attributes,
             numbered: false,
         })
     }
@@ -192,10 +218,9 @@ impl Parse for SectionElem {
     fn parse(p: &mut Parser) -> Result<Self, ParseError> {
         p.cursor.expect(TokenKind::Section)?;
 
-        //attributes
+        let attributes = DocElemKind::parse_style_attributes(p);
 
         p.cursor.expect(TokenKind::LeftBracket)?;
-
         let elements = match p.parse_until::<DocElem>(TokenKind::RightBracket) {
             Ok(elements) => elements,
             Err(errors) => return Err(errors.into_iter().next().unwrap()),
@@ -203,7 +228,7 @@ impl Parse for SectionElem {
 
         Ok(Self {
             elements,
-            attributes: HashMap::new(),
+            attributes,
         })
     }
 
@@ -213,8 +238,9 @@ impl Parse for SectionElem {
 }
 
 impl Parse for ChildrenElem {
-    // if this isnt present render children defaults to false
+    /// if this isnt present render children defaults to false
     fn parse(p: &mut Parser) -> Result<Self, ParseError> {
+        p.cursor.expect(TokenKind::Children)?;
         Ok(Self {
             render_childen: true,
         })
