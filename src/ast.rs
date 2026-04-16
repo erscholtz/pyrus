@@ -20,7 +20,7 @@ pub use expr::{
 pub use func::{ArgType, FuncDeclStmt, FuncParam};
 pub use root::{Ast, DocumentBlock, StyleBlock, TemplateBlock, Type};
 pub use stmt::{
-    ChildrenStmt, ConstAssignStmt, DefaultSetStmt, DocElemEmitStmt, ForStmt, IfStmt, ReturnStmt,
-    Stmt, StmtKind, VarAssignStmt, WhileStmt,
+    ChildrenStmt, ConstAssignStmt, DefaultSetStmt, ForStmt, IfStmt, ReturnStmt, Stmt, StmtKind,
+    VarAssignStmt, WhileStmt,
 };
 pub use style::{KeyValue, Selector, StyleRule};

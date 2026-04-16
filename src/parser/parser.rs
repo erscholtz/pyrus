@@ -106,7 +106,7 @@ impl Parser {
             );
         }
         let mut result = Vec::new();
-        // Note: Caller is responsible for positioning cursor at first token
+        // NOTE: Caller is responsible for positioning cursor at first token
         while !self.cursor.check(end) && !self.cursor.check(TokenKind::Eof) {
             self.trace("parse_until:item");
             let parsed = match T::parse(self) {
@@ -132,7 +132,6 @@ impl Parser {
                     self.cursor.cur_col(),
                 );
             }
-            self.cursor.advance();
         }
         if self.errors.is_empty() {
             self.trace("parse_until:ok");
@@ -143,6 +142,7 @@ impl Parser {
         }
     }
 
+    /// Parses all items until the given condition is no longer true.
     pub fn parse_all<T: Parse, F>(&mut self, should_continue: F) -> Result<Vec<T>, Vec<ParseError>>
     where
         F: Fn(&mut Self) -> bool,
@@ -173,6 +173,49 @@ impl Parser {
             Ok(items)
         } else {
             self.trace("parse_all:errors");
+            Err(std::mem::take(&mut self.errors)) // Why?
+        }
+    }
+
+    /// Parses all items until the given condition is no longer true, and then splits the result on the given delimiter.
+    pub fn parse_split_on<T: Parse, F>(
+        &mut self,
+        end: TokenKind,
+        deliminer: F,
+    ) -> Result<Vec<T>, Vec<ParseError>>
+    where
+        F: Fn(&mut Self) -> bool,
+    {
+        self.trace("parse_split_on:start");
+        let mut items = Vec::new();
+        while !self.cursor.check(end) && !self.cursor.check(TokenKind::Eof) {
+            self.trace("parse_split_on:item");
+            if deliminer(self) {
+                self.trace("parse_split_on:delimiter");
+                self.cursor.advance();
+                continue;
+            }
+            let result = match T::parse(self) {
+                Ok(parsed) => parsed,
+                Err(err) => {
+                    self.errors.push(err);
+                    self.trace("parse_split_on:error-sync");
+                    self.synchronize(&[
+                        TokenKind::Comma,
+                        TokenKind::RightBrace,
+                        TokenKind::RightParen,
+                    ]);
+                    continue;
+                }
+            };
+            items.push(result);
+        }
+
+        if self.errors.is_empty() {
+            self.trace("parse_split_on:ok");
+            Ok(items)
+        } else {
+            self.trace("parse_split_on:errors");
             Err(std::mem::take(&mut self.errors)) // Why?
         }
     }

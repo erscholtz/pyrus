@@ -1,9 +1,11 @@
 use std::collections::HashMap;
 
+use printpdf::bridge::display_list_to_printpdf_ops_with_margins;
+
 use crate::{
     ast::{
-        CallElem, ChildrenElem, DocElem, DocElemEmitStmt, DocElemKind, Expr, ImageElem, LinkElem,
-        ListElem, SectionElem, TableElem, TextElem,
+        ArgType, CallElem, ChildrenElem, DocElem, DocElemKind, Expr, ImageElem, LinkElem, ListElem,
+        SectionElem, TableElem, TextElem,
     },
     lexer::TokenKind,
     parser::{parse::Parse, parser::Parser, parser_err::ParseError},
@@ -64,7 +66,6 @@ impl DocElemKind {
         }
 
         p.cursor.expect(TokenKind::LeftParen).ok()?;
-
         let mut attributes = HashMap::new();
         while !p.cursor.check(TokenKind::RightParen) {
             let name = p.cursor.cur_text().to_owned();
@@ -161,11 +162,15 @@ impl Parse for ListElem {
         let attributes = DocElemKind::parse_style_attributes(p);
 
         p.cursor.expect(TokenKind::LeftBracket)?;
-        let items = match p.parse_until::<DocElem>(TokenKind::RightBracket) {
+        p.cursor.expect(TokenKind::Minus)?; // first item in the list
+        let items = match p.parse_split_on::<DocElem, _>(TokenKind::RightBracket, |p| {
+            p.cursor.cur_tok() == &TokenKind::Minus
+        }) {
             // FIX this might have to be its own funcion due to specific style of lists
             Ok(items) => items,
             Err(errors) => return Err(errors.into_iter().next().unwrap()),
         };
+        p.cursor.expect(TokenKind::RightBracket)?;
 
         Ok(Self {
             items,
@@ -184,10 +189,31 @@ impl Parse for CallElem {
     ///
     /// `@Call("func", [arg1, arg2])` -> `CallElem { name: "func", args: [arg1, arg2], children: [] }`.
     fn parse(p: &mut Parser) -> Result<Self, ParseError> {
-        Err(ParseError::new(
-            "CallElem parsing is not implemented yet".to_string(),
-            p.cursor.location(),
-        ))
+        let name = p.cursor.expect(TokenKind::Identifier)?.to_string();
+
+        p.cursor.expect(TokenKind::LeftParen)?;
+        let args = match p.parse_split_on::<ArgType, _>(TokenKind::RightParen, |p| {
+            p.cursor.cur_tok() == &TokenKind::Comma
+        }) {
+            Ok(args) => args,
+            Err(err) => return Err(err.into_iter().next().unwrap()),
+        };
+        p.cursor.expect(TokenKind::RightParen)?;
+
+        p.cursor.expect(TokenKind::LeftBracket)?;
+        let children = match p.parse_split_on::<DocElem, _>(TokenKind::RightBracket, |p| {
+            p.cursor.cur_tok() == &TokenKind::Comma
+        }) {
+            Ok(children) => children,
+            Err(err) => return Err(err.into_iter().next().unwrap()),
+        };
+        p.cursor.expect(TokenKind::RightBracket)?;
+
+        Ok(Self {
+            name,
+            args,
+            children,
+        })
     }
 
     fn try_parse(p: &mut Parser) -> Option<Self> {
@@ -214,7 +240,7 @@ impl Parse for LinkElem {
 impl Parse for SectionElem {
     /// Parses a section element, e.g.
     ///
-    /// `@Section("title", [child1, child2])` -> `SectionElem { title: "title", children: [child1, child2], attributes: HashMap::new() }`.
+    /// `@Section("title") [ @text("content") [] ]` -> `SectionElem { title: "title", children: [child1, child2], attributes: HashMap::new() }`.
     fn parse(p: &mut Parser) -> Result<Self, ParseError> {
         p.cursor.expect(TokenKind::Section)?;
 
@@ -225,6 +251,7 @@ impl Parse for SectionElem {
             Ok(elements) => elements,
             Err(errors) => return Err(errors.into_iter().next().unwrap()),
         };
+        p.cursor.expect(TokenKind::RightBracket)?;
 
         Ok(Self {
             elements,

@@ -59,24 +59,36 @@ impl Parse for ArgType {
     ///
     /// Returns an `ArgType` if successful, or a `ParseError` if the name is invalid.
     fn parse(p: &mut Parser) -> Result<Self, ParseError> {
-        if *p.cursor.cur_tok() == TokenKind::Identifier {
-            let name = p.cursor.cur_text().to_string();
-            let ty;
-            if name.starts_with('"') {
-                ty = Type::String;
-            } else if let Ok(_) = name.parse::<i32>() {
-                ty = Type::Int;
-            } else if let Ok(_) = name.parse::<f64>() {
-                ty = Type::Float;
-            } else {
-                ty = Type::Var;
+        match *p.cursor.cur_tok() {
+            TokenKind::Identifier => {
+                let name = p.cursor.cur_text().to_string();
+                let ty;
+                if let Ok(_) = name.parse::<i32>() {
+                    ty = Type::Int;
+                } else if let Ok(_) = name.parse::<f64>() {
+                    ty = Type::Float;
+                } else {
+                    ty = Type::Var;
+                }
+                p.cursor.advance();
+                Ok(Self { name, ty })
             }
-            Ok(Self { name, ty })
-        } else {
-            Err(ParseError::new(
+            TokenKind::StringLiteral(idx) => {
+                let name = {
+                    let entry = p.cursor.get_string(idx).ok_or_else(|| {
+                        ParseError::new("Expected string literal".to_string(), p.cursor.location())
+                    })?;
+                    entry.content.clone()
+                };
+                p.cursor.advance();
+
+                let ty = Type::String;
+                Ok(Self { name, ty })
+            }
+            _ => Err(ParseError::new(
                 "Expected identifier".to_string(),
                 p.cursor.location(),
-            ))
+            )),
         }
     }
 
@@ -87,6 +99,15 @@ impl Parse for ArgType {
         if let Some(ty) = p.cursor.peek_tok() {
             if let TokenKind::Identifier = ty {
                 return ArgType::parse(p).ok();
+            } else if let TokenKind::StringLiteral(idx) = ty {
+                let Some(name) = p.cursor.get_string(*idx) else {
+                    return None;
+                };
+                let ty = Type::String;
+                return Some(Self {
+                    name: name.content.clone(),
+                    ty,
+                });
             }
         }
         None
@@ -108,6 +129,8 @@ impl Parse for FuncDeclStmt {
                 return Err(errors.into_iter().next().unwrap());
             }
         };
+        p.cursor.expect(TokenKind::RightParen)?;
+
         p.cursor.expect(TokenKind::LeftBrace)?;
         let body = match p.parse_until::<Stmt>(TokenKind::RightBrace) {
             Ok(body) => body,
@@ -115,6 +138,8 @@ impl Parse for FuncDeclStmt {
                 return Err(errors.into_iter().next().unwrap());
             }
         };
+        p.cursor.expect(TokenKind::RightBrace)?;
+
         let return_type = FuncDeclStmt::infer_return_type(body.as_ref());
 
         Ok(Self {

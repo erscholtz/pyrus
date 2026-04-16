@@ -1,7 +1,7 @@
 use crate::{
     ast::{
-        ChildrenStmt, ConstAssignStmt, DefaultSetStmt, DocElem, DocElemEmitStmt, Expr,
-        FuncDeclStmt, ReturnStmt, Stmt, StmtKind, VarAssignStmt,
+        ChildrenStmt, ConstAssignStmt, DefaultSetStmt, DocElem, Expr, FuncDeclStmt, ReturnStmt,
+        Stmt, StmtKind, VarAssignStmt,
     },
     lexer::TokenKind,
     parser::parse::Parse,
@@ -136,25 +136,6 @@ impl Parse for ReturnStmt {
     fn try_parse(p: &mut Parser) -> Option<Self> {
         if p.cursor.cur_tok() == &TokenKind::Return {
             Some(ReturnStmt::parse(p).ok()?)
-        } else {
-            None
-        }
-    }
-}
-
-impl Parse for DocElemEmitStmt {
-    /// Parse a document element emit statement.
-    fn parse(p: &mut Parser) -> Result<Self, ParseError> {
-        Err(ParseError::new(
-            "not implemented!".to_string(),
-            p.cursor.location(),
-        ))
-    }
-
-    /// Try to parse a document element emit statement.
-    fn try_parse(p: &mut Parser) -> Option<Self> {
-        if p.cursor.cur_tok() == &TokenKind::Identifier {
-            Some(DocElemEmitStmt::parse(p).ok()?)
         } else {
             None
         }

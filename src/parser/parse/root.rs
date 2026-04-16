@@ -74,12 +74,13 @@ impl Parse for TemplateBlock {
     /// Parse a template block.
     fn parse(p: &mut Parser) -> Result<Self, ParseError> {
         p.cursor.expect(TokenKind::Template)?;
-        p.cursor.expect(TokenKind::LeftBrace)?;
 
+        p.cursor.expect(TokenKind::LeftBrace)?;
         let statements = match p.parse_until::<Stmt>(TokenKind::RightBrace) {
             Ok(statements) => statements,
             Err(errors) => return Err(errors.into_iter().next().unwrap()),
         };
+        p.cursor.expect(TokenKind::RightBrace)?;
 
         Ok(TemplateBlock { statements })
     }
@@ -101,6 +102,7 @@ impl Parse for DocumentBlock {
             Ok(elements) => elements,
             Err(errors) => return Err(errors.into_iter().next().unwrap()),
         };
+        p.cursor.expect(TokenKind::RightBrace)?;
 
         Ok(DocumentBlock { elements })
     }

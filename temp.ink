@@ -20,10 +20,18 @@ template {
             @text[This is a more complex section]
             @text[This is another text element]
             @text(id="listelement")[This is a third text element]
+
+            @table [                       // Table
+                | @text [ Name ] | @text [ Age ] | @text [ City ] |
+                | --- | --- | --- |
+                | @text [ Alice ] | @text [ 25 ] | @text [ NYC ] |
+                | @text [ Bob ] | @text [ 30 ] | @text [ LA ] |
+            ]
+
             @list[
-                - Item 4
-                - Item 5
-                - Item 6
+                - @text[Item 4]
+                - @text[Item 5]
+                - @text[Item 6]
             ]
         ]
     }
@@ -33,9 +41,9 @@ document { // document cannot have variable declared in it
     @intro_section("name", 41) // section has default attributes that can be called
     @text[this is also text that can be parsed by the compiler]
     @list[
-        - Item 0
-        - Item 1
-        - Item 2
+        - @text[Item 0]
+        - @text[Item 1]
+        - @text[Item 2]
     ]
 
     @more_complex_section()

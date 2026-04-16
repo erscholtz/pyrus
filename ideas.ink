@@ -32,23 +32,15 @@ document {
     // lists
 
     @list [                        // List with content block
-        - First item               // block is for handling newline that should still be under the list
-        - Second item
-        - Third item
+        - @text [ First item ]               // block is for handling newline that should still be under the list
+        - @text [ Second item ]
+        - @text [ Third item ]
     ]
 
     // images
 
-    @image (width=0.5) [ path/to/photo.jpg ]   // Image with attributes
-    @image [ path/to/photo.jpg ]
-
-    @table [                       // Table
-        | @text [ Name ] | @text [ Age ] | @text [ City ] |
-        | --- | --- | --- |
-        | @text [ Alice ] | @text [ 25 ] | @text [ NYC ] |
-        | @text [ Bob ] | @text [ 30 ] | @text [ LA ] |
-    ]
-
+    @image (width=0.5) [ "path/to/photo.jpg" ]   // Image with attributes
+    @image [ "path/to/photo.jpg" ]
 
     // then in use
     @education_heading (

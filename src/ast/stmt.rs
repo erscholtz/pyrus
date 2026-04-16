@@ -52,11 +52,6 @@ pub enum ReturnStmt {
 }
 
 #[derive(Debug, Clone)]
-pub struct DocElemEmitStmt {
-    pub element: DocElem,
-}
-
-#[derive(Debug, Clone)]
 pub struct ChildrenStmt {
     pub children: bool,
 }
@@ -72,7 +67,6 @@ pub enum StmtKind {
     For(ForStmt),
     Return(ReturnStmt),
     FuncDecl(FuncDeclStmt),
-    DocElemEmit(DocElemEmitStmt),
     Children(ChildrenStmt),
 }
 
@@ -122,12 +116,6 @@ impl From<ReturnStmt> for StmtKind {
 impl From<FuncDeclStmt> for StmtKind {
     fn from(s: FuncDeclStmt) -> Self {
         StmtKind::FuncDecl(s)
-    }
-}
-
-impl From<DocElemEmitStmt> for StmtKind {
-    fn from(s: DocElemEmitStmt) -> Self {
-        StmtKind::DocElemEmit(s)
     }
 }
 
