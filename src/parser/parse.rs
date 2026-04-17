@@ -5,8 +5,7 @@ mod root;
 mod stmt;
 mod style;
 
-use crate::parser::parser::Parser;
-use crate::parser::parser_err::ParseError;
+use crate::parser::{parser::Parser, parser_err::ParseError};
 
 /// A trait for parsing a value from a token
 pub trait Parse: Sized {

@@ -4,9 +4,7 @@ use crate::{
         Stmt, StmtKind, VarAssignStmt,
     },
     lexer::TokenKind,
-    parser::parse::Parse,
-    parser::parser::Parser,
-    parser::parser_err::ParseError,
+    parser::{parse::Parse, parser::Parser, parser_err::ParseError},
     util::Spanned,
 };
 

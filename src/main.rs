@@ -7,9 +7,7 @@ use std::time::Instant;
 // use pyrus::hir;
 // use pyrus::hir::HirDisplayExt;
 // use pyrus::layout::setup_layout;
-use pyrus::ast::Ast;
-use pyrus::lexer;
-use pyrus::parser::Parser;
+use pyrus::{ast::Ast, lexer, parser::Parser};
 
 fn main() {
     let last = Instant::now();
@@ -25,9 +23,9 @@ fn main() {
     }
 
     let filename = if args.len() > 1 {
-        args[1].to_str().unwrap_or("ideas.ink")
+        args[1].to_str().unwrap_or("temp.ink")
     } else {
-        "ideas.ink"
+        "temp.ink"
     };
     let data = fs::read_to_string(filename).expect("Should be able to read test file");
 

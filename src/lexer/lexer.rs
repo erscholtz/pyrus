@@ -153,6 +153,87 @@ fn has_unescaped_interpolation(content: &str) -> bool {
     false
 }
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+enum PendingTextBody {
+    AwaitBodyOrAttrs,
+    InAttributes(usize),
+}
+
+fn lex_text_body(
+    out: &mut TokenStream,
+    source: &str,
+    bytes: &[u8],
+    len: usize,
+    i: &mut usize,
+    line: &mut usize,
+    col: &mut usize,
+) {
+    out.push(TokenKind::LeftBracket, *i, *i + 1, *line, *col);
+
+    *i += 1;
+    *col += 1;
+
+    let body_start = *i;
+    let body_line = *line;
+    let body_col = *col;
+    let mut interpolation_depth = 0usize;
+
+    while *i < len {
+        if *i + 1 < len && bytes[*i] == b'$' && bytes[*i + 1] == b'{' {
+            interpolation_depth += 1;
+            *i += 2;
+            *col += 2;
+            continue;
+        }
+
+        if bytes[*i] == b'}' && interpolation_depth > 0 {
+            interpolation_depth -= 1;
+            *i += 1;
+            *col += 1;
+            continue;
+        }
+
+        if bytes[*i] == b']' && interpolation_depth == 0 {
+            break;
+        }
+
+        if bytes[*i] == b'\n' {
+            *line += 1;
+            *col = 1;
+        } else {
+            *col += 1;
+        }
+        *i += 1;
+    }
+
+    if *i >= len {
+        out.errors.push(LexError::new(
+            "Unterminated text element body".to_string(),
+            body_line,
+            body_col,
+        ));
+        return;
+    }
+
+    let content = source[body_start..*i].to_string();
+    let index = out.string_table.len();
+    out.string_table.push(StringEntry {
+        content,
+        has_interpolation: has_unescaped_interpolation(&source[body_start..*i]),
+    });
+    out.push(
+        TokenKind::StringLiteral(index),
+        body_start,
+        *i,
+        body_line,
+        body_col,
+    );
+
+    out.push(TokenKind::RightBracket, *i, *i + 1, *line, *col);
+    *i += 1;
+    *col += 1;
+}
+
 pub fn lex(source: &str, file: &str) -> Result<TokenStream, Vec<LexError>> {
     let mut out = TokenStream::new(source.to_string(), file.to_string());
     let bytes = source.as_bytes();
@@ -161,6 +242,7 @@ pub fn lex(source: &str, file: &str) -> Result<TokenStream, Vec<LexError>> {
     let mut i = 0;
     let mut line = 1;
     let mut col = 1;
+    let mut pending_text_body = None;
 
     while i < len {
         let c = bytes[i];
@@ -198,81 +280,7 @@ pub fn lex(source: &str, file: &str) -> Result<TokenStream, Vec<LexError>> {
             if kind == TokenKind::Text
                 && matches!(out.kinds.iter().rev().nth(1), Some(TokenKind::At))
             {
-                while i < len && bytes[i].is_ascii_whitespace() {
-                    if bytes[i] == b'\n' {
-                        line += 1;
-                        col = 1;
-                    } else {
-                        col += 1;
-                    }
-                    i += 1;
-                }
-
-                if i < len && bytes[i] == b'[' {
-                    out.push(TokenKind::LeftBracket, i, i + 1, line, col);
-
-                    i += 1;
-                    col += 1;
-
-                    let body_start = i;
-                    let body_line = line;
-                    let body_col = col;
-                    let mut interpolation_depth = 0usize;
-
-                    while i < len {
-                        if i + 1 < len && bytes[i] == b'$' && bytes[i + 1] == b'{' {
-                            interpolation_depth += 1;
-                            i += 2;
-                            col += 2;
-                            continue;
-                        }
-
-                        if bytes[i] == b'}' && interpolation_depth > 0 {
-                            interpolation_depth -= 1;
-                            i += 1;
-                            col += 1;
-                            continue;
-                        }
-
-                        if bytes[i] == b']' && interpolation_depth == 0 {
-                            break;
-                        }
-
-                        if bytes[i] == b'\n' {
-                            line += 1;
-                            col = 1;
-                        } else {
-                            col += 1;
-                        }
-                        i += 1;
-                    }
-
-                    if i >= len {
-                        out.errors.push(LexError::new(
-                            "Unterminated text element body".to_string(),
-                            body_line,
-                            body_col,
-                        ));
-                    } else {
-                        let content = source[body_start..i].to_string();
-                        let index = out.string_table.len();
-                        out.string_table.push(StringEntry {
-                            content,
-                            has_interpolation: has_unescaped_interpolation(&source[body_start..i]),
-                        });
-                        out.push(
-                            TokenKind::StringLiteral(index),
-                            body_start,
-                            i,
-                            body_line,
-                            body_col,
-                        );
-
-                        out.push(TokenKind::RightBracket, i, i + 1, line, col);
-                        i += 1;
-                        col += 1;
-                    }
-                }
+                pending_text_body = Some(PendingTextBody::AwaitBodyOrAttrs);
             }
             continue;
         }
@@ -373,8 +381,31 @@ pub fn lex(source: &str, file: &str) -> Result<TokenStream, Vec<LexError>> {
         }
 
         // --- Single-character tokens ---
+        if c == b'[' && matches!(pending_text_body, Some(PendingTextBody::AwaitBodyOrAttrs)) {
+            lex_text_body(&mut out, source, bytes, len, &mut i, &mut line, &mut col);
+            pending_text_body = None;
+            continue;
+        }
+
         if let Some(kind) = SYMBOL_LOOKUP_TABLE[c as usize] {
             out.push(kind, i, i + 1, line, col);
+
+            pending_text_body = match (pending_text_body, kind) {
+                (Some(PendingTextBody::AwaitBodyOrAttrs), TokenKind::LeftParen) => {
+                    Some(PendingTextBody::InAttributes(1))
+                }
+                (Some(PendingTextBody::InAttributes(depth)), TokenKind::LeftParen) => {
+                    Some(PendingTextBody::InAttributes(depth + 1))
+                }
+                (Some(PendingTextBody::InAttributes(depth)), TokenKind::RightParen) if depth > 1 => {
+                    Some(PendingTextBody::InAttributes(depth - 1))
+                }
+                (Some(PendingTextBody::InAttributes(1)), TokenKind::RightParen) => {
+                    Some(PendingTextBody::AwaitBodyOrAttrs)
+                }
+                (state, _) => state,
+            };
+
             i += 1;
             col += 1;
             continue;

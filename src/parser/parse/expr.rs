@@ -1,12 +1,8 @@
 use crate::{
     ast::{BinOp, BinaryExpr, Expr, ExprKind, InterpolatedStringExpr, UnaryExpr, UnaryOp},
     diagnostic::SourceLocation,
-    lexer::TokenKind,
-    lexer::lex,
-    lexer::tokens::StringEntry,
-    parser::parse::Parse,
-    parser::parser::Parser,
-    parser::parser_util::parser_err::ParseError,
+    lexer::{TokenKind, lex, tokens::StringEntry},
+    parser::{parse::Parse, parser::Parser, parser_err::ParseError},
     util::Spanned,
 };
 

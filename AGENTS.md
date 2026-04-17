@@ -13,14 +13,6 @@
 positioned as an alternative to LaTeX and Typst. The ultimate goal is to compile 
 documents to PDF with better styling control than existing tools.
 
-The user is using this project to learn:
-- Rust (primary implementation language)
-- Compiler architecture (lexer → parser → IR → backend)
-- LLVM and MLIR (future backend considerations)
-- WASM (for potential web-based rendering)
-- Data-oriented design and alternative memory allocators (arena allocators)
-- PDF specification and rendering
-
 ## Architecture
 
 The compiler pipeline (based on TODO.md and codebase exploration):
@@ -31,71 +23,7 @@ The compiler pipeline (based on TODO.md and codebase exploration):
 5. **Layout Engine** (planned: Taffy for CSS-style layout)
 6. **Backend** - PDF rendering (current), WASM (future)
 
-**Key insight for agents:** The user has implemented up through HLIR. The next 
-major milestones involve layout engine integration and rendering.
-
-## Build & Test
-
-Standard Cargo workflow:
-```bash
-cargo build
-cargo test
-```
-
-There are test files in `/tests/`. The user mentioned wanting to add:
-- HLIR-specific tests
-- CSS styling tests
-- Performance tracing/flame charts
-
-## Code Conventions
-
-Based on existing code and typical Rust conventions:
-- Use `snake_case` for functions and variables
-- Use `PascalCase` for types and IR node names
-- The user prefers modular design ("passes instead of loops")
-- Comment your intent, not just what the code does
-
-## Key Files & Entry Points
-
-- `src/` - Main source code
-- `tests/` - Test suite
-- `PIPELINE_ROADMAP.md` - Detailed roadmap
-- `temp.ink` - Test input file
-
 **For understanding the compiler:** Start with the lexer, then parser, then HLIR.
-
-## Current Focus & Constraints
-
-**Active work (from TODO.md):**
-- CSS styling and layout engine (Taffy)
-- Quick rendering with all attributes
-- String interpolation
-- Fixing quotation mark bug (`"\`)
-
-**Design constraints:**
-- Keep it data-oriented (future refactor planned)
-- Consider arena allocators instead of heap allocation
-- Error handling should print nicely and fail gracefully
-
-**DO NOT TOUCH (later items):**
-- MLIR migration
-- Full PDF backend rewrite
-- WASM backend
-- Arena allocator refactor (until explicitly started)
-
-## Known Issues / Gotchas
-
-- Quotation mark escape bug: `"\` behaves unexpectedly
-- Some checks skipped because user knows input — guards need to be added
-- String interpolation not yet implemented
-
-## External Resources
-
-**Potential useful docs for the user:**
-- Taffy layout engine: https://github.com/DioxusLabs/taffy
-- PDF spec (ISO 32000)
-- LLVM/MLIR documentation (for future backend)
-- "Crafting Interpreters" by Bob Nystrom (excellent for compiler learning)
 
 ---
 
@@ -229,13 +157,14 @@ This allows you to verify claims and dig deeper into topics you're curious about
 - Don't assume you know the crate API - **check docs if uncertain**
 - Don't rely solely on internal knowledge - **search for external validation**
 
----
+### Code Generation Quality
 
-### Topics the User Wants to Learn
+When writing or restoring code in this repo:
 
-- Lexer/parser design patterns
-- IR design and transformation passes
-- Layout engines and constraint solving
-- PDF structure and generation
-- Rust patterns (iterators, error handling, lifetimes)
-- Testing strategies
+- **Match the surrounding style first** - read nearby files and follow their structure, naming, and level of abstraction before generating code
+- **Prefer the smallest correct change** - avoid speculative rewrites, helper explosions, or architecture changes unless the user explicitly asks for them
+- **Do not invent behavior** - if syntax, AST shape, or semantics are unclear, stop and ask instead of filling gaps with guesses
+- **Keep generated code boring and maintainable** - straightforward control flow, clear ownership, and no cleverness unless the codebase already uses it
+- **Review before patching** - for non-trivial edits, use the Zed code review feature first and do not apply changes immediately
+- **Verify before handoff** - if a build or test is relevant, run it; if you could not verify, say so explicitly
+- **If a restore is requested, restore** - prefer recovering the prior behavior or structure over replacing it with a new interpretation

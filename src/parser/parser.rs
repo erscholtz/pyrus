@@ -85,8 +85,8 @@ impl Parser {
             );
         }
         // Skip until we hit a delimiter, add to errors
-        while let token = self.cursor.advance() {
-            // I hate the loop keyword
+        while !self.cursor.check(TokenKind::Eof) {
+            let token = self.cursor.advance();
             if delimiters.contains(&token) {
                 self.trace("sync:hit-delimiter");
                 break;
@@ -120,7 +120,6 @@ impl Parser {
             };
             result.push(parsed);
         }
-        // Consume the end token if present TODO do we want this? hides exiting block
         if self.cursor.check(end) {
             if self.trace_enabled {
                 eprintln!(
@@ -182,11 +181,23 @@ impl Parser {
         &mut self,
         end: TokenKind,
         deliminer: F,
+        starts_with_delimiter: Option<TokenKind>,
     ) -> Result<Vec<T>, Vec<ParseError>>
     where
         F: Fn(&mut Self) -> bool,
     {
         self.trace("parse_split_on:start");
+        if let Some(delim) = starts_with_delimiter {
+            self.trace("parse_split_on:delimiter");
+            match self.cursor.expect(delim) {
+                Ok(_) => {}
+                Err(err) => {
+                    self.errors.push(err);
+                    return Err(std::mem::take(&mut self.errors));
+                }
+            }
+        }
+
         let mut items = Vec::new();
         while !self.cursor.check(end) && !self.cursor.check(TokenKind::Eof) {
             self.trace("parse_split_on:item");

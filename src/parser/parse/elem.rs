@@ -1,7 +1,5 @@
 use std::collections::HashMap;
 
-use printpdf::bridge::display_list_to_printpdf_ops_with_margins;
-
 use crate::{
     ast::{
         ArgType, CallElem, ChildrenElem, DocElem, DocElemKind, Expr, ImageElem, LinkElem, ListElem,
@@ -162,10 +160,11 @@ impl Parse for ListElem {
         let attributes = DocElemKind::parse_style_attributes(p);
 
         p.cursor.expect(TokenKind::LeftBracket)?;
-        p.cursor.expect(TokenKind::Minus)?; // first item in the list
-        let items = match p.parse_split_on::<DocElem, _>(TokenKind::RightBracket, |p| {
-            p.cursor.cur_tok() == &TokenKind::Minus
-        }) {
+        let items = match p.parse_split_on::<DocElem, _>(
+            TokenKind::RightBracket,
+            |p| p.cursor.cur_tok() == &TokenKind::Minus,
+            Some(TokenKind::Minus),
+        ) {
             // FIX this might have to be its own funcion due to specific style of lists
             Ok(items) => items,
             Err(errors) => return Err(errors.into_iter().next().unwrap()),
@@ -192,18 +191,22 @@ impl Parse for CallElem {
         let name = p.cursor.expect(TokenKind::Identifier)?.to_string();
 
         p.cursor.expect(TokenKind::LeftParen)?;
-        let args = match p.parse_split_on::<ArgType, _>(TokenKind::RightParen, |p| {
-            p.cursor.cur_tok() == &TokenKind::Comma
-        }) {
+        let args = match p.parse_split_on::<ArgType, _>(
+            TokenKind::RightParen,
+            |p| p.cursor.cur_tok() == &TokenKind::Comma,
+            None,
+        ) {
             Ok(args) => args,
             Err(err) => return Err(err.into_iter().next().unwrap()),
         };
         p.cursor.expect(TokenKind::RightParen)?;
 
         p.cursor.expect(TokenKind::LeftBracket)?;
-        let children = match p.parse_split_on::<DocElem, _>(TokenKind::RightBracket, |p| {
-            p.cursor.cur_tok() == &TokenKind::Comma
-        }) {
+        let children = match p.parse_split_on::<DocElem, _>(
+            TokenKind::RightBracket,
+            |p| p.cursor.cur_tok() == &TokenKind::Comma,
+            None,
+        ) {
             Ok(children) => children,
             Err(err) => return Err(err.into_iter().next().unwrap()),
         };
