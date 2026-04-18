@@ -275,7 +275,8 @@ impl Parse for CallElem {
     ///
     /// `@Call("func", [arg1, arg2])` -> `CallElem { name: "func", args: [arg1, arg2], children: [] }`.
     fn parse(p: &mut Parser) -> Result<Self, ParseError> {
-        let name = p.cursor.expect(TokenKind::Identifier)?.to_string();
+        let name = p.cursor.cur_text().to_owned();
+        p.cursor.expect(TokenKind::Identifier)?;
 
         p.cursor.expect(TokenKind::LeftParen)?;
         let args = match p.parse_split_on::<ArgType, _, _>(
@@ -352,6 +353,7 @@ impl Parse for LinkElem {
                 p.cursor.location(),
             ));
         };
+        p.cursor.advance();
         p.cursor.expect(TokenKind::RightBracket)?;
 
         Ok(Self {
