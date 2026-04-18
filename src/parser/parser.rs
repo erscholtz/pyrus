@@ -200,7 +200,7 @@ impl Parser {
         }
 
         let mut items = Vec::new();
-        while end(self) && !self.cursor.check(TokenKind::Eof) {
+        while !end(self) && !self.cursor.check(TokenKind::Eof) {
             self.trace("parse_split_on:item");
             if deliminer(self) {
                 self.trace("parse_split_on:delimiter");

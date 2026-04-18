@@ -157,8 +157,8 @@ impl TableElem {
         // header
         let header: Vec<_> = match p.parse_split_on(
             |p: &mut Parser| {
-                !(p.cursor.cur_tok() == &TokenKind::Pipe
-                    && p.cursor.peek_tok() == Some(&TokenKind::Pipe))
+                p.cursor.cur_tok() == &TokenKind::Pipe
+                    && p.cursor.peek_tok() == Some(&TokenKind::Pipe)
             },
             |p: &mut Parser| p.cursor.cur_tok() == &TokenKind::Pipe,
             Some(TokenKind::Pipe),
@@ -178,10 +178,10 @@ impl TableElem {
         {
             let row = match p.parse_split_on(
                 |p: &mut Parser| {
-                    !((p.cursor.cur_tok() == &TokenKind::Pipe
+                    (p.cursor.cur_tok() == &TokenKind::Pipe
                         && p.cursor.peek_tok() == Some(&TokenKind::Pipe))
                         || (p.cursor.cur_tok() == &TokenKind::Pipe
-                            && p.cursor.peek_tok() == Some(&TokenKind::RightBracket)))
+                            && p.cursor.peek_tok() == Some(&TokenKind::RightBracket))
                 },
                 |p: &mut Parser| p.cursor.cur_tok() == &TokenKind::Pipe,
                 Some(TokenKind::Pipe),
@@ -248,7 +248,7 @@ impl Parse for ListElem {
 
         p.cursor.expect(TokenKind::LeftBracket)?;
         let items = match p.parse_split_on::<DocElem, _, _>(
-            |p| p.cursor.cur_tok() != &TokenKind::RightBracket,
+            |p| p.cursor.cur_tok() == &TokenKind::RightBracket,
             |p| p.cursor.cur_tok() == &TokenKind::Minus,
             Some(TokenKind::Minus),
         ) {
@@ -279,7 +279,7 @@ impl Parse for CallElem {
 
         p.cursor.expect(TokenKind::LeftParen)?;
         let args = match p.parse_split_on::<ArgType, _, _>(
-            |p| p.cursor.cur_tok() != &TokenKind::RightParen,
+            |p| p.cursor.cur_tok() == &TokenKind::RightParen,
             |p| p.cursor.cur_tok() == &TokenKind::Comma,
             None,
         ) {
@@ -291,7 +291,7 @@ impl Parse for CallElem {
         let children = if p.cursor.check(TokenKind::LeftBracket) {
             p.cursor.expect(TokenKind::LeftBracket)?;
             let children = match p.parse_split_on::<DocElem, _, _>(
-                |p| p.cursor.cur_tok() != &TokenKind::RightBracket,
+                |p| p.cursor.cur_tok() == &TokenKind::RightBracket,
                 |p| p.cursor.cur_tok() == &TokenKind::Comma,
                 None,
             ) {
