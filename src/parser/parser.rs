@@ -177,14 +177,15 @@ impl Parser {
     }
 
     /// Parses all items until the given condition is no longer true, and then splits the result on the given delimiter.
-    pub fn parse_split_on<T: Parse, F>(
+    pub fn parse_split_on<T: Parse, FEnd, FDelim>(
         &mut self,
-        end: TokenKind,
-        deliminer: F,
+        end: FEnd,
+        deliminer: FDelim,
         starts_with_delimiter: Option<TokenKind>,
     ) -> Result<Vec<T>, Vec<ParseError>>
     where
-        F: Fn(&mut Self) -> bool,
+        FEnd: Fn(&mut Self) -> bool,
+        FDelim: Fn(&mut Self) -> bool,
     {
         self.trace("parse_split_on:start");
         if let Some(delim) = starts_with_delimiter {
@@ -199,7 +200,7 @@ impl Parser {
         }
 
         let mut items = Vec::new();
-        while !self.cursor.check(end) && !self.cursor.check(TokenKind::Eof) {
+        while end(self) && !self.cursor.check(TokenKind::Eof) {
             self.trace("parse_split_on:item");
             if deliminer(self) {
                 self.trace("parse_split_on:delimiter");

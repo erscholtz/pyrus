@@ -60,16 +60,25 @@ impl Parse for ArgType {
         match *p.cursor.cur_tok() {
             TokenKind::Identifier => {
                 let name = p.cursor.cur_text().to_string();
-                let ty;
-                if let Ok(_) = name.parse::<i32>() {
-                    ty = Type::Int;
-                } else if let Ok(_) = name.parse::<f64>() {
-                    ty = Type::Float;
-                } else {
-                    ty = Type::Var;
-                }
+                let ty = Type::Var;
                 p.cursor.advance();
                 Ok(Self { name, ty })
+            }
+            TokenKind::Int => {
+                let name = p.cursor.cur_text().to_string();
+                p.cursor.advance();
+                Ok(Self {
+                    name,
+                    ty: Type::Int,
+                })
+            }
+            TokenKind::Float => {
+                let name = p.cursor.cur_text().to_string();
+                p.cursor.advance();
+                Ok(Self {
+                    name,
+                    ty: Type::Float,
+                })
             }
             TokenKind::StringLiteral(idx) => {
                 let name = {

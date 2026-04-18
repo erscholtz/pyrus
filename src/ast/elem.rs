@@ -46,7 +46,7 @@ pub struct CodeElem {
 pub struct CallElem {
     pub name: String,
     pub args: Vec<ArgType>,
-    pub children: Vec<DocElem>,
+    pub children: Option<Vec<DocElem>>,
 }
 
 #[derive(Debug, Clone)]
