@@ -1,5 +1,5 @@
 use crate::{
-    ast::{Ast, DocElem, DocumentBlock, Stmt, StyleBlock, TemplateBlock},
+    ast::{Ast, DocElem, DocumentBlock, Stmt, StyleBlock, StyleRule, TemplateBlock},
     lexer::TokenKind,
     parser::{parse::Parse, parser::Parser, parser_err::ParseError},
 };
@@ -89,7 +89,6 @@ impl Parse for TemplateBlock {
     }
 }
 
-// TODO
 impl Parse for DocumentBlock {
     /// Parse a document block.
     fn parse(p: &mut Parser) -> Result<Self, ParseError> {
@@ -118,7 +117,10 @@ impl Parse for StyleBlock {
         p.cursor.expect(TokenKind::Style)?;
 
         p.cursor.expect(TokenKind::LeftBrace)?;
-        let statements = Vec::new();
+        let statements = match p.parse_until::<StyleRule>(TokenKind::RightBrace) {
+            Ok(statements) => statements,
+            Err(errors) => return Err(errors.into_iter().next().unwrap()),
+        };
         p.cursor.expect(TokenKind::RightBrace)?;
 
         Ok(StyleBlock { statements })

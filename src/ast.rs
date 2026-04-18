@@ -23,4 +23,4 @@ pub use stmt::{
     ChildrenStmt, ConstAssignStmt, DefaultSetStmt, ForStmt, IfStmt, ReturnStmt, Stmt, StmtKind,
     VarAssignStmt, WhileStmt,
 };
-pub use style::{KeyValue, Selector, StyleRule};
+pub use style::{KeyValue, Selector, StyleRule, StyleValue};

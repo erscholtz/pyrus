@@ -3,7 +3,7 @@ use crate::ast::Expr;
 #[derive(Debug, Clone)]
 pub struct KeyValue {
     pub key: String,
-    pub value: Expr,
+    pub value: StyleValue,
 }
 
 #[derive(Debug, Clone)]
@@ -40,6 +40,12 @@ impl StyleRule {
 
         id_count * 100 + class_count * 10 + type_count
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct StyleValue {
+    pub expr: Expr,
+    pub unit: Option<String>,
 }
 
 #[derive(Debug, Clone)]
