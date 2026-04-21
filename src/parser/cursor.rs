@@ -1,10 +1,8 @@
 // ! parser token traversal
 
-use super::parser_err::ParseError;
 use crate::{
-    diagnostic::SourceLocation,
-    lexer::tokens::StringEntry,
-    lexer::{TokenKind, TokenStream},
+    diagnostic::{SourceLocation, SyntaxError},
+    lexer::{TokenKind, TokenStream, tokens::StringEntry},
 };
 
 pub struct Cursor {
@@ -107,7 +105,7 @@ impl Cursor {
         token == &kind
     }
 
-    pub fn expect(&mut self, kind: TokenKind) -> Result<TokenKind, ParseError> {
+    pub fn expect(&mut self, kind: TokenKind) -> Result<TokenKind, SyntaxError> {
         if self.trace_enabled {
             eprintln!(
                 "[parse:{}:expect] want={:?} have={:?} text={:?} line={} col={}",
@@ -123,10 +121,11 @@ impl Cursor {
             self.advance();
             Ok(kind)
         } else {
-            Err(ParseError::new(
-                format!("Expected {:?}, found {:?}", kind, self.cur_tok()),
-                self.location(),
-            ))
+            Err(SyntaxError::UnexpectedToken {
+                location: self.location(),
+                expected: vec![kind],
+                found: self.cur_tok().clone(),
+            })
         }
     }
 

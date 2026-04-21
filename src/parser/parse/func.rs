@@ -1,7 +1,8 @@
 use crate::{
     ast::{ArgType, ExprKind, FuncDeclStmt, FuncParam, ReturnStmt, Stmt, StmtKind, Type},
+    diagnostic::SyntaxError,
     lexer::TokenKind,
-    parser::{parse::Parse, parser::Parser, parser_err::ParseError},
+    parser::{Parser, parse::Parse},
     util::Spanned,
 };
 
@@ -9,7 +10,7 @@ impl Parse for FuncParam {
     /// Parses a function parameter, which consists of a name and a type.
     ///
     /// Returns a `FuncParam` if successful, or a `ParseError` if the name is invalid.
-    fn parse(p: &mut Parser) -> Result<Self, ParseError> {
+    fn parse(p: &mut Parser) -> Result<Self, SyntaxError> {
         // Parse parameter name (identifier)
         let name = p.cursor.cur_text().to_owned();
         p.cursor.advance();
@@ -21,10 +22,11 @@ impl Parse for FuncParam {
             TokenKind::Int => Type::Int,
             TokenKind::Float => Type::Float,
             _ => {
-                return Err(ParseError::new(
-                    "Expected type identifier".to_string(),
-                    p.cursor.location(),
-                ));
+                return Err(SyntaxError::InvalidConstruct {
+                    location: p.cursor.location(),
+                    construct: "func param".to_string(),
+                    reason: "Expected type identifier".to_string(),
+                });
             }
         };
         p.cursor.advance(); // consume the type token
@@ -38,25 +40,13 @@ impl Parse for FuncParam {
         let value = Spanned::new(ExprKind::Identifier(name), p.cursor.location());
         Ok(Self { ty, value })
     }
-
-    /// Tries to parse a function parameter, which consists of a type and a value.
-    ///
-    /// Returns `Some` if a valid parameter is found, `None` otherwise.
-    fn try_parse(p: &mut Parser) -> Option<Self> {
-        if let Some(ty) = p.cursor.peek_tok() {
-            if let TokenKind::Identifier = ty {
-                return FuncParam::parse(p).ok();
-            }
-        }
-        None
-    }
 }
 
 impl Parse for ArgType {
     /// Parses an argument type, which consists of a name and a type.
     ///
     /// Returns an `ArgType` if successful, or a `ParseError` if the name is invalid.
-    fn parse(p: &mut Parser) -> Result<Self, ParseError> {
+    fn parse(p: &mut Parser) -> Result<Self, SyntaxError> {
         match *p.cursor.cur_tok() {
             TokenKind::Identifier => {
                 let name = p.cursor.cur_text().to_string();
@@ -82,9 +72,14 @@ impl Parse for ArgType {
             }
             TokenKind::StringLiteral(idx) => {
                 let name = {
-                    let entry = p.cursor.get_string(idx).ok_or_else(|| {
-                        ParseError::new("Expected string literal".to_string(), p.cursor.location())
-                    })?;
+                    let entry =
+                        p.cursor
+                            .get_string(idx)
+                            .ok_or_else(|| SyntaxError::InvalidConstruct {
+                                location: p.cursor.location(),
+                                construct: "func param".to_string(),
+                                reason: "Expected string literal".to_string(),
+                            })?;
                     entry.content.clone()
                 };
                 p.cursor.advance();
@@ -92,32 +87,12 @@ impl Parse for ArgType {
                 let ty = Type::String;
                 Ok(Self { name, ty })
             }
-            _ => Err(ParseError::new(
-                "Expected identifier".to_string(),
-                p.cursor.location(),
-            )),
+            _ => Err(SyntaxError::UnexpectedToken {
+                location: p.cursor.location(),
+                expected: vec![TokenKind::Identifier],
+                found: p.cursor.cur_tok().clone(),
+            }),
         }
-    }
-
-    /// Tries to parse a function parameter, which consists of a type and a value.
-    ///
-    /// returns `Some` if a valid parameter is found, `None` otherwise.
-    fn try_parse(p: &mut Parser) -> Option<Self> {
-        if let Some(ty) = p.cursor.peek_tok() {
-            if let TokenKind::Identifier = ty {
-                return ArgType::parse(p).ok();
-            } else if let TokenKind::StringLiteral(idx) = ty {
-                let Some(name) = p.cursor.get_string(*idx) else {
-                    return None;
-                };
-                let ty = Type::String;
-                return Some(Self {
-                    name: name.content.clone(),
-                    ty,
-                });
-            }
-        }
-        None
     }
 }
 
@@ -125,7 +100,7 @@ impl Parse for FuncDeclStmt {
     /// Parses a function declaration statement, which consists of a name, arguments, body, and return type.
     ///
     /// Returns a `FuncDeclStmt` if successful, or a `ParseError` if the name is invalid.
-    fn parse(p: &mut Parser) -> Result<Self, ParseError> {
+    fn parse(p: &mut Parser) -> Result<Self, SyntaxError> {
         p.cursor.expect(TokenKind::Func)?;
         let name = p.cursor.cur_text().to_owned();
         p.cursor.advance(); // consume the function name
@@ -155,17 +130,6 @@ impl Parse for FuncDeclStmt {
             body,
             return_type,
         })
-    }
-
-    /// Tries to parse a function declaration statement, which consists of a name, arguments, body, and return type.
-    ///
-    /// Returns `Some` if a valid statement is found, `None` otherwise.
-    fn try_parse(p: &mut Parser) -> Option<Self> {
-        if p.cursor.cur_tok() == &TokenKind::Identifier {
-            Some(FuncDeclStmt::parse(p).ok()?)
-        } else {
-            None
-        }
     }
 }
 

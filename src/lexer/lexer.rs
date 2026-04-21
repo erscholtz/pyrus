@@ -1,3 +1,4 @@
+use crate::diagnostic::SyntaxError;
 use crate::lexer::tokens::{StringEntry, TokenKind};
 
 static KEYWORD_TABLE: phf::Map<&'static str, TokenKind> = phf::phf_map! {
@@ -234,7 +235,7 @@ fn lex_text_body(
     *col += 1;
 }
 
-pub fn lex(source: &str, file: &str) -> Result<TokenStream, Vec<LexError>> {
+pub fn lex(source: &str, file: &str) -> Result<TokenStream, Vec<SyntaxError>> {
     let mut out = TokenStream::new(source.to_string(), file.to_string());
     let bytes = source.as_bytes();
     let len = bytes.len();
@@ -397,7 +398,9 @@ pub fn lex(source: &str, file: &str) -> Result<TokenStream, Vec<LexError>> {
                 (Some(PendingTextBody::InAttributes(depth)), TokenKind::LeftParen) => {
                     Some(PendingTextBody::InAttributes(depth + 1))
                 }
-                (Some(PendingTextBody::InAttributes(depth)), TokenKind::RightParen) if depth > 1 => {
+                (Some(PendingTextBody::InAttributes(depth)), TokenKind::RightParen)
+                    if depth > 1 =>
+                {
                     Some(PendingTextBody::InAttributes(depth - 1))
                 }
                 (Some(PendingTextBody::InAttributes(1)), TokenKind::RightParen) => {

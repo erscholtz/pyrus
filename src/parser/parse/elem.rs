@@ -5,33 +5,23 @@ use crate::{
         ArgType, CallElem, ChildrenElem, DocElem, DocElemKind, Expr, ImageElem, LinkElem, ListElem,
         SectionElem, TableElem, TextElem,
     },
+    diagnostic::SyntaxError,
     lexer::TokenKind,
-    parser::{parse::Parse, parser::Parser, parser_err::ParseError},
+    parser::{Parser, parse::Parse},
 };
 
 impl Parse for DocElem {
     /// Parses a document element, e.g. `@Text("hello")`.
-    fn parse(p: &mut Parser) -> Result<Self, ParseError> {
+    fn parse(p: &mut Parser) -> Result<Self, SyntaxError> {
         let location = p.cursor.location();
         let node = DocElemKind::parse(p)?;
         Ok(Self { node, location })
-    }
-
-    /// Tries to parse a document element.
-    fn try_parse(p: &mut Parser) -> Option<Self> {
-        if p.cursor.check(TokenKind::At) {
-            let location = p.cursor.location();
-            let node = DocElemKind::try_parse(p)?;
-            Some(Self { node, location })
-        } else {
-            None
-        }
     }
 }
 
 impl Parse for DocElemKind {
     /// Parses a document element.
-    fn parse(p: &mut Parser) -> Result<Self, ParseError> {
+    fn parse(p: &mut Parser) -> Result<Self, SyntaxError> {
         p.cursor.expect(TokenKind::At)?;
         match p.cursor.cur_tok() {
             TokenKind::Text => TextElem::parse(p).map(|s| s.into()),
@@ -43,17 +33,22 @@ impl Parse for DocElemKind {
             TokenKind::Section => SectionElem::parse(p).map(|s| s.into()),
             TokenKind::Children => ChildrenElem::parse(p).map(|s| s.into()),
             _ => {
-                return Err(ParseError::new(
-                    format!("Expected Text, found {:?}", p.cursor.cur_tok()),
-                    p.cursor.location(),
-                ));
+                return Err(SyntaxError::UnexpectedToken {
+                    location: p.cursor.location(),
+                    expected: vec![
+                        TokenKind::Text,
+                        TokenKind::Image,
+                        TokenKind::Table,
+                        TokenKind::List,
+                        TokenKind::Identifier,
+                        TokenKind::Link,
+                        TokenKind::Section,
+                        TokenKind::Children,
+                    ],
+                    found: p.cursor.cur_tok().clone(),
+                });
             }
         }
-    }
-
-    /// Tries to parse a document element.
-    fn try_parse(p: &mut Parser) -> Option<Self> {
-        Self::parse(p).ok()
     }
 }
 
@@ -86,7 +81,7 @@ impl Parse for TextElem {
     /// Parses a text element,
     ///
     /// `@Text() [ hello ]` -> `TextElem { content: "hello", attributes: HashMap::new() }`.
-    fn parse(p: &mut Parser) -> Result<Self, ParseError> {
+    fn parse(p: &mut Parser) -> Result<Self, SyntaxError> {
         p.cursor.expect(TokenKind::Text)?;
 
         let attributes = DocElemKind::parse_style_attributes(p);
@@ -99,17 +94,13 @@ impl Parse for TextElem {
             attributes,
         })
     }
-
-    fn try_parse(p: &mut Parser) -> Option<Self> {
-        Self::parse(p).ok()
-    }
 }
 
 impl Parse for ImageElem {
     /// Parses an image element,
     ///
     /// `@Image("path/to/image.png")` -> `ImageElem { src: "path/to/image.png", attributes: HashMap::new() }`.
-    fn parse(p: &mut Parser) -> Result<Self, ParseError> {
+    fn parse(p: &mut Parser) -> Result<Self, SyntaxError> {
         p.cursor.expect(TokenKind::Image)?;
 
         let attributes = DocElemKind::parse_style_attributes(p);
@@ -118,10 +109,6 @@ impl Parse for ImageElem {
         let src = Expr::parse(p)?.to_string();
         p.cursor.expect(TokenKind::RightBracket)?;
         Ok(Self { src, attributes })
-    }
-
-    fn try_parse(p: &mut Parser) -> Option<Self> {
-        Self::parse(p).ok()
     }
 }
 
@@ -134,7 +121,7 @@ impl Parse for TableElem {
     ///     | text | text |
     /// ]`
     /// -> `TableElem { table: [[text, text], [text, text]], attributes: HashMap::new() }`.
-    fn parse(p: &mut Parser) -> Result<Self, ParseError> {
+    fn parse(p: &mut Parser) -> Result<Self, SyntaxError> {
         p.cursor.expect(TokenKind::Table)?;
 
         let attributes = DocElemKind::parse_style_attributes(p);
@@ -145,14 +132,10 @@ impl Parse for TableElem {
 
         Ok(Self { table, attributes })
     }
-
-    fn try_parse(p: &mut Parser) -> Option<Self> {
-        Self::parse(p).ok()
-    }
 }
 
 impl TableElem {
-    fn parse_table(p: &mut Parser) -> Result<Vec<Vec<DocElem>>, ParseError> {
+    fn parse_table(p: &mut Parser) -> Result<Vec<Vec<DocElem>>, SyntaxError> {
         let mut table = Vec::new();
         // header
         let header: Vec<_> = match p.parse_split_on(
@@ -192,10 +175,11 @@ impl TableElem {
             if row.len() == colum_count {
                 table.push(row);
             } else {
-                return Err(ParseError::new(
-                    format!("Expected {} columns, got {}", colum_count, row.len()),
-                    p.cursor.location(),
-                ));
+                return Err(SyntaxError::InvalidConstruct {
+                    location: p.cursor.location(),
+                    construct: "table row".to_string(),
+                    reason: format!("Expected {} columns, got {}", colum_count, row.len()),
+                });
             }
         }
 
@@ -208,7 +192,7 @@ impl TableElem {
         Ok(table)
     }
 
-    fn parse_divider_row(p: &mut Parser, column_count: usize) -> Result<(), ParseError> {
+    fn parse_divider_row(p: &mut Parser, column_count: usize) -> Result<(), SyntaxError> {
         p.cursor.expect(TokenKind::Pipe)?;
         p.cursor.expect(TokenKind::Pipe)?;
 
@@ -220,10 +204,11 @@ impl TableElem {
             }
 
             if dash_count == 0 {
-                return Err(ParseError::new(
-                    "expected at least one '-' in table divider row".to_string(),
-                    p.cursor.location(),
-                ));
+                return Err(SyntaxError::UnexpectedToken {
+                    location: p.cursor.location(),
+                    expected: vec![TokenKind::Minus],
+                    found: p.cursor.cur_tok().clone(),
+                });
             }
 
             p.cursor.expect(TokenKind::Pipe)?;
@@ -241,7 +226,7 @@ impl Parse for ListElem {
     ///     - item 2
     /// ]`
     /// -> `ListElem { items: [item1, item2], attributes: HashMap::new(), numbered: false }`.
-    fn parse(p: &mut Parser) -> Result<Self, ParseError> {
+    fn parse(p: &mut Parser) -> Result<Self, SyntaxError> {
         p.cursor.expect(TokenKind::List)?;
 
         let attributes = DocElemKind::parse_style_attributes(p);
@@ -264,17 +249,13 @@ impl Parse for ListElem {
             numbered: false,
         })
     }
-
-    fn try_parse(p: &mut Parser) -> Option<Self> {
-        Self::parse(p).ok()
-    }
 }
 
 impl Parse for CallElem {
     /// Parses a call element, e.g.
     ///
     /// `@Call("func", [arg1, arg2])` -> `CallElem { name: "func", args: [arg1, arg2], children: [] }`.
-    fn parse(p: &mut Parser) -> Result<Self, ParseError> {
+    fn parse(p: &mut Parser) -> Result<Self, SyntaxError> {
         let name = p.cursor.cur_text().to_owned();
         p.cursor.expect(TokenKind::Identifier)?;
 
@@ -311,47 +292,45 @@ impl Parse for CallElem {
             children,
         })
     }
-
-    fn try_parse(p: &mut Parser) -> Option<Self> {
-        Self::parse(p).ok()
-    }
 }
 
 impl Parse for LinkElem {
     /// Parses a link element, e.g.
     ///
     /// `@Link("https://example.com", "Example")` -> `LinkElem { href: "https://example.com", content: "Example", attributes: HashMap::new() }`.
-    fn parse(p: &mut Parser) -> Result<Self, ParseError> {
+    fn parse(p: &mut Parser) -> Result<Self, SyntaxError> {
         p.cursor.expect(TokenKind::Link)?;
 
         let attributes = DocElemKind::parse_style_attributes(p);
 
         p.cursor.expect(TokenKind::LeftBracket)?;
         let TokenKind::StringLiteral(idx) = p.cursor.cur_tok().clone() else {
-            return Err(ParseError::new(
-                "Expected a string literal for the href of a link".to_string(),
-                p.cursor.location(),
-            ));
+            return Err(SyntaxError::UnexpectedToken {
+                location: p.cursor.location(),
+                expected: vec![TokenKind::StringLiteral(0)],
+                found: p.cursor.cur_tok().clone(),
+            });
         };
         p.cursor.advance();
         let Some(href) = p.cursor.get_string(idx).cloned() else {
-            return Err(ParseError::new(
-                "Expected a string literal for the href of a link".to_string(),
-                p.cursor.location(),
-            ));
+            return Err(SyntaxError::MissingToken {
+                location: p.cursor.location(),
+                expected: TokenKind::StringLiteral(0),
+            });
         };
         p.cursor.expect(TokenKind::Comma)?;
-        let TokenKind::StringLiteral(idx) = p.cursor.cur_tok() else {
-            return Err(ParseError::new(
-                "Expected a string literal for the content of a link".to_string(),
-                p.cursor.location(),
-            ));
+        let TokenKind::StringLiteral(idx) = p.cursor.cur_tok().clone() else {
+            return Err(SyntaxError::UnexpectedToken {
+                location: p.cursor.location(),
+                expected: vec![TokenKind::StringLiteral(0)],
+                found: p.cursor.cur_tok().clone(),
+            });
         };
-        let Some(content) = p.cursor.get_string(*idx).cloned() else {
-            return Err(ParseError::new(
-                "Expected a string literal for the content of a link".to_string(),
-                p.cursor.location(),
-            ));
+        let Some(content) = p.cursor.get_string(idx).cloned() else {
+            return Err(SyntaxError::MissingToken {
+                location: p.cursor.location(),
+                expected: TokenKind::StringLiteral(0),
+            });
         };
         p.cursor.advance();
         p.cursor.expect(TokenKind::RightBracket)?;
@@ -362,17 +341,13 @@ impl Parse for LinkElem {
             attributes,
         })
     }
-
-    fn try_parse(p: &mut Parser) -> Option<Self> {
-        Self::parse(p).ok()
-    }
 }
 
 impl Parse for SectionElem {
     /// Parses a section element, e.g.
     ///
     /// `@Section("title") [ @text("content") [] ]` -> `SectionElem { title: "title", children: [child1, child2], attributes: HashMap::new() }`.
-    fn parse(p: &mut Parser) -> Result<Self, ParseError> {
+    fn parse(p: &mut Parser) -> Result<Self, SyntaxError> {
         p.cursor.expect(TokenKind::Section)?;
 
         let attributes = DocElemKind::parse_style_attributes(p);
@@ -389,22 +364,14 @@ impl Parse for SectionElem {
             attributes,
         })
     }
-
-    fn try_parse(p: &mut Parser) -> Option<Self> {
-        Self::parse(p).ok()
-    }
 }
 
 impl Parse for ChildrenElem {
     /// if this isnt present render children defaults to false
-    fn parse(p: &mut Parser) -> Result<Self, ParseError> {
+    fn parse(p: &mut Parser) -> Result<Self, SyntaxError> {
         p.cursor.expect(TokenKind::Children)?;
         Ok(Self {
             render_childen: true,
         })
-    }
-
-    fn try_parse(p: &mut Parser) -> Option<Self> {
-        Self::parse(p).ok()
     }
 }

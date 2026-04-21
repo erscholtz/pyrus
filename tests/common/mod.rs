@@ -1,7 +1,8 @@
 use pyrus::{
     ast::{Ast, DocElem, Stmt},
+    diagnostic::SyntaxError,
     lexer::lex,
-    parser::{Parser, parser_err::ParseError},
+    parser::Parser,
 };
 
 pub fn parse_ast(source: &str) -> Ast {
@@ -10,7 +11,7 @@ pub fn parse_ast(source: &str) -> Ast {
     parser.parse::<Ast>().expect("Parsing failed")
 }
 
-pub fn parse_errors(source: &str) -> Vec<ParseError> {
+pub fn parse_errors(source: &str) -> Vec<SyntaxError> {
     let tokens = lex(source, "test.ink").expect("Lexing failed");
     let mut parser = Parser::new(tokens);
     parser.parse::<Ast>().expect_err("Parsing should fail")

@@ -1,12 +1,13 @@
 use crate::{
     ast::{Ast, DocElem, DocumentBlock, Stmt, StyleBlock, StyleRule, TemplateBlock},
+    diagnostic::SyntaxError,
     lexer::TokenKind,
-    parser::{parse::Parse, parser::Parser, parser_err::ParseError},
+    parser::{Parser, parse::Parse},
 };
 
 impl Parse for Ast {
     /// Parse an AST.
-    fn parse(p: &mut Parser) -> Result<Self, ParseError> {
+    fn parse(p: &mut Parser) -> Result<Self, SyntaxError> {
         let file = p.file.clone();
         let mut template = None;
         let mut document = None;
@@ -17,39 +18,43 @@ impl Parse for Ast {
             match p.cursor.cur_tok() {
                 TokenKind::Template => {
                     if template.is_some() {
-                        return Err(ParseError::new(
-                            "duplicate template block".to_string(),
-                            p.cursor.location(),
-                        ));
+                        return Err(SyntaxError::InvalidConstruct {
+                            location: p.cursor.location(),
+                            construct: "template".to_string(),
+                            reason: "duplicate template block".to_string(),
+                        });
                     }
                     template = Some(TemplateBlock::parse(p)?);
                 }
                 TokenKind::Document => {
                     if document.is_some() {
-                        return Err(ParseError::new(
-                            "duplicate document block".to_string(),
-                            p.cursor.location(),
-                        ));
+                        return Err(SyntaxError::InvalidConstruct {
+                            location: p.cursor.location(),
+                            construct: "document".to_string(),
+                            reason: "duplicate document block".to_string(),
+                        });
                     }
                     document = Some(DocumentBlock::parse(p)?);
                 }
                 TokenKind::Style => {
                     if style.is_some() {
-                        return Err(ParseError::new(
-                            "duplicate style block".to_string(),
-                            p.cursor.location(),
-                        ));
+                        return Err(SyntaxError::InvalidConstruct {
+                            location: p.cursor.location(),
+                            construct: "style".to_string(),
+                            reason: "duplicate style block".to_string(),
+                        });
                     }
                     style = Some(StyleBlock::parse(p)?);
                 }
                 _ => {
-                    return Err(ParseError::new(
-                        format!(
+                    return Err(SyntaxError::InvalidConstruct {
+                        location: p.cursor.location(),
+                        construct: "root".to_string(),
+                        reason: format!(
                             "unexpected token {:?}, expected template, document, or style",
                             p.cursor.cur_tok(),
                         ),
-                        p.cursor.location(),
-                    ));
+                    });
                 }
             }
         }
@@ -61,16 +66,11 @@ impl Parse for Ast {
             style,
         })
     }
-
-    /// Try to parse an AST.
-    fn try_parse(p: &mut Parser) -> Option<Self> {
-        Self::parse(p).ok()
-    }
 }
 
 impl Parse for TemplateBlock {
     /// Parse a template block.
-    fn parse(p: &mut Parser) -> Result<Self, ParseError> {
+    fn parse(p: &mut Parser) -> Result<Self, SyntaxError> {
         p.cursor.expect(TokenKind::Template)?;
 
         p.cursor.expect(TokenKind::LeftBrace)?;
@@ -82,16 +82,11 @@ impl Parse for TemplateBlock {
 
         Ok(TemplateBlock { statements })
     }
-
-    /// Try to parse a template block.
-    fn try_parse(p: &mut Parser) -> Option<Self> {
-        Self::parse(p).ok()
-    }
 }
 
 impl Parse for DocumentBlock {
     /// Parse a document block.
-    fn parse(p: &mut Parser) -> Result<Self, ParseError> {
+    fn parse(p: &mut Parser) -> Result<Self, SyntaxError> {
         p.cursor.expect(TokenKind::Document)?;
 
         p.cursor.expect(TokenKind::LeftBrace)?;
@@ -103,17 +98,12 @@ impl Parse for DocumentBlock {
 
         Ok(DocumentBlock { elements })
     }
-
-    /// Try to parse a document block.
-    fn try_parse(p: &mut Parser) -> Option<Self> {
-        Self::parse(p).ok()
-    }
 }
 
 // TODO
 impl Parse for StyleBlock {
     /// Parse a style block.
-    fn parse(p: &mut Parser) -> Result<Self, ParseError> {
+    fn parse(p: &mut Parser) -> Result<Self, SyntaxError> {
         p.cursor.expect(TokenKind::Style)?;
 
         p.cursor.expect(TokenKind::LeftBrace)?;
@@ -124,10 +114,5 @@ impl Parse for StyleBlock {
         p.cursor.expect(TokenKind::RightBrace)?;
 
         Ok(StyleBlock { statements })
-    }
-
-    /// Try to parse a style block.
-    fn try_parse(p: &mut Parser) -> Option<Self> {
-        Self::parse(p).ok()
     }
 }

@@ -1,4 +1,4 @@
-use super::{Diagnostic, Severity, SourceLocation, Span};
+use super::{Diagnostic, Severity, SourceLocation};
 
 /// Semantic errors detected during HLIR validation and type checking
 #[derive(Debug, Clone)]
@@ -79,6 +79,131 @@ pub enum SemanticError {
 }
 
 impl SemanticError {
+    pub fn type_mismatch(
+        expected: impl Into<String>,
+        found: impl Into<String>,
+        expression: Option<String>,
+        location: SourceLocation,
+    ) -> Self {
+        Self::TypeMismatch {
+            location,
+            expected: expected.into(),
+            found: found.into(),
+            expression,
+        }
+    }
+
+    pub fn undefined_variable(name: impl Into<String>, location: SourceLocation) -> Self {
+        Self::UndefinedVariable {
+            location,
+            name: name.into(),
+        }
+    }
+
+    pub fn invalid_binary_op(
+        op: impl Into<String>,
+        left_type: impl Into<String>,
+        right_type: impl Into<String>,
+        location: SourceLocation,
+    ) -> Self {
+        Self::InvalidBinaryOp {
+            location,
+            op: op.into(),
+            left_type: left_type.into(),
+            right_type: right_type.into(),
+        }
+    }
+
+    pub fn invalid_unary_op(
+        op: impl Into<String>,
+        operand_type: impl Into<String>,
+        location: SourceLocation,
+    ) -> Self {
+        Self::InvalidUnaryOp {
+            location,
+            op: op.into(),
+            operand_type: operand_type.into(),
+        }
+    }
+
+    pub fn argument_count_mismatch(
+        function: impl Into<String>,
+        expected: usize,
+        found: usize,
+        location: SourceLocation,
+    ) -> Self {
+        Self::ArgumentCountMismatch {
+            location,
+            function: function.into(),
+            expected,
+            found,
+        }
+    }
+
+    pub fn argument_type_mismatch(
+        function: impl Into<String>,
+        arg_index: usize,
+        expected: impl Into<String>,
+        found: impl Into<String>,
+        location: SourceLocation,
+    ) -> Self {
+        Self::ArgumentTypeMismatch {
+            location,
+            function: function.into(),
+            arg_index,
+            expected: expected.into(),
+            found: found.into(),
+        }
+    }
+
+    pub fn duplicate_definition(
+        name: impl Into<String>,
+        previous_location: Option<SourceLocation>,
+        location: SourceLocation,
+    ) -> Self {
+        Self::DuplicateDefinition {
+            location,
+            name: name.into(),
+            previous_location,
+        }
+    }
+
+    pub fn invalid_style_property(
+        property: impl Into<String>,
+        value: impl Into<String>,
+        location: SourceLocation,
+    ) -> Self {
+        Self::InvalidStyleProperty {
+            location,
+            property: property.into(),
+            value: value.into(),
+        }
+    }
+
+    pub fn missing_style_property(
+        element: impl Into<String>,
+        property: impl Into<String>,
+        location: SourceLocation,
+    ) -> Self {
+        Self::MissingStyleProperty {
+            location,
+            element: element.into(),
+            property: property.into(),
+        }
+    }
+
+    pub fn invalid_layout_constraint(
+        constraint: impl Into<String>,
+        reason: impl Into<String>,
+        location: SourceLocation,
+    ) -> Self {
+        Self::InvalidLayoutConstraint {
+            location,
+            constraint: constraint.into(),
+            reason: reason.into(),
+        }
+    }
+
     /// Get a short code for the error type (useful for documentation)
     pub fn code(&self) -> &'static str {
         match self {

@@ -1,6 +1,7 @@
 mod common;
 
 use common::{parse_ast, parse_errors};
+use pyrus::diagnostic::Diagnostic;
 
 #[test]
 fn test_parse_empty_document() {

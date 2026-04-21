@@ -27,12 +27,12 @@ document {
 
     // text
 
-    @text [ This is content ]      // Text block, can be styled and accepts @break for formatting line breaks
+    @text (class="body") [ This is content ]      // Text block, can be styled and accepts @break for formatting line breaks
 
     // lists
 
     @list [                        // List with content block
-        - @text [ First item ]               // block is for handling newline that should still be under the list
+        - @text (id="first-item")[ First item ]               // block is for handling newline that should still be under the list
         - @text [ Second item ]
         - @text [ Third item ]
     ]

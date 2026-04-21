@@ -7,7 +7,7 @@ use std::time::Instant;
 // use pyrus::hir;
 // use pyrus::hir::HirDisplayExt;
 // use pyrus::layout::setup_layout;
-use pyrus::{ast::Ast, lexer, parser::Parser};
+use pyrus::{ast::Ast, diagnostic::DiagnosticManager, lexer, parser::Parser};
 
 fn main() {
     let last = Instant::now();
@@ -29,22 +29,22 @@ fn main() {
     };
     let data = fs::read_to_string(filename).expect("Should be able to read test file");
 
+    let mut dm = DiagnosticManager::default();
+
     let tokens = match lexer::lex(&data, filename) {
         Ok(tokens) => tokens,
         Err(errors) => {
             for error in errors {
-                println!("Lexing error: {}", error.message);
+                println!("Lexing error: {}", error);
             }
             return;
         }
     };
     println!("{:?}", &tokens);
 
-    let ast = Parser::new(tokens)
-        .enable_tracing()
-        .continue_on_error()
-        .parse::<Ast>()
-        .expect("Should be able to parse tokens to AST");
+    let mut parser = Parser::new(tokens).enable_tracing();
+    let ast = parser.parse::<Ast>();
+    parser.gather_errors(&mut dm);
     println!("{:#?}", ast);
 
     // let hir_module = hir::lower(&ast).expect("Should be able to lower AST to HIR");

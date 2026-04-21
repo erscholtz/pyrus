@@ -3,26 +3,22 @@ use crate::{
         ChildrenStmt, ConstAssignStmt, DefaultSetStmt, DocElem, Expr, FuncDeclStmt, ReturnStmt,
         Stmt, StmtKind, VarAssignStmt,
     },
+    diagnostic::SyntaxError,
     lexer::TokenKind,
-    parser::{parse::Parse, parser::Parser, parser_err::ParseError},
+    parser::{Parser, parse::Parse},
     util::Spanned,
 };
 
 impl Parse for Stmt {
     /// Parse a statement.
-    fn parse(p: &mut Parser) -> Result<Self, ParseError> {
+    fn parse(p: &mut Parser) -> Result<Self, SyntaxError> {
         Ok(Spanned::new(StmtKind::parse(p)?, p.cursor.location()))
-    }
-
-    /// Try to parse a statement.
-    fn try_parse(p: &mut Parser) -> Option<Self> {
-        Self::parse(p).ok()
     }
 }
 
 impl Parse for StmtKind {
     /// Parse a statement kind.
-    fn parse(p: &mut Parser) -> Result<Self, ParseError> {
+    fn parse(p: &mut Parser) -> Result<Self, SyntaxError> {
         match p.cursor.cur_tok() {
             TokenKind::Identifier => DefaultSetStmt::parse(p).map(|s| s.into()),
             TokenKind::Const => ConstAssignStmt::parse(p).map(|s| s.into()),
@@ -34,22 +30,25 @@ impl Parse for StmtKind {
             // TokenKind::If => IfStmt::parse(p).map(|s| s.into()),
             // TokenKind::While => WhileStmt::parse(p).map(|s| s.into()),
             // TokenKind::For => ForStmt::parse(p).map(|s| s.into()),
-            _ => Err(ParseError::new(
-                format!("Unexpected Token: {}", p.cursor.cur_tok()),
-                p.cursor.location(),
-            )),
+            _ => Err(SyntaxError::UnexpectedToken {
+                location: p.cursor.location(),
+                expected: vec![
+                    TokenKind::Identifier,
+                    TokenKind::Const,
+                    TokenKind::Let,
+                    TokenKind::Return,
+                    TokenKind::Func,
+                    TokenKind::Children,
+                ],
+                found: p.cursor.cur_tok().clone(),
+            }),
         }
-    }
-
-    /// Try to parse a statement kind.
-    fn try_parse(p: &mut Parser) -> Option<Self> {
-        Self::parse(p).ok()
     }
 }
 
 impl Parse for DefaultSetStmt {
     /// Parse a default set statement.
-    fn parse(p: &mut Parser) -> Result<Self, ParseError> {
+    fn parse(p: &mut Parser) -> Result<Self, SyntaxError> {
         let varname = p.cursor.cur_text().to_owned();
         p.cursor.advance();
         p.cursor.expect(TokenKind::Equals)?;
@@ -59,20 +58,11 @@ impl Parse for DefaultSetStmt {
             value,
         })
     }
-
-    /// Try to parse a default set statement.
-    fn try_parse(p: &mut Parser) -> Option<Self> {
-        if p.cursor.cur_tok() == &TokenKind::Identifier {
-            Some(DefaultSetStmt::parse(p).ok()?)
-        } else {
-            None
-        }
-    }
 }
 
 impl Parse for ConstAssignStmt {
     /// Parse a constant assignment statement.
-    fn parse(p: &mut Parser) -> Result<Self, ParseError> {
+    fn parse(p: &mut Parser) -> Result<Self, SyntaxError> {
         p.cursor.expect(TokenKind::Const)?;
         let varname = p.cursor.cur_text().to_owned();
         p.cursor.advance();
@@ -83,20 +73,11 @@ impl Parse for ConstAssignStmt {
             value,
         })
     }
-
-    /// Try to parse a constant assignment statement.
-    fn try_parse(p: &mut Parser) -> Option<Self> {
-        if p.cursor.cur_tok() == &TokenKind::Identifier {
-            Some(ConstAssignStmt::parse(p).ok()?)
-        } else {
-            None
-        }
-    }
 }
 
 impl Parse for VarAssignStmt {
     /// Parse a variable assignment statement.
-    fn parse(p: &mut Parser) -> Result<Self, ParseError> {
+    fn parse(p: &mut Parser) -> Result<Self, SyntaxError> {
         p.cursor.expect(TokenKind::Let)?;
         let varname = p.cursor.cur_text().to_owned();
         p.cursor.advance();
@@ -107,20 +88,11 @@ impl Parse for VarAssignStmt {
             value,
         })
     }
-
-    /// Try to parse a variable assignment statement.
-    fn try_parse(p: &mut Parser) -> Option<Self> {
-        if p.cursor.cur_tok() == &TokenKind::Identifier {
-            Some(VarAssignStmt::parse(p).ok()?)
-        } else {
-            None
-        }
-    }
 }
 
 impl Parse for ReturnStmt {
     /// Parse a return statement.
-    fn parse(p: &mut Parser) -> Result<Self, ParseError> {
+    fn parse(p: &mut Parser) -> Result<Self, SyntaxError> {
         p.cursor.expect(TokenKind::Return)?;
         if p.cursor.cur_tok() == &TokenKind::At {
             let doc_elem = DocElem::parse(p)?;
@@ -129,30 +101,12 @@ impl Parse for ReturnStmt {
         let expr = Expr::parse(p)?;
         Ok(ReturnStmt::Expr(expr))
     }
-
-    /// Try to parse a return statement.
-    fn try_parse(p: &mut Parser) -> Option<Self> {
-        if p.cursor.cur_tok() == &TokenKind::Return {
-            Some(ReturnStmt::parse(p).ok()?)
-        } else {
-            None
-        }
-    }
 }
 
 impl Parse for ChildrenStmt {
     /// Parse a children statement.
-    fn parse(p: &mut Parser) -> Result<Self, ParseError> {
+    fn parse(p: &mut Parser) -> Result<Self, SyntaxError> {
         p.cursor.expect(TokenKind::Children)?;
         Ok(ChildrenStmt { children: true })
-    }
-
-    /// Try to parse a children statement.
-    fn try_parse(p: &mut Parser) -> Option<Self> {
-        if p.cursor.cur_tok() == &TokenKind::Children {
-            Some(ChildrenStmt::parse(p).ok()?)
-        } else {
-            None
-        }
     }
 }
