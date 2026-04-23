@@ -98,10 +98,21 @@ impl ExprKind {
                 UnaryOp::Negate => format!("-{}", expr.to_string()),
                 UnaryOp::Not => format!("!{}", expr.to_string()),
             },
+            ExprKind::Binary(BinaryExpr { left, op, right }) => {
+                let op = match op {
+                    BinOp::Add => "+",
+                    BinOp::Subtract => "-",
+                    BinOp::Multiply => "*",
+                    BinOp::Divide => "/",
+                    BinOp::Equals => "=",
+                    BinOp::Mod => "%",
+                };
+                format!("{} {} {}", left.to_string(), op, right.to_string())
+            }
+            ExprKind::Identifier(name) => name.clone(),
             ExprKind::StructDefault(StructDefaultExpr { name }) => format!("default({})", name),
             ExprKind::Int(value) => format!("{}", value),
             ExprKind::Float(value) => format!("{}", value),
-            _ => "Error".to_string(),
         }
     }
 }

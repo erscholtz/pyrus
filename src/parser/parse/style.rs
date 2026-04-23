@@ -26,11 +26,7 @@ impl Parse for StyleRule {
         };
         p.cursor.expect(TokenKind::RightBrace)?;
 
-        Ok(Self {
-            selector_list,
-            declaration_block: declarations,
-            specificity: 0,
-        })
+        Ok(Self::new(selector_list, declarations))
     }
 }
 
@@ -109,7 +105,7 @@ impl KeyValue {
             TokenKind::Identifier => Some(p.cursor.cur_text().to_string()),
             _ => None,
         };
-        if let Some(unit) = unit.clone() {
+        if let Some(_) = unit.clone() {
             p.cursor.advance();
         }
 

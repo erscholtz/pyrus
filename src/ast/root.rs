@@ -27,6 +27,17 @@ pub struct Ast {
     pub style: Option<StyleBlock>,
 }
 
+impl Default for Ast {
+    fn default() -> Self {
+        Self {
+            file: String::new(),
+            template: None,
+            document: None,
+            style: None,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum Type {
     String,

@@ -1,7 +1,7 @@
 pub mod func_pass;
+pub mod global_pass;
 pub mod style_pass;
 pub mod validation_pass;
-pub mod var_pass;
 
 use crate::ast::Ast;
 use crate::hir::HIRModule;

@@ -1,10 +1,10 @@
 use crate::ast::{Ast, KeyValue, Selector, StyleRule};
 use crate::hir::HIRModule;
 use crate::hir::hir_passes::HIRPass;
+use crate::hir::hir_types::{PageBreak, StyleAttributes};
 use crate::hir::hir_util::hir_error::HirError;
-use crate::hir::ir_types::{PageBreak, StyleAttributes};
 
-pub struct StylePass {}
+pub struct StylePass;
 
 impl<'ast_lifetime> HIRPass for StylePass {
     fn run(&mut self, hir: &mut crate::hir::HIRModule, ast: &Ast) -> Result<(), Vec<HirError>> {
@@ -99,7 +99,7 @@ impl StylePass {
         declarations: &[KeyValue],
     ) {
         for decl in declarations {
-            let value_str = self.expr_to_string(&decl.value);
+            let value_str = self.style_value_to_string(&decl.value);
             computed.set(&decl.key, value_str);
         }
     }
@@ -159,48 +159,53 @@ impl StylePass {
         }
     }
 
-    fn expr_to_string(&mut self, expr: &crate::ast::Expression) -> String {
-        use crate::ast::ExpressionKind;
+    fn style_value_to_string(&self, value: &crate::ast::StyleValue) -> String {
+        let mut rendered = self.expr_to_string(&value.expr);
+        if let Some(unit) = &value.unit {
+            rendered.push_str(unit);
+        }
+        rendered
+    }
 
-        match &expr.node {
-            ExpressionKind::StringLiteral(s) => s.clone(),
-            ExpressionKind::Int(n) => n.to_string(),
-            ExpressionKind::Float(f) => f.to_string(),
-            ExpressionKind::Identifier(s) => s.clone(),
-            ExpressionKind::StructDefault(s) => format!("default({})", s),
-            ExpressionKind::InterpolatedString { parts } => {
+    fn expr_to_string(&self, expr: &crate::ast::Expr) -> String {
+        self.expr_kind_to_string(&expr.node)
+    }
+
+    fn expr_kind_to_string(&self, expr: &crate::ast::ExprKind) -> String {
+        use crate::ast::{BinaryExpr, ExprKind, InterpolatedStringExpr, UnaryExpr};
+
+        match expr {
+            ExprKind::StringLiteral(s) => s.clone(),
+            ExprKind::Int(n) => n.to_string(),
+            ExprKind::Float(f) => f.to_string(),
+            ExprKind::Identifier(s) => s.clone(),
+            ExprKind::StructDefault(s) => format!("default({})", s.name),
+            ExprKind::InterpolatedString(InterpolatedStringExpr { parts }) => {
                 let mut result = String::new();
                 for part in parts {
                     match part {
-                        ExpressionKind::StringLiteral(s) => result.push_str(s),
-                        ExpressionKind::Int(n) => result.push_str(&n.to_string()),
-                        ExpressionKind::Float(f) => result.push_str(&f.to_string()),
-                        ExpressionKind::Identifier(s) => result.push_str(s),
-                        ExpressionKind::StructDefault(s) => {
-                            result.push_str(&format!("default({})", s))
+                        ExprKind::StringLiteral(s) => result.push_str(s),
+                        ExprKind::Int(n) => result.push_str(&n.to_string()),
+                        ExprKind::Float(f) => result.push_str(&f.to_string()),
+                        ExprKind::Identifier(s) => result.push_str(s),
+                        ExprKind::StructDefault(s) => {
+                            result.push_str(&format!("default({})", s.name))
                         }
                         _ => {}
                     }
                 }
                 result
             }
-            ExpressionKind::Binary {
-                left,
-                operator,
-                right,
-            } => {
+            ExprKind::Binary(BinaryExpr { left, op, right }) => {
                 format!(
                     "{} {:?} {}",
-                    self.expr_to_string(left),
-                    operator,
-                    self.expr_to_string(right)
+                    self.expr_kind_to_string(left),
+                    op,
+                    self.expr_kind_to_string(right)
                 )
             }
-            ExpressionKind::Unary {
-                operator,
-                expression,
-            } => {
-                format!("{:?} {}", operator, self.expr_to_string(expression))
+            ExprKind::Unary(UnaryExpr { op, expr }) => {
+                format!("{:?} {}", op, self.expr_kind_to_string(expr))
             }
         }
     }

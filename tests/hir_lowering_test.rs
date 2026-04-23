@@ -3,9 +3,14 @@
 //! These tests define the expected behavior of the lowering pass and
 //! the validation pass that should catch errors.
 
+use pyrus::ast::Ast;
 use pyrus::hir::{Op, Type, lower};
-use pyrus::lexer::lex;
-use pyrus::parser::parse;
+use pyrus::lexer::{TokenStream, lex};
+use pyrus::parser::Parser;
+
+fn parse(tokens: TokenStream) -> Result<Ast, Vec<pyrus::diagnostic::SyntaxError>> {
+    Parser::new(tokens).parse::<Ast>()
+}
 
 // ============================================================================
 // Basic Lowering Tests
@@ -88,7 +93,7 @@ document {
 fn test_lower_simple_function() {
     let source = r#"
 template {
-    element greeting() {
+    func greeting() {
         return @text[Hello]
     }
 }
@@ -116,7 +121,7 @@ document {
 fn test_lower_function_with_args() {
     let source = r#"
 template {
-    element section_with_title(title: String) {
+    func section_with_title(title: String) {
         return @section[
             @text[title]
         ]
@@ -142,7 +147,7 @@ document {
 fn test_lower_function_with_multiple_args() {
     let source = r#"
 template {
-    element formatted_number(value: Int, prefix: String) {
+    func formatted_number(value: Int, prefix: String) {
         return @text[prefix]
     }
 }
@@ -266,12 +271,12 @@ style {
 fn test_lower_function_call_in_document() {
     let source = r#"
 template {
-    element header() {
+    func header() {
         return @text[Header]
     }
 }
 document {
-    header()
+    @header()
 }
 "#;
     let tokens = lex(source, "test_lower_function_call_in_document").expect("Lexing failed");
@@ -298,12 +303,12 @@ document {
 fn test_lower_function_call_with_args() {
     let source = r#"
 template {
-    element greet(name: String) {
+    func greet(name: String) {
         return @text[name]
     }
 }
 document {
-    greet("World")
+    @greet("World")
 }
 "#;
     let tokens = lex(source, "test_lower_function_call_with_args").expect("Lexing failed");

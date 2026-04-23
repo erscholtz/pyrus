@@ -4,8 +4,8 @@ use std::fs;
 use std::time::Instant;
 
 // use pyrus::backend;
-// use pyrus::hir;
-// use pyrus::hir::HirDisplayExt;
+use pyrus::hir;
+use pyrus::hir::HirDisplayExt;
 // use pyrus::layout::setup_layout;
 use pyrus::{ast::Ast, diagnostic::DiagnosticManager, lexer, parser::Parser};
 
@@ -43,12 +43,12 @@ fn main() {
     println!("{:?}", &tokens);
 
     let mut parser = Parser::new(tokens).enable_tracing();
-    let ast = parser.parse::<Ast>();
+    let ast = parser.parse::<Ast>().unwrap();
     parser.gather_errors(&mut dm);
     println!("{:#?}", ast);
 
-    // let hir_module = hir::lower(&ast).expect("Should be able to lower AST to HIR");
-    // println!("{}", hir_module.hir_display());
+    let hir_module = hir::lower(&ast).expect("Should be able to lower AST to HIR");
+    println!("{}", hir_module.hir_display());
 
     // println!("HLIR before style resolution:");
     // println!("  Elements: {}", hlir_module.elements.len());

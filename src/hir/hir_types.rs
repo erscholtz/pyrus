@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::str::FromStr;
 
-use crate::ast::{Expression, StyleRule};
+use crate::ast::{Expr, StyleRule};
 use crate::hir::hir_util::hir_error::HirError;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -142,7 +142,7 @@ pub struct HirElementDecl {
 #[derive(Debug, Clone)]
 pub struct FuncBlock {
     pub ops: Vec<Op>,
-    pub returned_value: Option<usize>,
+    pub returned_element_ref: Option<usize>,
 }
 
 // how template, document and style sections are handled
@@ -208,7 +208,6 @@ pub struct AttributeTree {
 }
 
 impl AttributeTree {
-    // TODO, will need to rethink this ID stuff at some point but working for now
     pub fn new() -> Self {
         Self {
             root: AttributeNode::new(),
@@ -216,10 +215,13 @@ impl AttributeTree {
         }
     }
 
-    pub fn add_attribute(&mut self, attributes: AttributeNode) -> usize {
+    pub fn add_attribute(&mut self, mut attributes: AttributeNode) -> usize {
         let id = self.size;
         self.size += 1;
-        self.root.add_child(attributes, id)
+        attributes.id = id;
+        attributes.parent = Some(self.root.id);
+        self.root.children.insert(id, attributes);
+        id
     }
 
     pub fn find_node(&self, id: usize) -> Option<&AttributeNode> {
@@ -244,27 +246,21 @@ impl AttributeNode {
     pub fn new() -> Self {
         Self {
             parent: None,
-            id: 1,
+            id: 0,
             inline: StyleAttributes::default(),
             computed: StyleAttributes::default(),
             children: HashMap::new(),
         }
     }
 
-    pub fn new_with_attributes(attributes: &HashMap<String, Expression>, parent_id: usize) -> Self {
+    pub fn new_with_attributes(attributes: Option<&HashMap<String, Expr>>) -> Self {
         Self {
-            parent: Some(parent_id),
-            id: parent_id + 1,
+            parent: None,
+            id: 0,
             inline: StyleAttributes::new_with_attributes(attributes),
             computed: StyleAttributes::default(),
             children: HashMap::new(),
         }
-    }
-
-    pub fn add_child(&mut self, child: AttributeNode, parent_id: usize) -> usize {
-        let id = parent_id + 1;
-        self.children.insert(id, child);
-        id
     }
 
     fn find_node_recursive(&self, target_id: usize) -> Option<&AttributeNode> {
@@ -520,8 +516,11 @@ impl StyleAttributes {
     }
 }
 impl StyleAttributes {
-    pub fn new_with_attributes(attributes: &HashMap<String, Expression>) -> Self {
+    pub fn new_with_attributes(attributes: Option<&HashMap<String, Expr>>) -> Self {
         let mut result = Self::default();
+        let Some(attributes) = attributes else {
+            return result;
+        };
 
         if let Some(expr) = attributes.get("id") {
             result.id = Some(expr.to_string());

@@ -1,8 +1,13 @@
 //! Tests for CSS style resolution in HLIR
 
+use pyrus::ast::Ast;
 use pyrus::hir::lower;
-use pyrus::lexer::lex;
-use pyrus::parser::parse;
+use pyrus::lexer::{TokenStream, lex};
+use pyrus::parser::Parser;
+
+fn parse(tokens: TokenStream) -> Result<Ast, Vec<pyrus::diagnostic::SyntaxError>> {
+    Parser::new(tokens).parse::<Ast>()
+}
 
 // ============================================================================
 // Basic Selector Tests

@@ -6,7 +6,7 @@
 use std::fmt;
 
 use crate::diagnostic::Diagnostic;
-use crate::hir::ir_types::*;
+use crate::hir::hir_types::*;
 
 /// Trait for types that can be printed in a compact HIR format
 pub trait HirDebug {
@@ -116,7 +116,7 @@ impl HirDebug for FuncDecl {
         }
 
         if let Some(ret_ref) = self.body.returned_element_ref {
-            writeln!(f, "    (returns element#{}", ret_ref)?;
+            writeln!(f, "    (returns element#{})", ret_ref)?;
         }
 
         Ok(())
@@ -148,23 +148,31 @@ impl HirDebug for Op {
         match self {
             Op::Const {
                 result,
+                name,
                 literal,
                 ty,
             } => {
                 write!(
                     f,
-                    "{} = const {} {}",
+                    "{} = const {} {} {}",
                     result.hir_string(),
+                    name,
                     literal.hir_string(),
                     ty.hir_string()
                 )
             }
-            Op::Var { result, name, ty } => {
+            Op::Var {
+                result,
+                name,
+                literal,
+                ty,
+            } => {
                 write!(
                     f,
-                    "{} = var {} {}",
+                    "{} = var {} {} {}",
                     result.hir_string(),
                     name,
+                    literal.hir_string(),
                     ty.hir_string()
                 )
             }
