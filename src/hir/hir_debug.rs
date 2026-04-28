@@ -5,7 +5,6 @@
 
 use std::fmt;
 
-use crate::diagnostic::Diagnostic;
 use crate::hir::hir_types::*;
 
 /// Trait for types that can be printed in a compact HIR format
@@ -27,7 +26,7 @@ impl HirDebug for HIRModule {
                     "  {}: {} = {} {}",
                     id.hir_string(),
                     global.name,
-                    global.init.hir_string(),
+                    global.literal.hir_string(),
                     if global.mutable { "(mut)" } else { "" }
                 )?;
             }
@@ -37,7 +36,8 @@ impl HirDebug for HIRModule {
         if !self.functions.is_empty() {
             writeln!(f)?;
             writeln!(f, "functions:")?;
-            for (_, func) in &self.functions {
+            for (id, func) in &self.functions {
+                write!(f, "  {} ", id.hir_string())?;
                 func.hir_fmt(f)?;
             }
         }
@@ -46,7 +46,8 @@ impl HirDebug for HIRModule {
         if !self.element_decls.is_empty() {
             writeln!(f)?;
             writeln!(f, "element declarations:")?;
-            for (_, decl) in &self.element_decls {
+            for (id, decl) in &self.element_decls {
+                write!(f, "  {} ", id.hir_string())?;
                 decl.hir_fmt(f)?;
             }
         }
@@ -75,15 +76,6 @@ impl HirDebug for HIRModule {
             }
         }
 
-        // Errors (only if any)
-        if !self.errors.is_empty() {
-            writeln!(f)?;
-            writeln!(f, "errors:")?;
-            for err in &self.errors {
-                writeln!(f, "  - {}", err.message())?;
-            }
-        }
-
         Ok(())
     }
 }
@@ -96,14 +88,7 @@ impl HirDebug for FuncDecl {
             None => "void".to_string(),
         };
 
-        writeln!(
-            f,
-            "\n  {} {}({}) -> {}:",
-            self.id.hir_string(),
-            self.name,
-            args.join(", "),
-            ret
-        )?;
+        writeln!(f, "{}({}) -> {}:", self.name, args.join(", "), ret)?;
 
         if self.body.ops.is_empty() {
             writeln!(f, "    (empty body)")?;
@@ -126,13 +111,7 @@ impl HirDebug for FuncDecl {
 impl HirDebug for HirElementDecl {
     fn hir_fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let args: Vec<String> = self.args.iter().map(|t| format!("{:?}", t)).collect();
-        writeln!(
-            f,
-            "  {} {}({})",
-            self.id.hir_string(),
-            self.name,
-            args.join(", ")
-        )?;
+        writeln!(f, "{}({})", self.name, args.join(", "))?;
         writeln!(f, "    body ops: {}", self.body.ops.len())?;
         for (i, op) in self.body.ops.iter().enumerate() {
             write!(f, "      {:2} | ", i)?;
@@ -275,7 +254,25 @@ impl HirDebug for HirElementOp {
     }
 }
 
-impl HirDebug for Id {
+impl HirDebug for FuncId {
+    fn hir_fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.hir_string())
+    }
+}
+
+impl HirDebug for GlobalId {
+    fn hir_fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.hir_string())
+    }
+}
+
+impl HirDebug for ValueId {
+    fn hir_fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.hir_string())
+    }
+}
+
+impl HirDebug for ElementId {
     fn hir_fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.hir_string())
     }
@@ -310,14 +307,27 @@ trait HirString {
     fn hir_string(&self) -> String;
 }
 
-impl HirString for Id {
+impl HirString for FuncId {
     fn hir_string(&self) -> String {
-        match self {
-            Id::Func(FuncId(i)) => format!("func#{}", i),
-            Id::Global(GlobalId(i)) => format!("global#{}", i),
-            Id::Value(ValueId(i)) => format!("val#{}", i),
-            Id::Element(ElementId(i)) => format!("elem#{}", i),
-        }
+        format!("func#{}", self.0)
+    }
+}
+
+impl HirString for GlobalId {
+    fn hir_string(&self) -> String {
+        format!("global#{}", self.0)
+    }
+}
+
+impl HirString for ValueId {
+    fn hir_string(&self) -> String {
+        format!("val#{}", self.0)
+    }
+}
+
+impl HirString for ElementId {
+    fn hir_string(&self) -> String {
+        format!("elem#{}", self.0)
     }
 }
 

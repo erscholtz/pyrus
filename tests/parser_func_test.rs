@@ -13,7 +13,9 @@ fn test_parse_function_declaration_with_parameter() {
             assert_eq!(func.name, "greet");
             assert_eq!(func.args.len(), 1);
             assert!(matches!(func.args[0].ty, Type::String));
-            assert!(matches!(func.args[0].value.node, ExprKind::Identifier(ref name) if name == "name"));
+            assert!(
+                matches!(func.args[0].value.node, ExprKind::Identifier(ref name) if name == "name")
+            );
             assert_eq!(func.body.len(), 1);
             assert!(matches!(
                 func.body[0].node,

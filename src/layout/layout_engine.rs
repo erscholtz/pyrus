@@ -3,7 +3,7 @@ use taffy::style::{AvailableSpace, Dimension};
 use taffy::style_helpers::{FromLength, FromPercent, TaffyAuto};
 use taffy::{LengthPercentage, LengthPercentageAuto, NodeId, Rect, Size, Style, TaffyTree};
 
-use crate::hir::{FuncId, HIRModule, HirElementOp, Id, Op, StyleAttributes};
+use crate::hir::{FuncId, HIRModule, HirElementOp, Op, StyleAttributes};
 
 pub fn setup_layout(hlir_module: &HIRModule) -> LayoutEngine {
     let layout = LayoutEngine::build_from_hlir_module(hlir_module);
@@ -61,7 +61,7 @@ impl LayoutEngine {
         let document_id = FuncId(hlir_module.functions.len() - 1);
         let document = hlir_module
             .functions
-            .get(&Id::Func(document_id))
+            .get(&document_id)
             .expect("document function not found");
 
         // Collect all child nodes first
@@ -369,7 +369,7 @@ impl LayoutEngine {
 
         // Get document ops in order and recursively process all elements
         let document_id = FuncId(hlir.functions.len() - 1);
-        if let Some(document) = hlir.functions.get(&Id::Func(document_id)) {
+        if let Some(document) = hlir.functions.get(&document_id) {
             for op in &document.body.ops {
                 match op {
                     Op::HirElementEmit { index } => {

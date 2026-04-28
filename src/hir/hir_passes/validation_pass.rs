@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use crate::hir::HIRModule;
-use crate::hir::hir_types::{FuncBlock, FuncDecl, Global, Id, Op};
+use crate::hir::hir_types::{FuncBlock, FuncDecl, Global, Op};
+use crate::hir::{FuncId, GlobalId, HIRModule};
 
 impl HIRModule {
     pub fn validate(&self, hir: &HIRModule) -> Result<(), String> {
@@ -11,7 +11,7 @@ impl HIRModule {
         Ok(())
     }
 
-    fn validate_globals(&self, globals: &HashMap<Id, Global>) {}
+    fn validate_globals(&self, globals: &HashMap<GlobalId, Global>) {}
 
-    fn validate_functions(&self, functions: &HashMap<Id, FuncDecl>) {}
+    fn validate_functions(&self, functions: &HashMap<FuncId, FuncDecl>) {}
 }

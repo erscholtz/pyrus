@@ -1,9 +1,7 @@
 use std::collections::HashMap;
-use std::fmt;
 use std::str::FromStr;
 
 use crate::ast::{Expr, StyleRule};
-use crate::hir::hir_util::hir_error::HirError;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Type {
@@ -38,49 +36,35 @@ pub struct ValueId(pub usize);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ElementId(pub usize);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum Id {
-    Func(FuncId),
-    Global(GlobalId),
-    Value(ValueId),
-    Element(ElementId),
-}
-
-impl fmt::Display for Id {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}", self)
-    }
-}
-
 #[derive(Debug, Clone)]
 pub enum Op {
     Const {
-        result: Id,
+        result: ValueId,
         name: String,
         literal: Literal,
         ty: Type,
     },
     Var {
-        result: Id,
+        result: ValueId,
         name: String,
         literal: Literal,
         ty: Type,
     },
     Binary {
-        result: Id,
+        result: ValueId,
         op: BinOp,
-        lhs: Id,
-        rhs: Id,
+        lhs: ValueId,
+        rhs: ValueId,
     },
     FuncCall {
-        result: Option<Id>,
-        func: Id,
-        args: Vec<Id>,
+        result: Option<ValueId>,
+        func: FuncId,
+        args: Vec<ValueId>,
     },
     ElementCall {
-        result: Id,
-        element: Id,
-        args: Vec<Id>,
+        result: ValueId,
+        element: ElementId,
+        args: Vec<ValueId>,
     },
     Return {
         doc_element_ref: usize,
@@ -89,8 +73,8 @@ pub enum Op {
         index: usize,
     },
     StringConcat {
-        result: Id,
-        parts: Vec<Id>,
+        result: ValueId,
+        parts: Vec<ValueId>,
     },
 }
 
@@ -107,24 +91,29 @@ pub enum BinOp {
 
 #[derive(Debug, Clone)]
 pub struct Global {
-    pub id: Id,
     pub name: String,
     pub ty: Type,
-    pub init: Literal,
+    pub literal: Literal,
     pub mutable: bool,
 }
 
 pub struct Local {
     // NOTE: potential use once template section has some more use
-    pub id: Id,
+    pub name: String,
     pub ty: Type,
+    pub literal: Literal,
+    pub mutable: bool,
 }
 
 // how functions are handled
 
+// #[derive(Debug, Clone)]
+// struct Block<T> {
+//     items: Vec<T>,
+// }
+
 #[derive(Debug, Clone)]
 pub struct FuncDecl {
-    pub id: Id,
     pub name: String,
     pub args: Vec<Type>,
     pub return_type: Option<Type>,
@@ -133,7 +122,6 @@ pub struct FuncDecl {
 
 #[derive(Debug, Clone)]
 pub struct HirElementDecl {
-    pub id: Id,
     pub name: String,
     pub args: Vec<Type>,
     pub body: FuncBlock,
@@ -148,12 +136,6 @@ pub struct FuncBlock {
 // how template, document and style sections are handled
 
 #[derive(Debug, Clone)]
-pub struct Block {
-    pub ops: Vec<Op>,
-    pub element_refs: Vec<usize>,
-}
-
-#[derive(Debug, Clone)]
 pub struct ElementMetadata {
     pub id: Option<String>,
     pub classes: Vec<String>,
@@ -166,14 +148,13 @@ pub struct ElementMetadata {
 #[derive(Debug, Clone)]
 pub struct HIRModule {
     pub file: String,
-    pub globals: HashMap<Id, Global>, // TODO eventually remove IDs from actual struct and just refer to them (I think)
-    pub functions: HashMap<Id, FuncDecl>,
-    pub element_decls: HashMap<Id, HirElementDecl>, // Custom element declarations
+    pub globals: HashMap<GlobalId, Global>, // TODO eventually remove IDs from actual struct and just refer to them (I think)
+    pub functions: HashMap<FuncId, FuncDecl>,
+    pub element_decls: HashMap<ElementId, HirElementDecl>, // Custom element declarations
     pub attributes: AttributeTree,
     pub css_rules: Vec<StyleRule>, // Parsed CSS rules (unapplied)
     pub elements: Vec<HirElementOp>,
     pub element_metadata: Vec<ElementMetadata>, // Parallel to elements, for CSS matching
-    pub errors: Vec<HirError>,
 }
 
 #[derive(Debug, Clone)]
@@ -515,6 +496,7 @@ impl StyleAttributes {
         }
     }
 }
+
 impl StyleAttributes {
     pub fn new_with_attributes(attributes: Option<&HashMap<String, Expr>>) -> Self {
         let mut result = Self::default();

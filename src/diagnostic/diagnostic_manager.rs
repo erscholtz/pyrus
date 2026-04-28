@@ -96,6 +96,16 @@ impl DiagnosticManager {
         self
     }
 
+    pub fn extend<D, I>(&mut self, diagnostics: I) -> &mut Self
+    where
+        D: Into<CompilerDiagnostic>,
+        I: IntoIterator<Item = D>,
+    {
+        self.diagnostics
+            .extend(diagnostics.into_iter().map(Into::into));
+        self
+    }
+
     pub fn diagnostics(&self) -> &[CompilerDiagnostic] {
         &self.diagnostics
     }

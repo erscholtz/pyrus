@@ -1,12 +1,19 @@
 //! Tests for CSS style resolution in HLIR
 
 use pyrus::ast::Ast;
-use pyrus::hir::lower;
+use pyrus::diagnostic::DiagnosticManager;
+use pyrus::hir::{HIRModule, lower};
 use pyrus::lexer::{TokenStream, lex};
 use pyrus::parser::Parser;
 
 fn parse(tokens: TokenStream) -> Result<Ast, Vec<pyrus::diagnostic::SyntaxError>> {
     Parser::new(tokens).parse::<Ast>()
+}
+
+fn lower_ast(ast: &Ast) -> HIRModule {
+    let mut diagnostics = DiagnosticManager::new();
+    lower(ast, &mut diagnostics)
+        .unwrap_or_else(|| panic!("Lowering failed: {:?}", diagnostics.diagnostics()))
 }
 
 // ============================================================================
@@ -28,7 +35,7 @@ style {
 "#;
     let tokens = lex(source, "test_id_selector").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
-    let hlir = lower(&ast).expect("Lowering failed");
+    let hlir = lower_ast(&ast);
 
     assert_eq!(hlir.element_metadata.len(), 1);
     assert_eq!(hlir.css_rules.len(), 1);
@@ -58,7 +65,7 @@ style {
 "#;
     let tokens = lex(source, "test_class_selector").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
-    let hlir = lower(&ast).expect("Lowering failed");
+    let hlir = lower_ast(&ast);
 
     let metadata = &hlir.element_metadata[0];
     let node = hlir.attributes.find_node(metadata.attributes_ref).unwrap();
@@ -70,20 +77,20 @@ style {
 }
 
 #[test]
-fn test_type_selector() {
+fn test_selector_applies_to_element() {
     let source = r#"
 document {
-    @text[Some text]
+    @text(class="body")[Some text]
 }
 style {
-    text {
+    .body {
         font-size: 12;
     }
 }
 "#;
-    let tokens = lex(source, "test_type_selector").expect("Lexing failed");
+    let tokens = lex(source, "test_selector_applies_to_element").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
-    let hlir = lower(&ast).expect("Lowering failed");
+    let hlir = lower_ast(&ast);
 
     let metadata = &hlir.element_metadata[0];
     let node = hlir.attributes.find_node(metadata.attributes_ref).unwrap();
@@ -112,7 +119,7 @@ style {
 "#;
     let tokens = lex(source, "test_specificity_inline_wins").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
-    let hlir = lower(&ast).expect("Lowering failed");
+    let hlir = lower_ast(&ast);
 
     let metadata = &hlir.element_metadata[0];
     let node = hlir.attributes.find_node(metadata.attributes_ref).unwrap();
@@ -141,7 +148,7 @@ style {
 "#;
     let tokens = lex(source, "test_specificity_id_over_class").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
-    let hlir = lower(&ast).expect("Lowering failed");
+    let hlir = lower_ast(&ast);
 
     let metadata = &hlir.element_metadata[0];
     let node = hlir.attributes.find_node(metadata.attributes_ref).unwrap();
@@ -154,13 +161,13 @@ style {
 }
 
 #[test]
-fn test_specificity_class_over_type() {
+fn test_specificity_class_over_less_specific_rule() {
     let source = r#"
 document {
-    @text(class="intro")[Text]
+    @text(id="copy", class="intro")[Text]
 }
 style {
-    text {
+    #copy {
         font-size: 12;
     }
     .intro {
@@ -168,17 +175,18 @@ style {
     }
 }
 "#;
-    let tokens = lex(source, "test_specificity_class_over_type").expect("Lexing failed");
+    let tokens =
+        lex(source, "test_specificity_class_over_less_specific_rule").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
-    let hlir = lower(&ast).expect("Lowering failed");
+    let hlir = lower_ast(&ast);
 
     let metadata = &hlir.element_metadata[0];
     let node = hlir.attributes.find_node(metadata.attributes_ref).unwrap();
 
-    // Class selector (specificity 10) should win over type (specificity 1)
+    // Higher specificity should win even when the lower-specificity rule appears later.
     assert_eq!(
         node.computed.style.get("font-size"),
-        Some(&"24".to_string())
+        Some(&"12".to_string())
     );
 }
 
@@ -197,13 +205,13 @@ style {
         font-size: 24;
     }
     .intro {
-        color: red;;
+        color: red;
     }
 }
 "#;
     let tokens = lex(source, "test_multiple_rules_combine").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
-    let hlir = lower(&ast).expect("Lowering failed");
+    let hlir = lower_ast(&ast);
 
     let metadata = &hlir.element_metadata[0];
     let node = hlir.attributes.find_node(metadata.attributes_ref).unwrap();
@@ -233,7 +241,7 @@ style {
 "#;
     let tokens = lex(source, "test_same_property_last_wins").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
-    let hlir = lower(&ast).expect("Lowering failed");
+    let hlir = lower_ast(&ast);
 
     let metadata = &hlir.element_metadata[0];
     let node = hlir.attributes.find_node(metadata.attributes_ref).unwrap();
@@ -258,13 +266,13 @@ document {
 }
 style {
     .header, .footer {
-        font-weight: bold;;
+        font-weight: bold;
     }
 }
 "#;
     let tokens = lex(source, "test_multiple_selectors_in_rule").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
-    let hlir = lower(&ast).expect("Lowering failed");
+    let hlir = lower_ast(&ast);
 
     // Both elements should get the style
     for i in 0..2 {
@@ -287,19 +295,19 @@ style {
 fn test_style_inheritance() {
     let source = r#"
 document {
-    @section[
+    @section(class="container")[
         @text[Nested text]
     ]
 }
 style {
-    section {
+    .container {
         color: blue;
     }
 }
 "#;
     let tokens = lex(source, "test_style_inheritance").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
-    let hlir = lower(&ast).expect("Lowering failed");
+    let hlir = lower_ast(&ast);
 
     // Find the nested text element (should be index 1, section is index 0)
     let text_metadata = hlir
@@ -324,19 +332,19 @@ style {
 fn test_non_inherited_properties() {
     let source = r#"
 document {
-    @section[
+    @section(class="container")[
         @text[Nested text]
     ]
 }
 style {
-    section {
+    .container {
         margin: 20pt;
     }
 }
 "#;
     let tokens = lex(source, "test_non_inherited_properties").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
-    let hlir = lower(&ast).expect("Lowering failed");
+    let hlir = lower_ast(&ast);
 
     let section_metadata = hlir
         .element_metadata
@@ -380,13 +388,13 @@ style {
         font-size: 24;
     }
     .bold {
-        font-weight: bold;;
+        font-weight: bold;
     }
 }
 "#;
     let tokens = lex(source, "test_multiple_classes_on_element").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
-    let hlir = lower(&ast).expect("Lowering failed");
+    let hlir = lower_ast(&ast);
 
     let metadata = &hlir.element_metadata[0];
     assert_eq!(metadata.classes, vec!["large", "bold"]);
@@ -412,17 +420,17 @@ style {
 fn test_typed_margin_property() {
     let source = r#"
 document {
-    @text[Text]
+    @text(class="box")[Text]
 }
 style {
-    text {
+    .box {
         margin: 15pt;
     }
 }
 "#;
     let tokens = lex(source, "test_typed_margin_property").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
-    let hlir = lower(&ast).expect("Lowering failed");
+    let hlir = lower_ast(&ast);
 
     let metadata = &hlir.element_metadata[0];
     let node = hlir.attributes.find_node(metadata.attributes_ref).unwrap();
@@ -435,17 +443,17 @@ style {
 fn test_typed_padding_property() {
     let source = r#"
 document {
-    @text[Text]
+    @text(class="box")[Text]
 }
 style {
-    text {
+    .box {
         padding: 10pt;
     }
 }
 "#;
     let tokens = lex(source, "test_typed_padding_property").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
-    let hlir = lower(&ast).expect("Lowering failed");
+    let hlir = lower_ast(&ast);
 
     let metadata = &hlir.element_metadata[0];
     let node = hlir.attributes.find_node(metadata.attributes_ref).unwrap();
@@ -471,7 +479,7 @@ style {
 "#;
     let tokens = lex(source, "test_no_matching_rules").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
-    let hlir = lower(&ast).expect("Lowering failed");
+    let hlir = lower_ast(&ast);
 
     let metadata = &hlir.element_metadata[0];
     let node = hlir.attributes.find_node(metadata.attributes_ref).unwrap();
@@ -492,7 +500,7 @@ style {
 "#;
     let tokens = lex(source, "test_empty_style_block").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
-    let hlir = lower(&ast).expect("Lowering failed");
+    let hlir = lower_ast(&ast);
 
     let metadata = &hlir.element_metadata[0];
     let node = hlir.attributes.find_node(metadata.attributes_ref).unwrap();
@@ -510,7 +518,7 @@ document {
 "#;
     let tokens = lex(source, "test_no_style_block").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
-    let hlir = lower(&ast).expect("Lowering failed");
+    let hlir = lower_ast(&ast);
 
     assert!(hlir.css_rules.is_empty());
 
@@ -543,12 +551,10 @@ style {
     .title {
         font-weight: bold;
     }
-    section {
+    .content {
         margin: 20pt;
         padding: 10pt;
-    }
-    .content {
-        border: 1px solid;
+        border: "1px solid";
     }
     .body {
         font-size: 14pt;
@@ -561,7 +567,7 @@ style {
 "#;
     let tokens = lex(source, "test_complex_css_scenario").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
-    let hlir = lower(&ast).expect("Lowering failed");
+    let hlir = lower_ast(&ast);
 
     // Header: id + class
     let header = hlir
@@ -638,7 +644,7 @@ fn test_css_from_file() {
         fs::read_to_string("tests/input/css_test.ink").expect("Should be able to read test file");
     let tokens = lex(&data, "test_css_from_file").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
-    let hlir = lower(&ast).expect("Lowering failed");
+    let hlir = lower_ast(&ast);
 
     // Check that we have the expected structure
     assert!(

@@ -3,10 +3,10 @@ use std::ffi::OsString;
 use std::fs;
 use std::time::Instant;
 
-// use pyrus::backend;
+use pyrus::backend;
 use pyrus::hir;
 use pyrus::hir::HirDisplayExt;
-// use pyrus::layout::setup_layout;
+use pyrus::layout::setup_layout;
 use pyrus::{ast::Ast, diagnostic::DiagnosticManager, lexer, parser::Parser};
 
 fn main() {
@@ -47,7 +47,7 @@ fn main() {
     parser.gather_errors(&mut dm);
     println!("{:#?}", ast);
 
-    let hir_module = hir::lower(&ast).expect("Should be able to lower AST to HIR");
+    let hir_module = hir::lower(&ast, &mut dm).expect("Should be able to lower AST to HIR");
     println!("{}", hir_module.hir_display());
 
     // println!("HLIR before style resolution:");
@@ -79,10 +79,10 @@ fn main() {
     //     }
     // }
 
-    // let layout = setup_layout(&hir_module);
+    let layout = setup_layout(&hir_module);
 
     // Compute document flow layout (simple vertical stacking)
-    // let computed_layouts = layout.compute_document_flow(&hir_module);
+    let computed_layouts = layout.compute_document_flow(&hir_module);
 
     // Print computed layouts for each element
     // println!("\n=== Computed Layouts ===");
@@ -102,12 +102,12 @@ fn main() {
     // }
 
     // Render to PDF using backend
-    // let backend = backend::Backend::new(backend::Renderer::Pdf);
-    // if let Err(e) = backend.render(hir_module, &layout, &computed_layouts) {
-    //     eprintln!("Failed to render PDF: {}", e);
-    // } else {
-    //     println!("\nPDF rendered successfully to generated/output.pdf");
-    // }
+    let backend = backend::Backend::new(backend::Renderer::Pdf);
+    if let Err(e) = backend.render(hir_module, &layout, &computed_layouts) {
+        eprintln!("Failed to render PDF: {}", e);
+    } else {
+        println!("\nPDF rendered successfully to generated/output.pdf");
+    }
 
     let now = Instant::now();
     let time = now - last;

@@ -86,7 +86,10 @@ fn test_parse_string_with_escaped_quote() {
 #[test]
 fn test_lex_unterminated_string() {
     let tokens = lex(r#"template { let msg = "unterminated }"#, "test.ink").expect("Lexing failed");
-    assert!(!tokens.errors.is_empty(), "Should report an unterminated string");
+    assert!(
+        !tokens.errors.is_empty(),
+        "Should report an unterminated string"
+    );
     assert_eq!(tokens.errors[0].message, "Unterminated string literal");
 }
 

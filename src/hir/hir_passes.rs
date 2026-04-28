@@ -4,17 +4,17 @@ pub mod style_pass;
 pub mod validation_pass;
 
 use crate::ast::Ast;
+use crate::diagnostic::SemanticError;
 use crate::hir::HIRModule;
-use crate::hir::hir_util::hir_error::HirError;
 
 /// Represents a pass to be executed on an HIR module.
 pub trait HIRPass {
-    fn run(&mut self, hir: &mut HIRModule, ast: &Ast) -> Result<(), Vec<HirError>>;
+    fn run(&mut self, hir: &mut HIRModule, ast: &Ast) -> Result<(), Vec<SemanticError>>;
     fn name(&self) -> &'static str;
 }
 
 /// Type alias for pass functions (used in run_pipeline)
-type PassFn = fn(&mut HIRModule, &mut PassManager) -> Result<(), Vec<HirError>>;
+type PassFn = fn(&mut HIRModule, &mut PassManager) -> Result<(), Vec<SemanticError>>;
 
 /// Manages a pipeline of HIR passes to be executed on a module.
 pub struct PassManager {
@@ -22,7 +22,7 @@ pub struct PassManager {
     failed: bool,
     executed_passes: Vec<&'static str>,
     failed_passes: Vec<&'static str>,
-    errors: Vec<HirError>,
+    errors: Vec<SemanticError>,
 }
 
 impl PassManager {
@@ -65,7 +65,7 @@ impl PassManager {
         &self.failed_passes
     }
 
-    pub fn finished(&self) -> Result<(), Vec<HirError>> {
+    pub fn finished(&self) -> Result<(), Vec<SemanticError>> {
         if self.failed {
             Err(self.errors.clone())
         } else {

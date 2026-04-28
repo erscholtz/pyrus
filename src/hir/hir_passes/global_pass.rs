@@ -1,41 +1,36 @@
 use crate::ast::{Ast, Expr, ExprKind, StmtKind};
+use crate::diagnostic::SemanticError;
 use crate::hir::HIRModule;
 use crate::hir::hir_passes::HIRPass;
-use crate::hir::hir_types::{Global, GlobalId, Id, Literal, Type};
-use crate::hir::hir_util::hir_error::HirError;
+use crate::hir::hir_types::{Global, GlobalId, Literal, Type, ValueId};
 
 pub struct GlobalPass;
 
 impl HIRPass for GlobalPass {
-    fn run(&mut self, hir: &mut HIRModule, ast: &Ast) -> Result<(), Vec<HirError>> {
+    fn run(&mut self, hir: &mut HIRModule, ast: &Ast) -> Result<(), Vec<SemanticError>> {
         let errors = Vec::new();
         if let Some(template) = &ast.template {
             for statement in &template.statements {
                 match &statement.node {
                     StmtKind::DefaultSet(stmt) => {
-                        let global_id = Id::Global(GlobalId(hir.globals.len()));
+                        let global_id = GlobalId(hir.globals.len());
                         let name = format!("__{}", stmt.key);
-                        let Some(global) =
-                            self.assign_global(&name, &stmt.value, global_id, false)
-                        else {
+                        let Some(global) = self.assign_global(&name, &stmt.value, false) else {
                             continue;
                         };
                         hir.globals.insert(global_id, global);
                     }
                     StmtKind::ConstAssign(stmt) => {
-                        let global_id = Id::Global(GlobalId(hir.globals.len()));
-                        let Some(global) =
-                            self.assign_global(&stmt.name, &stmt.value, global_id, false)
+                        let global_id = GlobalId(hir.globals.len());
+                        let Some(global) = self.assign_global(&stmt.name, &stmt.value, false)
                         else {
                             continue;
                         };
                         hir.globals.insert(global_id, global);
                     }
                     StmtKind::VarAssign(stmt) => {
-                        let global_id = Id::Global(GlobalId(hir.globals.len()));
-                        let Some(global) =
-                            self.assign_global(&stmt.name, &stmt.value, global_id, true)
-                        else {
+                        let global_id = GlobalId(hir.globals.len());
+                        let Some(global) = self.assign_global(&stmt.name, &stmt.value, true) else {
                             continue;
                         };
                         hir.globals.insert(global_id, global);
@@ -63,33 +58,24 @@ impl Default for GlobalPass {
 }
 
 impl GlobalPass {
-    fn assign_global(
-        &mut self,
-        name: &String,
-        value: &Expr,
-        id: Id,
-        mutable: bool,
-    ) -> Option<Global> {
+    fn assign_global(&mut self, name: &String, value: &Expr, mutable: bool) -> Option<Global> {
         let global = match &value.node {
             ExprKind::StringLiteral(s) => Global {
-                id: id,
                 name: name.clone(),
                 ty: Type::String,
-                init: Literal::String(s.clone()),
+                literal: Literal::String(s.clone()),
                 mutable: mutable,
             },
             ExprKind::Int(n) => Global {
-                id: id,
                 name: name.clone(),
                 ty: Type::Int,
-                init: Literal::Int(*n),
+                literal: Literal::Int(*n),
                 mutable: mutable,
             },
             ExprKind::Float(n) => Global {
-                id: id,
                 name: name.clone(),
                 ty: Type::Float,
-                init: Literal::Float(*n),
+                literal: Literal::Float(*n),
                 mutable: mutable,
             },
             ExprKind::InterpolatedString(expr) => {
@@ -97,10 +83,9 @@ impl GlobalPass {
                 // by converting to a string immediately (since globals are evaluated once)
                 let result = self.eval_interpolated_string_to_literal(&expr.parts)?;
                 Global {
-                    id,
                     name: name.clone(),
                     ty: Type::String,
-                    init: result,
+                    literal: result,
                     mutable: mutable,
                 }
             }

@@ -3,7 +3,7 @@ mod common;
 use common::{document_elements, parse_errors};
 use pyrus::{
     ast::{DocElemKind, ExprKind, Type},
-    diagnostic::Diagnostic,
+    diagnostic::SyntaxError,
 };
 
 #[test]
@@ -93,7 +93,15 @@ fn test_parse_table_rejects_mismatched_columns() {
         "document { @table[| @text[Name] | @text[Score] ||---|---| | @text[Alice] |] }",
     );
     assert_eq!(errors.len(), 1);
-    assert_eq!(errors[0].message(), "Expected 2 columns, got 1");
+    match &errors[0] {
+        SyntaxError::InvalidConstruct {
+            construct, reason, ..
+        } => {
+            assert_eq!(construct, "table row");
+            assert_eq!(reason, "Expected 2 columns, got 1");
+        }
+        other => panic!("Expected invalid table row construct, got {other:?}"),
+    }
 }
 
 #[test]

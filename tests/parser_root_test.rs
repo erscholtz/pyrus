@@ -1,7 +1,7 @@
 mod common;
 
 use common::{parse_ast, parse_errors};
-use pyrus::diagnostic::Diagnostic;
+use pyrus::diagnostic::SyntaxError;
 
 #[test]
 fn test_parse_empty_document() {
@@ -48,5 +48,13 @@ fn test_parse_all_blocks() {
 fn test_duplicate_template_block_reports_error() {
     let errors = parse_errors("template { } template { }");
     assert_eq!(errors.len(), 1);
-    assert_eq!(errors[0].message(), "duplicate template block");
+    match &errors[0] {
+        SyntaxError::InvalidConstruct {
+            construct, reason, ..
+        } => {
+            assert_eq!(construct, "template");
+            assert_eq!(reason, "duplicate template block");
+        }
+        other => panic!("Expected duplicate template construct error, got {other:?}"),
+    }
 }

@@ -68,8 +68,8 @@ fn lexes_sample_file_tokens() {
 #[test]
 fn lexes_text_body_as_single_string_literal() {
     let source = "@text[${price} * quantity]";
-    let tokens = lexer::lex(source, "lexes_text_body_as_single_string_literal")
-        .expect("Lexing failed");
+    let tokens =
+        lexer::lex(source, "lexes_text_body_as_single_string_literal").expect("Lexing failed");
 
     assert_eq!(tokens.kinds[0], lexer::TokenKind::At);
     assert_eq!(tokens.kinds[1], lexer::TokenKind::Text);
@@ -80,7 +80,10 @@ fn lexes_text_body_as_single_string_literal() {
         ref other => panic!("Expected text body to be captured as StringLiteral, got {other:?}"),
     };
 
-    assert_eq!(tokens.string_table[body_idx as usize].content, "${price} * quantity");
+    assert_eq!(
+        tokens.string_table[body_idx as usize].content,
+        "${price} * quantity"
+    );
     assert!(tokens.string_table[body_idx as usize].has_interpolation);
     assert_eq!(tokens.kinds[4], lexer::TokenKind::RightBracket);
     assert_eq!(tokens.kinds[5], lexer::TokenKind::Eof);
@@ -109,8 +112,8 @@ fn lexes_text_body_after_attributes_without_space() {
 #[test]
 fn lexes_text_body_after_attributes_with_space() {
     let source = "@text(attribute=value) [ text ]";
-    let tokens = lexer::lex(source, "lexes_text_body_after_attributes_with_space")
-        .expect("Lexing failed");
+    let tokens =
+        lexer::lex(source, "lexes_text_body_after_attributes_with_space").expect("Lexing failed");
 
     let body_idx = match tokens.kinds[8] {
         lexer::TokenKind::StringLiteral(idx) => idx,

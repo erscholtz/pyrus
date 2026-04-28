@@ -29,7 +29,7 @@ style {
         color: "black";
     }
 
-    section {
+    #mainsection {
         margin: 20pt;
         padding: 10pt;
     }

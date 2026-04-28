@@ -1,13 +1,19 @@
 use crate::ast::{Ast, KeyValue, Selector, StyleRule};
-use crate::hir::HIRModule;
-use crate::hir::hir_passes::HIRPass;
-use crate::hir::hir_types::{PageBreak, StyleAttributes};
-use crate::hir::hir_util::hir_error::HirError;
+use crate::diagnostic::SemanticError;
+use crate::hir::{
+    HIRModule,
+    hir_passes::HIRPass,
+    hir_types::{PageBreak, StyleAttributes},
+};
 
 pub struct StylePass;
 
 impl<'ast_lifetime> HIRPass for StylePass {
-    fn run(&mut self, hir: &mut crate::hir::HIRModule, ast: &Ast) -> Result<(), Vec<HirError>> {
+    fn run(
+        &mut self,
+        hir: &mut crate::hir::HIRModule,
+        ast: &Ast,
+    ) -> Result<(), Vec<SemanticError>> {
         // Store CSS rules from AST
         if let Some(style) = ast.style.clone() {
             hir.css_rules = style.statements.clone();
