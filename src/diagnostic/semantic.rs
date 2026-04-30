@@ -76,6 +76,9 @@ pub enum SemanticError {
         constraint: String,
         reason: String,
     },
+
+    /// Default set is not allowed at this location
+    DefaultSetAtInvalidLocation { location: SourceLocation },
 }
 
 impl SemanticError {
@@ -217,6 +220,7 @@ impl SemanticError {
             SemanticError::InvalidStyleProperty { .. } => "E0008",
             SemanticError::MissingStyleProperty { .. } => "E0009",
             SemanticError::InvalidLayoutConstraint { .. } => "E0010",
+            SemanticError::DefaultSetAtInvalidLocation { .. } => "E0011",
         }
     }
 }
@@ -234,6 +238,7 @@ impl Diagnostic for SemanticError {
             SemanticError::InvalidStyleProperty { .. } => "invalid style property or value",
             SemanticError::MissingStyleProperty { .. } => "missing required style property",
             SemanticError::InvalidLayoutConstraint { .. } => "invalid layout constraint",
+            SemanticError::DefaultSetAtInvalidLocation { .. } => "default set at invalid location",
         }
     }
 
@@ -249,6 +254,7 @@ impl Diagnostic for SemanticError {
             SemanticError::InvalidStyleProperty { location, .. } => location.clone(),
             SemanticError::MissingStyleProperty { location, .. } => location.clone(),
             SemanticError::InvalidLayoutConstraint { location, .. } => location.clone(),
+            SemanticError::DefaultSetAtInvalidLocation { location, .. } => location.clone(),
         }
     }
 
@@ -373,6 +379,9 @@ impl SemanticError {
                 constraint, reason, ..
             } => {
                 format!("invalid layout constraint `{}`: {}", constraint, reason)
+            }
+            SemanticError::DefaultSetAtInvalidLocation { .. } => {
+                format!("default set at invalid location")
             }
         }
     }

@@ -14,7 +14,10 @@ pub use crate::hir::{
         Global, GlobalId, HIRModule, HirElementDecl, HirElementOp, Literal, Op, StyleAttributes,
         Type, ValueId,
     },
-    hir_util::handle_args::parse_type,
+    hir_util::{
+        handle_args::parse_type,
+        handle_expr::{assign_global, assign_local},
+    },
 };
 
 pub fn lower(ast: &Ast, dm: &mut DiagnosticManager) -> Option<HIRModule> {
@@ -66,17 +69,17 @@ impl<'ast> HirPass<'ast> {
             match &statement.node {
                 StmtKind::DefaultSet(stmt) => {
                     let id = GlobalId(hirmodule.globals.len());
-                    let global = self.assign_global(&format!("__{}", stmt.key), &stmt.value, false);
+                    let global = assign_global(&format!("__{}", stmt.key), &stmt.value, false);
                     hirmodule.globals.insert(id, global);
                 }
                 StmtKind::ConstAssign(stmt) => {
                     let id = GlobalId(hirmodule.globals.len());
-                    let global = self.assign_global(&stmt.name, &stmt.value, false);
+                    let global = assign_global(&stmt.name, &stmt.value, false);
                     hirmodule.globals.insert(id, global);
                 }
                 StmtKind::VarAssign(stmt) => {
                     let id = GlobalId(hirmodule.globals.len());
-                    let global = self.assign_global(&stmt.name, &stmt.value, true);
+                    let global = assign_global(&stmt.name, &stmt.value, true);
                     hirmodule.globals.insert(id, global);
                 }
                 StmtKind::FuncDecl(func) => self.lower_element_decl(func, hirmodule),
@@ -456,12 +459,12 @@ impl<'ast> HirPass<'ast> {
             match &stmt.node {
                 StmtKind::ConstAssign(stmt) => {
                     let id = ValueId(ir_body.ops.len());
-                    let op = self.assign_local(stmt.name.clone(), &stmt.value, id, false);
+                    let op = assign_local(stmt.name.clone(), &stmt.value, id, false);
                     ir_body.ops.push(op);
                 }
                 StmtKind::VarAssign(stmt) => {
                     let id = ValueId(ir_body.ops.len());
-                    let op = self.assign_local(stmt.name.clone(), &stmt.value, id, true);
+                    let op = assign_local(stmt.name.clone(), &stmt.value, id, true);
                     ir_body.ops.push(op);
                 }
                 StmtKind::Return(ReturnStmt::DocElem(doc_element)) => {
@@ -474,7 +477,7 @@ impl<'ast> HirPass<'ast> {
                 }
                 StmtKind::Return(ReturnStmt::Expr(expr)) => {
                     let id = ValueId(ir_body.ops.len());
-                    let op = self.assign_local("__return".to_string(), expr, id, false);
+                    let op = assign_local("__return".to_string(), expr, id, false);
                     ir_body.ops.push(op);
                 }
                 StmtKind::Children(_) => {}
@@ -483,71 +486,6 @@ impl<'ast> HirPass<'ast> {
         }
 
         ir_body
-    }
-
-    fn assign_global(&self, name: &str, value: &Expr, mutable: bool) -> Global {
-        let (literal, ty) = self.expr_to_literal(value);
-        Global {
-            name: name.to_string(),
-            ty,
-            literal,
-            mutable,
-        }
-    }
-
-    fn assign_local(&self, name: String, value: &Expr, id: ValueId, mutable: bool) -> Op {
-        let (literal, ty) = self.expr_to_literal(value);
-        if mutable {
-            Op::Var {
-                result: id,
-                name,
-                literal,
-                ty,
-            }
-        } else {
-            Op::Const {
-                result: id,
-                name,
-                literal,
-                ty,
-            }
-        }
-    }
-
-    fn expr_to_literal(&self, expr: &Expr) -> (Literal, Type) {
-        match &expr.node {
-            ExprKind::StringLiteral(value) => (Literal::String(value.clone()), Type::String),
-            ExprKind::Int(value) => (Literal::Int(*value), Type::Int),
-            ExprKind::Float(value) => (Literal::Float(*value), Type::Float),
-            ExprKind::Identifier(value) => (Literal::String(value.clone()), Type::String),
-            ExprKind::InterpolatedString(InterpolatedStringExpr { parts }) => {
-                let value = self.eval_interpolated_string(parts);
-                (Literal::String(value), Type::String)
-            }
-            ExprKind::StructDefault(value) => (
-                Literal::String(format!("default({})", value.name)),
-                Type::String,
-            ),
-            ExprKind::Binary(BinaryExpr { .. }) => (Literal::Int(0), Type::Int),
-            _ => (Literal::Int(0), Type::Int),
-        }
-    }
-
-    fn eval_interpolated_string(&self, parts: &[ExprKind]) -> String {
-        let mut result = String::new();
-        for part in parts {
-            match part {
-                ExprKind::StringLiteral(s) => result.push_str(s),
-                ExprKind::Int(n) => result.push_str(&n.to_string()),
-                ExprKind::Float(f) => result.push_str(&f.to_string()),
-                ExprKind::Identifier(s) => result.push_str(s),
-                ExprKind::StructDefault(s) => {
-                    result.push_str(&format!("default({})", s.name));
-                }
-                _ => {} // TODO other types
-            }
-        }
-        result
     }
 
     fn extract_id_and_classes(
