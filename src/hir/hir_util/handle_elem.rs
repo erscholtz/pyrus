@@ -4,13 +4,10 @@ use crate::ast::{
     ArgType, CallElem, ChildrenElem, CodeElem, DocElem, DocElemKind, Expr, ExprKind, ImageElem,
     LinkElem, ListElem, ReturnStmt, SectionElem, Stmt, StmtKind, TableElem, TextElem,
 };
-use crate::diagnostic::SourceLocation;
+use crate::diagnostic::{SemanticError, SourceLocation};
 use crate::hir::{
     HIRModule,
-    hir_types::{
-        AttributeNode, ElementId, ElementMetadata, FuncBlock, HirElementOp, Literal, Op, Type,
-        ValueId,
-    },
+    hir_types::{AttributeNode, ElementId, ElementMetadata, FuncBlock, HirElementOp, Op, ValueId},
     hir_util::handle_args::handle_args,
     hir_util::handle_expr::assign_local,
 };
@@ -20,7 +17,7 @@ pub fn lower_document_element(
     hirmodule: &mut HIRModule,
     ir_body: &mut FuncBlock,
     parent_index: Option<usize>,
-) -> usize {
+) -> Result<usize, Vec<SemanticError>> {
     let location = element.location.clone();
     match &element.node {
         DocElemKind::Call(CallElem {
@@ -51,7 +48,7 @@ pub fn lower_document_element(
                 content: content.to_string(),
                 attributes: attributes_ref,
             };
-            index
+            Ok(index)
         }
         DocElemKind::Section(SectionElem {
             elements,
@@ -64,16 +61,12 @@ pub fn lower_document_element(
                 parent_index,
                 location,
             );
-            let children = elements
-                .iter()
-                .map(|child| lower_document_element(child, hirmodule, ir_body, Some(index)))
-                .filter(|index| *index != usize::MAX)
-                .collect();
+            let children = lower_document_children(elements, hirmodule, ir_body, Some(index))?;
             hirmodule.elements[index] = HirElementOp::Section {
                 children,
                 attributes: attributes_ref,
             };
-            index
+            Ok(index)
         }
         DocElemKind::List(ListElem {
             items, attributes, ..
@@ -85,16 +78,12 @@ pub fn lower_document_element(
                 parent_index,
                 location,
             );
-            let children = items
-                .iter()
-                .map(|child| lower_document_element(child, hirmodule, ir_body, Some(index)))
-                .filter(|index| *index != usize::MAX)
-                .collect();
+            let children = lower_document_children(items, hirmodule, ir_body, Some(index))?;
             hirmodule.elements[index] = HirElementOp::List {
                 children,
                 attributes: attributes_ref,
             };
-            index
+            Ok(index)
         }
         DocElemKind::Image(ImageElem { src, attributes }) => {
             let (index, attributes_ref) = reserve_element_slot(
@@ -108,7 +97,7 @@ pub fn lower_document_element(
                 src: src.clone(),
                 attributes: attributes_ref,
             };
-            index
+            Ok(index)
         }
         DocElemKind::Table(TableElem { table, attributes }) => {
             let (index, attributes_ref) = reserve_element_slot(
@@ -118,20 +107,12 @@ pub fn lower_document_element(
                 parent_index,
                 location,
             );
-            let lowered = table
-                .iter()
-                .map(|row| {
-                    row.iter()
-                        .map(|cell| lower_document_element(cell, hirmodule, ir_body, Some(index)))
-                        .filter(|index| *index != usize::MAX)
-                        .collect::<Vec<_>>()
-                })
-                .collect();
+            let lowered = lower_table_cells(table, hirmodule, ir_body, Some(index))?;
             hirmodule.elements[index] = HirElementOp::Table {
                 table: lowered,
                 attributes: attributes_ref,
             };
-            index
+            Ok(index)
         }
         DocElemKind::Link(LinkElem {
             href,
@@ -149,7 +130,7 @@ pub fn lower_document_element(
                 content: format!("{content} ({href})"),
                 attributes: attributes_ref,
             };
-            index
+            Ok(index)
         }
         DocElemKind::Code(CodeElem {
             content,
@@ -166,7 +147,7 @@ pub fn lower_document_element(
                 content: content.clone(),
                 attributes: attributes_ref,
             };
-            index
+            Ok(index)
         }
         DocElemKind::Children(ChildrenElem { .. }) => {
             let mut attributes = HashMap::new();
@@ -188,8 +169,54 @@ pub fn lower_document_element(
                 children: Vec::new(),
                 attributes: attributes_ref,
             };
-            index
+            Ok(index)
         }
+    }
+}
+
+fn lower_document_children(
+    elements: &[DocElem],
+    hirmodule: &mut HIRModule,
+    ir_body: &mut FuncBlock,
+    parent_index: Option<usize>,
+) -> Result<Vec<usize>, Vec<SemanticError>> {
+    let mut children = Vec::new();
+    let mut errors = Vec::new();
+
+    for child in elements {
+        match lower_document_element(child, hirmodule, ir_body, parent_index) {
+            Ok(index) => children.push(index),
+            Err(err) => errors.extend(err),
+        }
+    }
+
+    if errors.is_empty() {
+        Ok(children)
+    } else {
+        Err(errors)
+    }
+}
+
+fn lower_table_cells(
+    table: &[Vec<DocElem>],
+    hirmodule: &mut HIRModule,
+    ir_body: &mut FuncBlock,
+    parent_index: Option<usize>,
+) -> Result<Vec<Vec<usize>>, Vec<SemanticError>> {
+    let mut lowered = Vec::new();
+    let mut errors = Vec::new();
+
+    for row in table {
+        match lower_document_children(row, hirmodule, ir_body, parent_index) {
+            Ok(cells) => lowered.push(cells),
+            Err(err) => errors.extend(err),
+        }
+    }
+
+    if errors.is_empty() {
+        Ok(lowered)
+    } else {
+        Err(errors)
     }
 }
 
@@ -201,12 +228,23 @@ fn lower_call_element(
     ir_body: &mut FuncBlock,
     parent_index: Option<usize>,
     location: SourceLocation,
-) -> usize {
+) -> Result<usize, Vec<SemanticError>> {
+    let mut errors = Vec::new();
     let Some(element_id) = find_element_decl(hirmodule, name) else {
-        return usize::MAX;
+        errors.push(SemanticError::UndefinedVariable {
+            name: name.to_string(),
+            location,
+        });
+        return Err(errors);
     };
 
-    let arg_value_ids = handle_args(args, ir_body);
+    let arg_value_ids = match handle_args(args, ir_body) {
+        Ok(ids) => ids,
+        Err(err) => {
+            errors.extend(err);
+            return Err(errors);
+        }
+    };
 
     let mut wrapper_attrs = HashMap::new();
     wrapper_attrs.insert(
@@ -241,11 +279,8 @@ fn lower_call_element(
             location.clone(),
         );
 
-        let lowered_children = children
-            .iter()
-            .map(|child| lower_document_element(child, hirmodule, ir_body, Some(children_index)))
-            .filter(|index| *index != usize::MAX)
-            .collect();
+        let lowered_children =
+            lower_document_children(children, hirmodule, ir_body, Some(children_index))?;
 
         hirmodule.elements[children_index] = HirElementOp::Section {
             children: lowered_children,
@@ -266,10 +301,17 @@ fn lower_call_element(
         attributes: wrapper_attr_ref,
     };
 
-    wrapper_index
+    if !errors.is_empty() {
+        return Err(errors);
+    }
+
+    Ok(wrapper_index)
 }
 
-fn lower_element_body(body: &[Stmt], hirmodule: &mut HIRModule) -> FuncBlock {
+fn lower_element_body(
+    body: &[Stmt],
+    hirmodule: &mut HIRModule,
+) -> Result<FuncBlock, Vec<SemanticError>> {
     let mut ir_body = FuncBlock {
         ops: Vec::new(),
         returned_element_ref: None,
@@ -288,7 +330,8 @@ fn lower_element_body(body: &[Stmt], hirmodule: &mut HIRModule) -> FuncBlock {
                 ir_body.ops.push(op);
             }
             StmtKind::Return(ReturnStmt::DocElem(doc_element)) => {
-                let element_id = lower_document_element(doc_element, hirmodule, &mut ir_body, None);
+                let element_id =
+                    lower_document_element(doc_element, hirmodule, &mut ir_body, None)?;
                 ir_body.ops.push(Op::Return {
                     doc_element_ref: element_id,
                 });
@@ -304,7 +347,7 @@ fn lower_element_body(body: &[Stmt], hirmodule: &mut HIRModule) -> FuncBlock {
         }
     }
 
-    ir_body
+    Ok(ir_body)
 }
 
 fn extract_id_and_classes(

@@ -1,7 +1,5 @@
 use crate::ast::{BinaryExpr, Expr, ExprKind, InterpolatedStringExpr};
-use crate::hir::Op;
-use crate::hir::ValueId;
-use crate::hir::{Global, Literal, Type};
+use crate::hir::hir_types::{Global, Literal, Op, Type, ValueId};
 
 pub fn assign_global(name: &str, value: &Expr, mutable: bool) -> Global {
     let (literal, ty) = expr_to_literal(value);
@@ -17,14 +15,14 @@ pub fn assign_local(name: String, value: &Expr, id: ValueId, mutable: bool) -> O
     let (literal, ty) = expr_to_literal(value);
     if mutable {
         Op::Var {
-            result: id,
+            id,
             name,
             literal,
             ty,
         }
     } else {
         Op::Const {
-            result: id,
+            id,
             name,
             literal,
             ty,

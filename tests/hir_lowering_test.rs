@@ -395,9 +395,9 @@ document {
         .expect("Should have VALUE global");
 
     // Check the init literal
-    match &global.init {
+    match &global.literal {
         pyrus::hir::Literal::Int(42) => {}
-        _ => panic!("Expected Int(42), got {:?}", global.init),
+        _ => panic!("Expected Int(42), got {:?}", global.literal),
     }
 }
 

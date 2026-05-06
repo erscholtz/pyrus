@@ -1,5 +1,5 @@
 use crate::backend::render::pdf::pdf_renderer::PdfRenderer;
-use crate::hir::HIRModule;
+use crate::hir::hir_types::HIRModule;
 use crate::layout::{ComputedLayout, LayoutEngine};
 
 pub enum Renderer {

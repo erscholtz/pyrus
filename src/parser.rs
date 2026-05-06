@@ -1,6 +1,5 @@
 mod cursor;
 mod parse;
-mod parser;
 
 use crate::{
     diagnostic::{DiagnosticManager, SyntaxError},
@@ -27,7 +26,7 @@ impl Parser {
     // work
 
     fn trace(&self, event: &str) {
-        if self.trace_enabled {
+        if !self.trace_enabled {
             return;
         }
 

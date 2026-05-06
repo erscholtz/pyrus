@@ -5,7 +5,7 @@ use std::time::Instant;
 
 use pyrus::backend;
 use pyrus::hir;
-use pyrus::hir::HirDisplayExt;
+use pyrus::hir::hir_debug::HirDisplayExt;
 use pyrus::layout::setup_layout;
 use pyrus::{ast::Ast, diagnostic::DiagnosticManager, lexer, parser::Parser};
 
@@ -42,10 +42,11 @@ fn main() {
     };
     println!("{:?}", &tokens);
 
-    let mut parser = Parser::new(tokens).enable_tracing();
+    let mut parser = Parser::new(tokens);
+    // parser.enable_tracing();
     let ast = parser.parse::<Ast>().unwrap();
     parser.gather_errors(&mut dm);
-    println!("{:#?}", ast);
+    // println!("{:#?}", ast);
 
     let hir_module = hir::lower(&ast, &mut dm).expect("Should be able to lower AST to HIR");
     println!("{}", hir_module.hir_display());

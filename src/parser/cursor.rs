@@ -27,7 +27,7 @@ impl Cursor {
     }
 
     fn trace(&self, event: &str) {
-        if self.trace_enabled {
+        if !self.trace_enabled {
             return;
         }
 

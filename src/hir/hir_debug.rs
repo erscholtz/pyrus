@@ -126,7 +126,7 @@ impl HirDebug for Op {
     fn hir_fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Op::Const {
-                result,
+                id,
                 name,
                 literal,
                 ty,
@@ -134,14 +134,14 @@ impl HirDebug for Op {
                 write!(
                     f,
                     "{} = const {} {} {}",
-                    result.hir_string(),
+                    id.hir_string(),
                     name,
                     literal.hir_string(),
                     ty.hir_string()
                 )
             }
             Op::Var {
-                result,
+                id,
                 name,
                 literal,
                 ty,
@@ -149,7 +149,7 @@ impl HirDebug for Op {
                 write!(
                     f,
                     "{} = var {} {} {}",
-                    result.hir_string(),
+                    id.hir_string(),
                     name,
                     literal.hir_string(),
                     ty.hir_string()

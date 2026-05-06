@@ -1,3 +1,4 @@
+pub mod document_pass;
 pub mod func_pass;
 pub mod global_pass;
 pub mod style_pass;

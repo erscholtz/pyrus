@@ -6,7 +6,7 @@ use printpdf::{
     BuiltinFont, Mm, Op, PdfDocument, PdfFontHandle, PdfPage, PdfSaveOptions, Point, Pt, TextItem,
 };
 
-use crate::hir::{HIRModule, HirElementOp, StyleAttributes};
+use crate::hir::hir_types::{HIRModule, HirElementOp, StyleAttributes};
 use crate::layout::ComputedLayout;
 
 pub struct PdfRenderer;

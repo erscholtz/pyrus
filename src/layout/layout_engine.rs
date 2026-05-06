@@ -3,7 +3,7 @@ use taffy::style::{AvailableSpace, Dimension};
 use taffy::style_helpers::{FromLength, FromPercent, TaffyAuto};
 use taffy::{LengthPercentage, LengthPercentageAuto, NodeId, Rect, Size, Style, TaffyTree};
 
-use crate::hir::{FuncId, HIRModule, HirElementOp, Op, StyleAttributes};
+use crate::hir::hir_types::{FuncId, HIRModule, HirElementOp, Op, StyleAttributes};
 
 pub fn setup_layout(hlir_module: &HIRModule) -> LayoutEngine {
     let layout = LayoutEngine::build_from_hlir_module(hlir_module);

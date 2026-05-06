@@ -39,13 +39,13 @@ pub struct ElementId(pub usize);
 #[derive(Debug, Clone)]
 pub enum Op {
     Const {
-        result: ValueId,
+        id: ValueId,
         name: String,
         literal: Literal,
         ty: Type,
     },
     Var {
-        result: ValueId,
+        id: ValueId,
         name: String,
         literal: Literal,
         ty: Type,
