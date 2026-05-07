@@ -1,13 +1,14 @@
 use std::collections::HashMap;
 
 use crate::ast::{
-    ArgType, CallElem, ChildrenElem, CodeElem, DocElem, DocElemKind, Expr, ExprKind, ImageElem,
-    LinkElem, ListElem, SectionElem, TableElem, TextElem,
+    ArgType, BinaryExpr, CallElem, ChildrenElem, CodeElem, DocElem, DocElemKind, Expr, ExprKind,
+    ImageElem, InterpolatedStringExpr, LinkElem, ListElem, SectionElem, StructDefaultExpr,
+    TableElem, TextElem, UnaryExpr,
 };
 use crate::diagnostic::{SemanticError, SourceLocation};
 use crate::hir::{
     HIRModule,
-    hir_types::{AttributeNode, ElementId, ElementMetadata, FuncBlock, HirElementOp, Op, ValueId},
+    hir_types::{AttributeNode, ElementMetadata, FuncBlock, FuncDecl, HirElementOp, Op, ValueId},
     hir_util::handle_args::handle_args,
 };
 
@@ -45,6 +46,7 @@ pub fn lower_document_element(
             );
             hirmodule.elements[index] = HirElementOp::Text {
                 content: content.to_string(),
+                content_expr: Some(content.clone()),
                 attributes: attributes_ref,
             };
             Ok(index)
@@ -127,6 +129,7 @@ pub fn lower_document_element(
             );
             hirmodule.elements[index] = HirElementOp::Text {
                 content: format!("{content} ({href})"),
+                content_expr: None,
                 attributes: attributes_ref,
             };
             Ok(index)
@@ -144,6 +147,7 @@ pub fn lower_document_element(
             );
             hirmodule.elements[index] = HirElementOp::Text {
                 content: content.clone(),
+                content_expr: None,
                 attributes: attributes_ref,
             };
             Ok(index)
@@ -237,7 +241,8 @@ fn lower_call_element(
             return Err(errors);
         }
     };
-    let returned_element_ref = find_function_returned_element(hirmodule, name);
+    let function = find_function_decl(hirmodule, name).cloned();
+    let function_found = function.is_some();
 
     let mut wrapper_attrs = HashMap::new();
     wrapper_attrs.insert(
@@ -254,36 +259,31 @@ fn lower_call_element(
     );
 
     let mut wrapper_children = Vec::new();
-    if let Some(returned_element_ref) = returned_element_ref {
-        wrapper_children.push(returned_element_ref);
+    if let Some(function) = function {
+        if let Some(returned_element_ref) = function.body.returned_element_ref {
+            let substitutions = build_arg_substitutions(&function, args);
+            match clone_element_tree_for_call(
+                returned_element_ref,
+                hirmodule,
+                ir_body,
+                Some(wrapper_index),
+                &substitutions,
+                children,
+            ) {
+                Ok(cloned_element_ref) => wrapper_children.push(cloned_element_ref),
+                Err(err) => errors.extend(err),
+            }
+        }
     }
 
-    if let Some(children) = children.filter(|children| !children.is_empty()) {
-        let mut children_attrs = HashMap::new();
-        children_attrs.insert(
-            "class".to_string(),
-            Expr::new(
-                ExprKind::StringLiteral("children".to_string()),
-                location.clone(),
-            ),
-        );
-
-        let (children_index, children_attr_ref) = reserve_element_slot(
-            hirmodule,
-            "section",
-            Some(&children_attrs),
-            Some(wrapper_index),
-            location.clone(),
-        );
-
-        let lowered_children =
-            lower_document_children(children, hirmodule, ir_body, Some(children_index))?;
-
-        hirmodule.elements[children_index] = HirElementOp::Section {
-            children: lowered_children,
-            attributes: children_attr_ref,
-        };
-        wrapper_children.push(children_index);
+    if !function_found {
+        // Unknown calls still preserve their children so later validation can report the call
+        // without losing surrounding document content.
+        if let Some(children) = children.filter(|children| !children.is_empty()) {
+            let lowered_children =
+                lower_document_children(children, hirmodule, ir_body, Some(wrapper_index))?;
+            wrapper_children.extend(lowered_children);
+        }
     }
 
     let result_id = ValueId(ir_body.ops.len());
@@ -359,6 +359,7 @@ fn reserve_element_slot(
         },
         "text" => HirElementOp::Text {
             content: String::new(),
+            content_expr: None,
             attributes: attributes_ref,
         },
         "image" => HirElementOp::Image {
@@ -387,17 +388,272 @@ fn reserve_element_slot(
     (element_index, attributes_ref)
 }
 
-fn find_element_decl(hirmodule: &HIRModule, name: &str) -> Option<ElementId> {
-    hirmodule
-        .element_decls
-        .iter()
-        .find_map(|(id, decl)| (decl.name == name).then_some(*id))
+fn find_function_decl<'hir>(hirmodule: &'hir HIRModule, name: &str) -> Option<&'hir FuncDecl> {
+    hirmodule.functions.values().find(|decl| decl.name == name)
 }
 
-fn find_function_returned_element(hirmodule: &HIRModule, name: &str) -> Option<usize> {
-    hirmodule
-        .functions
-        .values()
-        .find(|decl| decl.name == name)
-        .and_then(|decl| decl.body.returned_element_ref)
+fn build_arg_substitutions(function: &FuncDecl, args: &[ArgType]) -> HashMap<String, String> {
+    function
+        .arg_names
+        .iter()
+        .zip(args.iter())
+        .map(|(name, arg)| (name.clone(), arg.name.clone()))
+        .collect()
+}
+
+fn clone_element_tree_for_call(
+    element_index: usize,
+    hirmodule: &mut HIRModule,
+    ir_body: &mut FuncBlock,
+    parent_index: Option<usize>,
+    substitutions: &HashMap<String, String>,
+    call_children: Option<&Vec<DocElem>>,
+) -> Result<usize, Vec<SemanticError>> {
+    let element = hirmodule.elements[element_index].clone();
+    let metadata = hirmodule.element_metadata[element_index].clone();
+
+    if is_children_placeholder(&element, &metadata) {
+        return clone_children_placeholder(
+            hirmodule,
+            ir_body,
+            parent_index,
+            metadata.attributes_ref,
+            metadata.location,
+            call_children,
+        );
+    }
+
+    let attributes_ref = clone_attributes(metadata.attributes_ref, hirmodule);
+    let new_index = reserve_cloned_element_slot(&metadata, attributes_ref, parent_index, hirmodule);
+
+    let cloned_element = match element {
+        HirElementOp::Section { children, .. } => {
+            let cloned_children = clone_child_elements(
+                &children,
+                hirmodule,
+                ir_body,
+                Some(new_index),
+                substitutions,
+                call_children,
+            )?;
+            HirElementOp::Section {
+                children: cloned_children,
+                attributes: attributes_ref,
+            }
+        }
+        HirElementOp::List { children, .. } => {
+            let cloned_children = clone_child_elements(
+                &children,
+                hirmodule,
+                ir_body,
+                Some(new_index),
+                substitutions,
+                call_children,
+            )?;
+            HirElementOp::List {
+                children: cloned_children,
+                attributes: attributes_ref,
+            }
+        }
+        HirElementOp::Text {
+            content,
+            content_expr,
+            ..
+        } => {
+            let content = content_expr
+                .as_ref()
+                .map(|expr| render_expr_with_substitutions(&expr.node, substitutions))
+                .unwrap_or(content);
+            HirElementOp::Text {
+                content,
+                content_expr,
+                attributes: attributes_ref,
+            }
+        }
+        HirElementOp::Image { src, .. } => HirElementOp::Image {
+            src,
+            attributes: attributes_ref,
+        },
+        HirElementOp::Table { table, .. } => {
+            let mut cloned_rows = Vec::new();
+            for row in table {
+                cloned_rows.push(clone_child_elements(
+                    &row,
+                    hirmodule,
+                    ir_body,
+                    Some(new_index),
+                    substitutions,
+                    call_children,
+                )?);
+            }
+            HirElementOp::Table {
+                table: cloned_rows,
+                attributes: attributes_ref,
+            }
+        }
+    };
+
+    hirmodule.elements[new_index] = cloned_element;
+    Ok(new_index)
+}
+
+fn clone_child_elements(
+    children: &[usize],
+    hirmodule: &mut HIRModule,
+    ir_body: &mut FuncBlock,
+    parent_index: Option<usize>,
+    substitutions: &HashMap<String, String>,
+    call_children: Option<&Vec<DocElem>>,
+) -> Result<Vec<usize>, Vec<SemanticError>> {
+    let mut cloned = Vec::new();
+    let mut errors = Vec::new();
+
+    for child in children {
+        match clone_element_tree_for_call(
+            *child,
+            hirmodule,
+            ir_body,
+            parent_index,
+            substitutions,
+            call_children,
+        ) {
+            Ok(index) => cloned.push(index),
+            Err(err) => errors.extend(err),
+        }
+    }
+
+    if errors.is_empty() {
+        Ok(cloned)
+    } else {
+        Err(errors)
+    }
+}
+
+fn is_children_placeholder(element: &HirElementOp, metadata: &ElementMetadata) -> bool {
+    matches!(element, HirElementOp::Section { children, .. } if children.is_empty())
+        && metadata.element_type == "section"
+        && metadata.classes.iter().any(|class| class == "children")
+}
+
+fn clone_children_placeholder(
+    hirmodule: &mut HIRModule,
+    ir_body: &mut FuncBlock,
+    parent_index: Option<usize>,
+    old_attributes_ref: usize,
+    location: SourceLocation,
+    call_children: Option<&Vec<DocElem>>,
+) -> Result<usize, Vec<SemanticError>> {
+    let attributes_ref = clone_attributes(old_attributes_ref, hirmodule);
+
+    hirmodule.element_metadata.push(ElementMetadata {
+        id: None,
+        classes: vec!["children".to_string()],
+        element_type: "section".to_string(),
+        parent: parent_index,
+        attributes_ref,
+        location,
+    });
+
+    let new_index = hirmodule.elements.len();
+    hirmodule.elements.push(HirElementOp::Section {
+        children: Vec::new(),
+        attributes: attributes_ref,
+    });
+
+    let children = if let Some(call_children) = call_children {
+        lower_document_children(call_children, hirmodule, ir_body, Some(new_index))?
+    } else {
+        Vec::new()
+    };
+
+    hirmodule.elements[new_index] = HirElementOp::Section {
+        children,
+        attributes: attributes_ref,
+    };
+    Ok(new_index)
+}
+
+fn clone_attributes(attributes_ref: usize, hirmodule: &mut HIRModule) -> usize {
+    let inline = hirmodule
+        .attributes
+        .find_node(attributes_ref)
+        .map(|node| node.inline.clone())
+        .unwrap_or_default();
+
+    hirmodule.attributes.add_attribute(AttributeNode {
+        parent: None,
+        id: 0,
+        inline,
+        computed: Default::default(),
+        children: HashMap::new(),
+    })
+}
+
+fn reserve_cloned_element_slot(
+    metadata: &ElementMetadata,
+    attributes_ref: usize,
+    parent_index: Option<usize>,
+    hirmodule: &mut HIRModule,
+) -> usize {
+    hirmodule.element_metadata.push(ElementMetadata {
+        id: metadata.id.clone(),
+        classes: metadata.classes.clone(),
+        element_type: metadata.element_type.clone(),
+        parent: parent_index,
+        attributes_ref,
+        location: metadata.location.clone(),
+    });
+
+    let element_index = hirmodule.elements.len();
+    hirmodule.elements.push(HirElementOp::Section {
+        children: Vec::new(),
+        attributes: attributes_ref,
+    });
+    element_index
+}
+
+fn render_expr_with_substitutions(
+    expr: &ExprKind,
+    substitutions: &HashMap<String, String>,
+) -> String {
+    match expr {
+        ExprKind::StringLiteral(value) => value.clone(),
+        ExprKind::InterpolatedString(InterpolatedStringExpr { parts }) => parts
+            .iter()
+            .map(|part| render_expr_with_substitutions(part, substitutions))
+            .collect(),
+        ExprKind::Identifier(name) => substitutions
+            .get(name)
+            .cloned()
+            .unwrap_or_else(|| name.clone()),
+        ExprKind::Int(value) => value.to_string(),
+        ExprKind::Float(value) => value.to_string(),
+        ExprKind::StructDefault(StructDefaultExpr { name }) => format!("default({name})"),
+        ExprKind::Binary(BinaryExpr { left, op, right }) => {
+            let op = match op {
+                crate::ast::BinOp::Add => "+",
+                crate::ast::BinOp::Subtract => "-",
+                crate::ast::BinOp::Multiply => "*",
+                crate::ast::BinOp::Divide => "/",
+                crate::ast::BinOp::Equals => "=",
+                crate::ast::BinOp::Mod => "%",
+            };
+            format!(
+                "{} {} {}",
+                render_expr_with_substitutions(left, substitutions),
+                op,
+                render_expr_with_substitutions(right, substitutions)
+            )
+        }
+        ExprKind::Unary(UnaryExpr { op, expr }) => {
+            let op = match op {
+                crate::ast::UnaryOp::Negate => "-",
+                crate::ast::UnaryOp::Not => "!",
+            };
+            format!(
+                "{op}{}",
+                render_expr_with_substitutions(expr, substitutions)
+            )
+        }
+    }
 }

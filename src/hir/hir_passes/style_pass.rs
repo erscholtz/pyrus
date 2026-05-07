@@ -35,34 +35,59 @@ impl Default for StylePass {
 
 impl StylePass {
     fn resolve(&mut self, hir: &mut HIRModule) {
-        // Sort CSS rules by specificity for cascade order
-
-        let mut sorted_rules = hir.css_rules.clone();
-        sorted_rules.sort_by_key(|r| r.specificity);
+        let rules = hir.css_rules.clone();
+        hir.document_styles = self.compute_document_styles(&rules);
 
         for element_idx in 0..hir.element_metadata.len() {
-            self.compute_element_styles(element_idx, &sorted_rules, hir);
+            self.compute_element_styles(element_idx, &rules, hir);
         }
+    }
+
+    fn compute_document_styles(&mut self, rules: &[StyleRule]) -> StyleAttributes {
+        let mut computed = StyleAttributes::default();
+
+        for rule in rules {
+            if rule
+                .selector_list
+                .iter()
+                .any(Self::selector_targets_document)
+            {
+                self.apply_rule_declarations(&mut computed, &rule.declaration_block);
+            }
+        }
+
+        computed
+    }
+
+    fn selector_targets_document(selector: &Selector) -> bool {
+        matches!(selector, Selector::Type(ty) if ty == "body" || ty == "document")
     }
 
     fn compute_element_styles(
         &mut self,
         element_idx: usize,
-        sorted_rules: &[StyleRule],
+        rules: &[StyleRule],
         hir: &mut HIRModule,
     ) {
         let metadata = hir.element_metadata[element_idx].clone();
 
         // Start with inherited styles from parent
         let mut computed = StyleAttributes::default();
+        computed.apply_inherited(&hir.document_styles);
         if let Some(parent_idx) = metadata.parent {
             self.apply_inherited_styles(&mut computed, parent_idx, hir);
         }
 
-        for rule in sorted_rules {
-            if self.rule_matches(rule, element_idx, hir) {
-                self.apply_rule_declarations(&mut computed, &rule.declaration_block);
+        let mut matching_rules = Vec::new();
+        for (source_order, rule) in rules.iter().enumerate() {
+            if let Some(specificity) = self.matching_specificity(rule, element_idx, hir) {
+                matching_rules.push((specificity, source_order, rule));
             }
+        }
+        matching_rules.sort_by_key(|(specificity, source_order, _)| (*specificity, *source_order));
+
+        for (_, _, rule) in matching_rules {
+            self.apply_rule_declarations(&mut computed, &rule.declaration_block);
         }
 
         self.apply_inline_styles(&mut computed, metadata.attributes_ref, hir);
@@ -82,11 +107,25 @@ impl StylePass {
         }
     }
 
-    fn rule_matches(&self, rule: &StyleRule, element_idx: usize, hir: &HIRModule) -> bool {
-        // A rule matches if ANY of its selectors match the element
+    fn matching_specificity(
+        &self,
+        rule: &StyleRule,
+        element_idx: usize,
+        hir: &HIRModule,
+    ) -> Option<usize> {
         rule.selector_list
             .iter()
-            .any(|selector| self.selector_matches(selector, element_idx, hir))
+            .filter(|selector| self.selector_matches(selector, element_idx, hir))
+            .map(Self::selector_specificity)
+            .max()
+    }
+
+    fn selector_specificity(selector: &Selector) -> usize {
+        match selector {
+            Selector::Id(_) => 100,
+            Selector::Class(_) => 10,
+            Selector::Type(_) => 1,
+        }
     }
 
     fn selector_matches(&self, selector: &Selector, element_idx: usize, hir: &HIRModule) -> bool {

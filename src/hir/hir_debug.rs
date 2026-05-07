@@ -108,7 +108,7 @@ impl HirDebug for FuncDecl {
     }
 }
 
-impl HirDebug for HirElementDecl {
+impl HirDebug for HirElemDecl {
     fn hir_fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let args: Vec<String> = self.args.iter().map(|t| format!("{:?}", t)).collect();
         writeln!(f, "{}({})", self.name, args.join(", "))?;
@@ -241,6 +241,7 @@ impl HirDebug for HirElementOp {
             }
             HirElementOp::Text {
                 content,
+                content_expr: _,
                 attributes,
             } => {
                 let truncated = truncate_str(content, 40);
@@ -280,7 +281,7 @@ impl HirDebug for ValueId {
     }
 }
 
-impl HirDebug for ElementId {
+impl HirDebug for ElemId {
     fn hir_fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.hir_string())
     }
@@ -333,7 +334,7 @@ impl HirString for ValueId {
     }
 }
 
-impl HirString for ElementId {
+impl HirString for ElemId {
     fn hir_string(&self) -> String {
         format!("elem#{}", self.0)
     }

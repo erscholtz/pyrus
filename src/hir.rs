@@ -24,6 +24,7 @@ pub fn lower(ast: &Ast, dm: &mut DiagnosticManager) -> Result<HIRModule, Vec<Com
         element_decls: HashMap::new(),
         attributes: AttributeTree::new(),
         css_rules: Vec::new(),
+        document_styles: Default::default(),
         elements: Vec::new(),
         element_metadata: Vec::new(),
     };

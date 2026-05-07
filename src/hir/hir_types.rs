@@ -34,7 +34,7 @@ pub struct GlobalId(pub usize);
 pub struct ValueId(pub usize);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct ElementId(pub usize);
+pub struct ElemId(pub usize);
 
 #[derive(Debug, Clone)]
 pub enum Op {
@@ -68,7 +68,7 @@ pub enum Op {
     ElementCall {
         name: String,
         result: ValueId,
-        element: Option<ElementId>, // NOTE for validation maybe?
+        element: Option<ElemId>, // NOTE for validation maybe?
         args: Vec<ValueId>,
     },
     Return {
@@ -120,13 +120,14 @@ pub struct Local {
 #[derive(Debug, Clone)]
 pub struct FuncDecl {
     pub name: String,
+    pub arg_names: Vec<String>,
     pub args: Vec<Type>,
     pub return_type: Option<Type>,
     pub body: FuncBlock,
 }
 
 #[derive(Debug, Clone)]
-pub struct HirElementDecl {
+pub struct HirElemDecl {
     pub name: String,
     pub args: Vec<Type>,
     pub body: FuncBlock,
@@ -155,9 +156,10 @@ pub struct HIRModule {
     pub file: String,
     pub globals: HashMap<GlobalId, Global>, // TODO eventually remove IDs from actual struct and just refer to them (I think)
     pub functions: HashMap<FuncId, FuncDecl>,
-    pub element_decls: HashMap<ElementId, HirElementDecl>, // Custom element declarations
+    pub element_decls: HashMap<ElemId, HirElemDecl>, // Custom element declarations
     pub attributes: AttributeTree,
     pub css_rules: Vec<StyleRule>, // Parsed CSS rules (unapplied)
+    pub document_styles: StyleAttributes, // Styles from the implicit document/body root
     pub elements: Vec<HirElementOp>,
     pub element_metadata: Vec<ElementMetadata>, // Parallel to elements, for CSS matching
 }
@@ -174,6 +176,7 @@ pub enum HirElementOp {
     },
     Text {
         content: String,
+        content_expr: Option<Expr>,
         attributes: usize,
     },
     Image {

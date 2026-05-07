@@ -28,6 +28,11 @@ impl HIRPass for FuncPass {
                     } => {
                         let func_id = FuncId(hir.functions.len());
 
+                        let arg_names = args
+                            .iter()
+                            .map(|arg| arg.value.to_string())
+                            .collect::<Vec<String>>();
+
                         let args = args
                             .iter()
                             .filter_map(|arg| parse_type(&arg.ty))
@@ -50,6 +55,7 @@ impl HIRPass for FuncPass {
                             func_id,
                             FuncDecl {
                                 name: name.clone(),
+                                arg_names,
                                 args,
                                 return_type,
                                 body,

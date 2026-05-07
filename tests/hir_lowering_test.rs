@@ -5,7 +5,10 @@
 
 use pyrus::ast::Ast;
 use pyrus::diagnostic::DiagnosticManager;
-use pyrus::hir::{HIRModule, Op, Type, lower};
+use pyrus::hir::{
+    hir_types::{HIRModule, Literal, Op, Type},
+    lower,
+};
 use pyrus::lexer::{TokenStream, lex};
 use pyrus::parser::Parser;
 
@@ -16,7 +19,7 @@ fn parse(tokens: TokenStream) -> Result<Ast, Vec<pyrus::diagnostic::SyntaxError>
 fn lower_ast(ast: &Ast) -> HIRModule {
     let mut diagnostics = DiagnosticManager::new();
     lower(ast, &mut diagnostics)
-        .unwrap_or_else(|| panic!("Lowering failed: {:?}", diagnostics.diagnostics()))
+        .unwrap_or_else(|_| panic!("Lowering failed: {:?}", diagnostics.diagnostics()))
 }
 
 // ============================================================================
@@ -396,7 +399,7 @@ document {
 
     // Check the init literal
     match &global.literal {
-        pyrus::hir::Literal::Int(42) => {}
+        Literal::Int(42) => {}
         _ => panic!("Expected Int(42), got {:?}", global.literal),
     }
 }

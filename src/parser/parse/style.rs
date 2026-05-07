@@ -58,7 +58,10 @@ impl Parse for Selector {
 
 impl Parse for KeyValue {
     fn parse(p: &mut Parser) -> Result<Self, SyntaxError> {
-        if p.cursor.cur_tok() != &TokenKind::Identifier {
+        if matches!(
+            p.cursor.cur_tok(),
+            TokenKind::Colon | TokenKind::Equals | TokenKind::Semicolon | TokenKind::RightBrace
+        ) {
             return Err(SyntaxError::UnexpectedToken {
                 location: p.cursor.location(),
                 expected: vec![TokenKind::Identifier],

@@ -10,6 +10,10 @@ pub fn setup_layout(hlir_module: &HIRModule) -> LayoutEngine {
     layout
 }
 
+const PAGE_WIDTH_PT: f32 = 595.0;
+const DEFAULT_FONT_SIZE_PT: f32 = 12.0;
+const DEFAULT_LINE_HEIGHT_MULTIPLIER: f32 = 1.2;
+
 #[derive(Debug)]
 pub struct LayoutEngine {
     tree: TaffyTree,
@@ -27,6 +31,75 @@ pub struct ComputedLayout {
     pub width: f32,
     pub height: f32,
     pub element_index: usize,
+    pub marker: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+struct BoxEdges {
+    top: f32,
+    right: f32,
+    bottom: f32,
+    left: f32,
+}
+
+impl BoxEdges {
+    fn horizontal(self) -> f32 {
+        self.left + self.right
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+struct ElementBox {
+    margin: BoxEdges,
+    padding: BoxEdges,
+}
+
+impl ElementBox {
+    fn from_attributes(attributes: &StyleAttributes) -> Self {
+        Self {
+            margin: Self::edges_from_style(attributes.margin, &attributes.style, "margin"),
+            padding: Self::edges_from_style(attributes.padding, &attributes.style, "padding"),
+        }
+    }
+
+    fn edges_from_style(
+        shorthand: Option<f32>,
+        style: &HashMap<String, String>,
+        property: &str,
+    ) -> BoxEdges {
+        let mut edges = BoxEdges::default();
+
+        if let Some(value) = shorthand {
+            edges = BoxEdges {
+                top: value,
+                right: value,
+                bottom: value,
+                left: value,
+            };
+        }
+
+        if let Some(value) = Self::side_value(style, property, "top") {
+            edges.top = value;
+        }
+        if let Some(value) = Self::side_value(style, property, "right") {
+            edges.right = value;
+        }
+        if let Some(value) = Self::side_value(style, property, "bottom") {
+            edges.bottom = value;
+        }
+        if let Some(value) = Self::side_value(style, property, "left") {
+            edges.left = value;
+        }
+
+        edges
+    }
+
+    fn side_value(style: &HashMap<String, String>, property: &str, suffix: &str) -> Option<f32> {
+        let key = format!("{property}-{suffix}");
+        style
+            .get(&key)
+            .and_then(|value| LayoutEngine::parse_css_length(value))
+    }
 }
 
 impl LayoutEngine {
@@ -364,8 +437,12 @@ impl LayoutEngine {
     /// This stacks elements vertically with proper spacing based on font-size
     pub fn compute_document_flow(&self, hlir: &HIRModule) -> Vec<ComputedLayout> {
         let mut layouts = Vec::new();
-        let mut current_y = 0.0;
-        let page_width = 595.0; // A4 width in points
+        let document_box = ElementBox::from_attributes(&hlir.document_styles);
+        let mut current_y = document_box.margin.top + document_box.padding.top;
+        let x_offset = document_box.margin.left + document_box.padding.left;
+        let page_width =
+            (PAGE_WIDTH_PT - document_box.margin.horizontal() - document_box.padding.horizontal())
+                .max(0.0);
 
         // Get document ops in order and recursively process all elements
         let document_id = FuncId(hlir.functions.len() - 1);
@@ -379,7 +456,8 @@ impl LayoutEngine {
                             &mut layouts,
                             &mut current_y,
                             page_width,
-                            0.0, // Initial x offset
+                            x_offset,
+                            None,
                         );
                     }
                     Op::FuncCall { func, .. } => {
@@ -391,7 +469,8 @@ impl LayoutEngine {
                                     &mut layouts,
                                     &mut current_y,
                                     page_width,
-                                    0.0,
+                                    x_offset,
+                                    None,
                                 );
                             }
                         }
@@ -413,66 +492,338 @@ impl LayoutEngine {
         current_y: &mut f32,
         page_width: f32,
         x_offset: f32,
+        marker: Option<String>,
     ) {
         if let Some(element) = hlir.elements.get(element_index) {
-            let (height, has_children) = match element {
-                HirElementOp::Text { attributes, .. } => {
-                    let attrs = hlir.attributes.find_node(*attributes).map(|n| &n.computed);
+            let attributes_ref = Self::element_attributes_ref(element);
+            let attrs = hlir
+                .attributes
+                .find_node(attributes_ref)
+                .map(|node| &node.computed);
+            let element_box = attrs.map(ElementBox::from_attributes).unwrap_or_default();
+
+            *current_y += element_box.margin.top + element_box.padding.top;
+
+            let content_x = x_offset + element_box.margin.left + element_box.padding.left;
+            let content_width =
+                (page_width - element_box.margin.horizontal() - element_box.padding.horizontal())
+                    .max(0.0);
+
+            match element {
+                HirElementOp::Text { content, .. } => {
                     let font_size = attrs
-                        .and_then(|a| a.style.get("font-size"))
-                        .and_then(|v| Self::parse_css_length(v))
-                        .unwrap_or(12.0);
-                    // Line height is typically 1.2x font size
-                    (font_size * 1.2, false)
+                        .and_then(Self::parse_font_size)
+                        .unwrap_or(DEFAULT_FONT_SIZE_PT);
+                    let line_height = attrs
+                        .and_then(|attrs| Self::parse_line_height(attrs, font_size))
+                        .unwrap_or(font_size * DEFAULT_LINE_HEIGHT_MULTIPLIER);
+                    let line_count = Self::wrap_text(content, content_width, font_size)
+                        .len()
+                        .max(1) as f32;
+                    let height = line_count * line_height;
+
+                    layouts.push(ComputedLayout {
+                        x: content_x,
+                        y: *current_y,
+                        width: content_width,
+                        height,
+                        element_index,
+                        marker,
+                    });
+
+                    *current_y += height + element_box.padding.bottom + element_box.margin.bottom;
                 }
                 HirElementOp::List { children, .. } => {
-                    // List container - process children with indentation
+                    for (item_idx, child_idx) in children.iter().enumerate() {
+                        let marker = attrs.and_then(|attrs| Self::list_marker(attrs, item_idx));
+                        self.process_element_for_layout(
+                            *child_idx,
+                            hlir,
+                            layouts,
+                            current_y,
+                            (content_width - 20.0).max(0.0),
+                            content_x + 20.0,
+                            marker,
+                        );
+                    }
+
+                    *current_y += element_box.padding.bottom + element_box.margin.bottom;
+                }
+                HirElementOp::Section { children, .. } if Self::is_flex_row(attrs) => {
+                    self.process_row_children(
+                        children,
+                        hlir,
+                        layouts,
+                        current_y,
+                        content_width,
+                        content_x,
+                    );
+
+                    *current_y += element_box.padding.bottom + element_box.margin.bottom;
+                }
+                HirElementOp::Section { children, .. } => {
                     for child_idx in children {
                         self.process_element_for_layout(
                             *child_idx,
                             hlir,
                             layouts,
                             current_y,
-                            page_width - 20.0, // Slightly narrower for list items
-                            x_offset + 20.0,   // Indent list items
+                            content_width,
+                            content_x,
+                            None,
                         );
                     }
-                    (0.0, true) // Height comes from children
-                }
-                HirElementOp::Section { children, .. } => {
-                    // Section container - process children
-                    for child_idx in children {
-                        self.process_element_for_layout(
-                            *child_idx, hlir, layouts, current_y, page_width, x_offset,
-                        );
-                    }
-                    (0.0, true) // Height comes from children
+
+                    *current_y += element_box.padding.bottom + element_box.margin.bottom;
                 }
                 HirElementOp::Image { .. } => {
-                    // Image - no layout needed, but we still need to advance the cursor
-                    *current_y += 10.0;
-                    (0.0, false)
+                    *current_y += 10.0 + element_box.padding.bottom + element_box.margin.bottom;
                 }
                 HirElementOp::Table { .. } => {
                     // TODO this is wrong fix in the future, should adjust cursor based on table content
-                    *current_y += 10.0;
-                    (0.0, false)
+                    *current_y += 10.0 + element_box.padding.bottom + element_box.margin.bottom;
                 }
-            };
-
-            // Only add layout for leaf elements (text) or if the element has its own height
-            if !has_children {
-                layouts.push(ComputedLayout {
-                    x: x_offset,
-                    y: *current_y,
-                    width: page_width,
-                    height,
-                    element_index,
-                });
-
-                *current_y += height;
             }
         }
+    }
+
+    fn process_row_children(
+        &self,
+        children: &[usize],
+        hlir: &HIRModule,
+        layouts: &mut Vec<ComputedLayout>,
+        current_y: &mut f32,
+        content_width: f32,
+        content_x: f32,
+    ) {
+        let Some((&right_child, left_children)) = children.split_last() else {
+            return;
+        };
+
+        let gap = 12.0;
+        let right_width = self
+            .text_measurement(right_child, hlir)
+            .map(|(text, font_size)| Self::estimate_text_width(text, font_size))
+            .unwrap_or(0.0)
+            .min((content_width - gap).max(0.0));
+        let right_x = content_x + (content_width - right_width).max(0.0);
+        let left_width = (right_x - content_x - gap).max(0.0);
+
+        let mut row_height: f32 = 0.0;
+        for child_idx in left_children {
+            row_height = row_height.max(self.push_text_layout(
+                *child_idx,
+                hlir,
+                layouts,
+                content_x,
+                *current_y,
+                left_width,
+            ));
+        }
+
+        row_height = row_height.max(self.push_text_layout(
+            right_child,
+            hlir,
+            layouts,
+            right_x,
+            *current_y,
+            right_width,
+        ));
+
+        *current_y += row_height;
+    }
+
+    fn push_text_layout(
+        &self,
+        element_index: usize,
+        hlir: &HIRModule,
+        layouts: &mut Vec<ComputedLayout>,
+        x: f32,
+        y: f32,
+        width: f32,
+    ) -> f32 {
+        let Some(HirElementOp::Text { content, .. }) = hlir.elements.get(element_index) else {
+            return 0.0;
+        };
+
+        let attrs = hlir
+            .attributes
+            .find_node(Self::element_attributes_ref(&hlir.elements[element_index]))
+            .map(|node| &node.computed);
+        let font_size = attrs
+            .and_then(Self::parse_font_size)
+            .unwrap_or(DEFAULT_FONT_SIZE_PT);
+        let line_height = attrs
+            .and_then(|attrs| Self::parse_line_height(attrs, font_size))
+            .unwrap_or(font_size * DEFAULT_LINE_HEIGHT_MULTIPLIER);
+        let line_count = Self::wrap_text(content, width, font_size).len().max(1) as f32;
+        let height = line_count * line_height;
+
+        layouts.push(ComputedLayout {
+            x,
+            y,
+            width,
+            height,
+            element_index,
+            marker: None,
+        });
+
+        height
+    }
+
+    fn text_measurement<'a>(
+        &self,
+        element_index: usize,
+        hlir: &'a HIRModule,
+    ) -> Option<(&'a str, f32)> {
+        let element = hlir.elements.get(element_index)?;
+        let HirElementOp::Text { content, .. } = element else {
+            return None;
+        };
+
+        let attrs = hlir
+            .attributes
+            .find_node(Self::element_attributes_ref(element))
+            .map(|node| &node.computed);
+        let font_size = attrs
+            .and_then(Self::parse_font_size)
+            .unwrap_or(DEFAULT_FONT_SIZE_PT);
+
+        Some((content.as_str(), font_size))
+    }
+
+    fn is_flex_row(attrs: Option<&StyleAttributes>) -> bool {
+        let Some(attrs) = attrs else {
+            return false;
+        };
+
+        attrs
+            .style
+            .get("display")
+            .is_some_and(|value| value.trim() == "flex")
+            && attrs
+                .style
+                .get("flex-direction")
+                .is_some_and(|value| value.trim() == "row")
+    }
+
+    fn list_marker(attrs: &StyleAttributes, item_idx: usize) -> Option<String> {
+        match attrs
+            .style
+            .get("list-style-type")
+            .map(|value| value.trim().trim_matches('"').to_lowercase())
+            .as_deref()
+        {
+            Some("none") => None,
+            Some("decimal" | "number" | "numbered" | "ordered") => {
+                Some(format!("{}.", item_idx + 1))
+            }
+            Some("disc" | "bullet") | None => Some("-".to_string()),
+            Some(_) => Some("-".to_string()),
+        }
+    }
+
+    fn element_attributes_ref(element: &HirElementOp) -> usize {
+        match element {
+            HirElementOp::Section { attributes, .. }
+            | HirElementOp::List { attributes, .. }
+            | HirElementOp::Text { attributes, .. }
+            | HirElementOp::Image { attributes, .. }
+            | HirElementOp::Table { attributes, .. } => *attributes,
+        }
+    }
+
+    fn parse_font_size(attributes: &StyleAttributes) -> Option<f32> {
+        attributes
+            .style
+            .get("font-size")
+            .and_then(|value| Self::parse_css_length(value))
+    }
+
+    fn parse_line_height(attributes: &StyleAttributes, font_size: f32) -> Option<f32> {
+        let value = attributes.style.get("line-height")?.trim();
+        let num_end = value
+            .find(|c: char| !c.is_ascii_digit() && c != '.' && c != '-')
+            .unwrap_or(value.len());
+
+        if num_end == value.len() {
+            return value
+                .parse::<f32>()
+                .ok()
+                .map(|multiple| multiple * font_size);
+        }
+
+        Self::parse_css_length(value)
+    }
+
+    pub(crate) fn wrap_text(content: &str, max_width: f32, font_size: f32) -> Vec<String> {
+        if content.is_empty() {
+            return vec![String::new()];
+        }
+
+        if max_width <= 0.0 {
+            return vec![content.to_string()];
+        }
+
+        let mut lines = Vec::new();
+        let mut current = String::new();
+
+        for word in content.split_whitespace() {
+            let candidate = if current.is_empty() {
+                word.to_string()
+            } else {
+                format!("{current} {word}")
+            };
+
+            if Self::estimate_text_width(&candidate, font_size) <= max_width {
+                current = candidate;
+                continue;
+            }
+
+            if !current.is_empty() {
+                lines.push(std::mem::take(&mut current));
+            }
+
+            if Self::estimate_text_width(word, font_size) <= max_width {
+                current = word.to_string();
+            } else {
+                let mut piece = String::new();
+                for ch in word.chars() {
+                    let candidate = format!("{piece}{ch}");
+                    if !piece.is_empty()
+                        && Self::estimate_text_width(&candidate, font_size) > max_width
+                    {
+                        lines.push(piece);
+                        piece = ch.to_string();
+                    } else {
+                        piece = candidate;
+                    }
+                }
+                current = piece;
+            }
+        }
+
+        if !current.is_empty() {
+            lines.push(current);
+        }
+
+        lines
+    }
+
+    pub(crate) fn estimate_text_width(text: &str, font_size: f32) -> f32 {
+        text.chars()
+            .map(|ch| {
+                let width = match ch {
+                    ' ' => 0.28,
+                    'i' | 'l' | 'I' | '|' | '.' | ',' | ':' | ';' | '\'' => 0.25,
+                    'm' | 'w' | 'M' | 'W' => 0.85,
+                    'A'..='Z' => 0.62,
+                    '0'..='9' => 0.55,
+                    _ => 0.5,
+                };
+                width * font_size
+            })
+            .sum()
     }
 
     /// Get computed layout for an element by index
@@ -486,6 +837,7 @@ impl LayoutEngine {
             width: layout.size.width,
             height: layout.size.height,
             element_index,
+            marker: None,
         })
     }
 
@@ -504,6 +856,7 @@ impl LayoutEngine {
             width: layout.size.width,
             height: layout.size.height,
             element_index,
+            marker: None,
         })
     }
 
@@ -521,6 +874,7 @@ impl LayoutEngine {
                     width: layout.size.width,
                     height: layout.size.height,
                     element_index: idx,
+                    marker: None,
                 })
             })
     }

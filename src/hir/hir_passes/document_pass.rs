@@ -31,6 +31,7 @@ impl HIRPass for DocumentPass {
             FuncId(hir.functions.len()),
             FuncDecl {
                 name: "__document".to_string(),
+                arg_names: Vec::new(),
                 args: Vec::new(),
                 return_type: None,
                 body: document_body,

@@ -2,7 +2,8 @@
 
 use pyrus::ast::Ast;
 use pyrus::diagnostic::DiagnosticManager;
-use pyrus::hir::{HIRModule, lower};
+use pyrus::hir::{hir_types::HIRModule, lower};
+use pyrus::layout::setup_layout;
 use pyrus::lexer::{TokenStream, lex};
 use pyrus::parser::Parser;
 
@@ -13,7 +14,7 @@ fn parse(tokens: TokenStream) -> Result<Ast, Vec<pyrus::diagnostic::SyntaxError>
 fn lower_ast(ast: &Ast) -> HIRModule {
     let mut diagnostics = DiagnosticManager::new();
     lower(ast, &mut diagnostics)
-        .unwrap_or_else(|| panic!("Lowering failed: {:?}", diagnostics.diagnostics()))
+        .unwrap_or_else(|_| panic!("Lowering failed: {:?}", diagnostics.diagnostics()))
 }
 
 // ============================================================================
@@ -187,6 +188,40 @@ style {
     assert_eq!(
         node.computed.style.get("font-size"),
         Some(&"12".to_string())
+    );
+}
+
+#[test]
+fn test_grouped_selector_uses_matched_selector_specificity() {
+    let source = r#"
+document {
+    @text(class="intro")[Text]
+}
+style {
+    .intro, #unmatched {
+        font-size: 12;
+    }
+    .intro {
+        font-size: 24;
+    }
+}
+"#;
+    let tokens = lex(
+        source,
+        "test_grouped_selector_uses_matched_selector_specificity",
+    )
+    .expect("Lexing failed");
+    let ast = parse(tokens).expect("Parsing failed");
+    let hlir = lower_ast(&ast);
+
+    let metadata = &hlir.element_metadata[0];
+    let node = hlir.attributes.find_node(metadata.attributes_ref).unwrap();
+
+    // The first rule matches through `.intro`, not `#unmatched`, so both
+    // declarations have class specificity and the later rule should win.
+    assert_eq!(
+        node.computed.style.get("font-size"),
+        Some(&"24".to_string())
     );
 }
 
@@ -668,4 +703,137 @@ fn test_css_from_file() {
         !header_node.computed.style.is_empty(),
         "Header should have computed styles"
     );
+}
+
+#[test]
+fn test_body_styles_are_document_styles_and_inherit() {
+    let source = r#"
+document {
+    @text[Hello]
+}
+style {
+    body {
+        margin: 0.4in;
+        font-size: 10pt;
+        color: black;
+    }
+}
+"#;
+    let tokens =
+        lex(source, "test_body_styles_are_document_styles_and_inherit").expect("Lexing failed");
+    let ast = parse(tokens).expect("Parsing failed");
+    let hlir = lower_ast(&ast);
+
+    assert!((hlir.document_styles.margin.unwrap() - 28.8).abs() < 0.001);
+
+    let text_metadata = &hlir.element_metadata[0];
+    let text_node = hlir
+        .attributes
+        .find_node(text_metadata.attributes_ref)
+        .unwrap();
+
+    assert_eq!(
+        text_node.computed.style.get("font-size"),
+        Some(&"10pt".to_string())
+    );
+    assert_eq!(
+        text_node.computed.style.get("color"),
+        Some(&"black".to_string())
+    );
+}
+
+#[test]
+fn test_document_flow_uses_body_margin_and_element_spacing() {
+    let source = r#"
+document {
+    @section(class="spaced")[
+        @text[Hello]
+    ]
+}
+style {
+    body {
+        margin: 0.5in;
+        font-size: 10pt;
+    }
+
+    .spaced {
+        margin-top: 6pt;
+        margin-bottom: 4pt;
+    }
+}
+"#;
+    let tokens = lex(
+        source,
+        "test_document_flow_uses_body_margin_and_element_spacing",
+    )
+    .expect("Lexing failed");
+    let ast = parse(tokens).expect("Parsing failed");
+    let hlir = lower_ast(&ast);
+    let layout = setup_layout(&hlir);
+    let computed = layout.compute_document_flow(&hlir);
+
+    let text_layout = computed
+        .iter()
+        .find(|layout| hlir.element_metadata[layout.element_index].element_type == "text")
+        .expect("Text should have a computed layout");
+
+    assert!((text_layout.x - 36.0).abs() < 0.001);
+    assert!((text_layout.y - 42.0).abs() < 0.001);
+    assert!((text_layout.width - 523.0).abs() < 0.001);
+    assert!((text_layout.height - 12.0).abs() < 0.001);
+}
+
+#[test]
+fn test_document_flow_adds_unordered_list_markers() {
+    let source = r#"
+document {
+    @list[
+        - @text[First]
+        - @text[Second]
+    ]
+}
+"#;
+    let tokens =
+        lex(source, "test_document_flow_adds_unordered_list_markers").expect("Lexing failed");
+    let ast = parse(tokens).expect("Parsing failed");
+    let hlir = lower_ast(&ast);
+    let layout = setup_layout(&hlir);
+    let computed = layout.compute_document_flow(&hlir);
+
+    let markers: Vec<_> = computed
+        .iter()
+        .filter_map(|layout| layout.marker.as_deref())
+        .collect();
+
+    assert_eq!(markers, vec!["-", "-"]);
+}
+
+#[test]
+fn test_document_flow_adds_decimal_list_markers() {
+    let source = r#"
+document {
+    @list(class="steps")[
+        - @text[First]
+        - @text[Second]
+    ]
+}
+style {
+    .steps {
+        list-style-type: decimal;
+    }
+}
+"#;
+    let tokens =
+        lex(source, "test_document_flow_adds_decimal_list_markers").expect("Lexing failed");
+    let ast = parse(tokens).expect("Parsing failed");
+    let hlir = lower_ast(&ast);
+    let layout = setup_layout(&hlir);
+    let computed = layout.compute_document_flow(&hlir);
+
+    let markers: Vec<_> = computed
+        .iter()
+        .filter_map(|layout| layout.marker.as_deref())
+        .collect();
+
+    assert_eq!(markers, vec!["1.", "2."]);
 }

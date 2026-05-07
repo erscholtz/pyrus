@@ -3,11 +3,12 @@ use std::io::BufWriter;
 use std::io::Write;
 
 use printpdf::{
-    BuiltinFont, Mm, Op, PdfDocument, PdfFontHandle, PdfPage, PdfSaveOptions, Point, Pt, TextItem,
+    BuiltinFont, Color, Mm, Op, PdfDocument, PdfFontHandle, PdfPage, PdfSaveOptions, Point, Pt,
+    Rgb, TextItem,
 };
 
 use crate::hir::hir_types::{HIRModule, HirElementOp, StyleAttributes};
-use crate::layout::ComputedLayout;
+use crate::layout::{ComputedLayout, LayoutEngine};
 
 pub struct PdfRenderer;
 
@@ -71,21 +72,19 @@ impl PdfRenderer {
         let page_height_pt = 842.0; // A4 height in points
 
         // Get font size first so we can adjust for baseline
-        let (font_size, font) = match &element {
-            HirElementOp::Text { attributes, .. } => {
-                let default_attrs = StyleAttributes::default();
-                let attrs = hlir
-                    .attributes
-                    .find_node(*attributes)
-                    .map(|n| &n.computed)
-                    .unwrap_or(&default_attrs);
-                (
-                    Self::parse_font_size(attrs),
-                    Self::get_font_from_family(attrs),
-                )
-            }
-            _ => (12.0, PdfFontHandle::Builtin(BuiltinFont::Helvetica)),
+        let default_attrs = StyleAttributes::default();
+        let attrs = match &element {
+            HirElementOp::Text { attributes, .. } => hlir
+                .attributes
+                .find_node(*attributes)
+                .map(|n| &n.computed)
+                .unwrap_or(&default_attrs),
+            _ => &default_attrs,
         };
+        let font_size = Self::parse_font_size(attrs);
+        let line_height = Self::parse_line_height(attrs, font_size);
+        let font = Self::get_font(attrs);
+        let fill_color = Self::parse_color(attrs);
 
         // Convert x from points to mm
         let x_mm = layout.x / 2.83465;
@@ -102,15 +101,51 @@ impl PdfRenderer {
 
         match element {
             HirElementOp::Text { content, .. } => {
+                let lines = LayoutEngine::wrap_text(&content, layout.width, font_size);
+
+                if let Some(marker) = &layout.marker {
+                    let marker_x_mm = (layout.x - 14.0).max(0.0) / 2.83465;
+                    let marker_point = Point::new(Mm(marker_x_mm), Mm(y_mm));
+
+                    pdf_ops.push(Op::StartTextSection);
+                    pdf_ops.push(Op::SetTextCursor { pos: marker_point });
+                    pdf_ops.push(Op::SetFont {
+                        font: font.clone(),
+                        size: Pt(font_size),
+                    });
+                    pdf_ops.push(Op::SetLineHeight {
+                        lh: Pt(line_height),
+                    });
+                    if let Some(col) = fill_color.clone() {
+                        pdf_ops.push(Op::SetFillColor { col });
+                    }
+                    pdf_ops.push(Op::ShowText {
+                        items: vec![TextItem::Text(marker.clone())],
+                    });
+                    pdf_ops.push(Op::EndTextSection);
+                }
+
                 pdf_ops.push(Op::StartTextSection);
                 pdf_ops.push(Op::SetTextCursor { pos: point });
                 pdf_ops.push(Op::SetFont {
                     font,
                     size: Pt(font_size),
                 });
-                pdf_ops.push(Op::ShowText {
-                    items: vec![TextItem::Text(content.clone())],
+                pdf_ops.push(Op::SetLineHeight {
+                    lh: Pt(line_height),
                 });
+                if let Some(col) = fill_color {
+                    pdf_ops.push(Op::SetFillColor { col });
+                }
+
+                for (line_idx, line) in lines.iter().enumerate() {
+                    if line_idx > 0 {
+                        pdf_ops.push(Op::AddLineBreak);
+                    }
+                    pdf_ops.push(Op::ShowText {
+                        items: vec![TextItem::Text(line.clone())],
+                    });
+                }
                 pdf_ops.push(Op::EndTextSection);
             }
             HirElementOp::List { .. } => {
@@ -119,7 +154,7 @@ impl PdfRenderer {
             HirElementOp::Section { .. } => {
                 // Container elements don't render directly
             }
-            HirElementOp::Image { src, .. } => {
+            HirElementOp::Image { .. } => {
                 // Render image
             }
             HirElementOp::Table { .. } => {
@@ -133,31 +168,121 @@ impl PdfRenderer {
         attrs
             .style
             .get("font-size")
-            .and_then(|v| {
-                // Parse value like "24pt" or "12px"
-                let v = v.trim();
-                let num_end = v
-                    .find(|c: char| !c.is_ascii_digit() && c != '.')
-                    .unwrap_or(v.len());
-                v[..num_end].parse::<f32>().ok()
-            })
+            .and_then(|v| Self::parse_css_length(v))
             .unwrap_or(12.0)
     }
 
-    /// Get PDF font from font-family CSS property
-    fn get_font_from_family(attrs: &StyleAttributes) -> PdfFontHandle {
+    fn parse_line_height(attrs: &StyleAttributes, font_size: f32) -> f32 {
+        attrs
+            .style
+            .get("line-height")
+            .and_then(|value| {
+                let value = value.trim();
+                let num_end = value
+                    .find(|c: char| !c.is_ascii_digit() && c != '.' && c != '-')
+                    .unwrap_or(value.len());
+
+                if num_end == value.len() {
+                    value
+                        .parse::<f32>()
+                        .ok()
+                        .map(|multiple| multiple * font_size)
+                } else {
+                    Self::parse_css_length(value)
+                }
+            })
+            .unwrap_or(font_size * 1.2)
+    }
+
+    /// Get PDF font from font-family and font-weight CSS properties.
+    fn get_font(attrs: &StyleAttributes) -> PdfFontHandle {
         let font_family = attrs
             .style
             .get("font-family")
             .map(|v| v.as_str())
             .unwrap_or("Helvetica");
+        let is_bold = attrs
+            .style
+            .get("font-weight")
+            .map(|value| {
+                let normalized = value.trim().trim_matches('"').to_lowercase();
+                normalized == "bold"
+                    || normalized == "bolder"
+                    || normalized.parse::<u16>().is_ok_and(|weight| weight >= 600)
+            })
+            .unwrap_or(false);
 
-        match font_family.to_lowercase().as_str() {
-            "times" | "times new roman" | "serif" => {
-                PdfFontHandle::Builtin(BuiltinFont::TimesRoman)
-            }
-            "courier" | "courier new" | "monospace" => PdfFontHandle::Builtin(BuiltinFont::Courier),
-            "helvetica" | "sans-serif" | _ => PdfFontHandle::Builtin(BuiltinFont::Helvetica),
+        let family = font_family.trim().trim_matches('"').to_lowercase();
+        let font = match family.as_str() {
+            "times" | "times new roman" | "serif" if is_bold => BuiltinFont::TimesBold,
+            "times" | "times new roman" | "serif" => BuiltinFont::TimesRoman,
+            "courier" | "courier new" | "monospace" if is_bold => BuiltinFont::CourierBold,
+            "courier" | "courier new" | "monospace" => BuiltinFont::Courier,
+            _ if is_bold => BuiltinFont::HelveticaBold,
+            _ => BuiltinFont::Helvetica,
+        };
+
+        PdfFontHandle::Builtin(font)
+    }
+
+    fn parse_color(attrs: &StyleAttributes) -> Option<Color> {
+        let value = attrs.style.get("color")?.trim().trim_matches('"');
+        let color = match value.to_lowercase().as_str() {
+            "black" => Self::rgb(0.0, 0.0, 0.0),
+            "white" => Self::rgb(1.0, 1.0, 1.0),
+            "red" => Self::rgb(1.0, 0.0, 0.0),
+            "green" => Self::rgb(0.0, 0.5, 0.0),
+            "blue" => Self::rgb(0.0, 0.0, 1.0),
+            "gray" | "grey" => Self::rgb(0.5, 0.5, 0.5),
+            _ => return Self::parse_hex_color(value),
+        };
+
+        Some(color)
+    }
+
+    fn parse_hex_color(value: &str) -> Option<Color> {
+        let hex = value.strip_prefix('#')?;
+        if hex.len() != 6 {
+            return None;
+        }
+
+        let red = u8::from_str_radix(&hex[0..2], 16).ok()? as f32 / 255.0;
+        let green = u8::from_str_radix(&hex[2..4], 16).ok()? as f32 / 255.0;
+        let blue = u8::from_str_radix(&hex[4..6], 16).ok()? as f32 / 255.0;
+        Some(Self::rgb(red, green, blue))
+    }
+
+    fn rgb(r: f32, g: f32, b: f32) -> Color {
+        Color::Rgb(Rgb {
+            r,
+            g,
+            b,
+            icc_profile: None,
+        })
+    }
+
+    fn parse_css_length(value: &str) -> Option<f32> {
+        let value = value.trim();
+        if value.is_empty() {
+            return None;
+        }
+
+        let num_end = value
+            .find(|c: char| !c.is_ascii_digit() && c != '.' && c != '-')
+            .unwrap_or(value.len());
+
+        let num_str = &value[..num_end];
+        let unit_str = &value[num_end..].trim().to_lowercase();
+        let num: f32 = num_str.parse().ok()?;
+
+        match unit_str.as_str() {
+            "pt" => Some(num),
+            "px" => Some(num * 0.75),
+            "mm" => Some(num * 2.83465),
+            "cm" => Some(num * 28.3465),
+            "in" => Some(num * 72.0),
+            "" => Some(num),
+            _ => None,
         }
     }
 }
