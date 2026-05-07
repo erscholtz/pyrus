@@ -59,8 +59,8 @@ fn main() {
     // Run CSS style resolution
 
     // println!("\n=== Computed Styles ===");
-    // for (idx, metadata) in hlir_module.element_metadata.iter().enumerate() {
-    //     if let Some(node) = hlir_module.attributes.find_node(metadata.attributes_ref) {
+    // for (idx, metadata) in hir_module.element_metadata.iter().enumerate() {
+    //     if let Some(node) = hir_module.attributes.find_node(metadata.attributes_ref) {
     //         println!(
     //             "\nElement {} (type: {:?}, id: {:?}, classes: {:?}):",
     //             idx, metadata.element_type, metadata.id, metadata.classes

@@ -155,6 +155,9 @@ impl HirDebug for Op {
                     ty.hir_string()
                 )
             }
+            Op::VarRef { id, name } => {
+                write!(f, "{} = var_ref {}", id.hir_string(), name,)
+            }
             Op::Binary {
                 result,
                 op,
@@ -184,16 +187,21 @@ impl HirDebug for Op {
                 }
             }
             Op::ElementCall {
+                name,
                 result,
                 element,
                 args,
             } => {
                 let args_str: Vec<String> = args.iter().map(|a| a.hir_string()).collect();
+                let element_str = element
+                    .map(|element| element.hir_string())
+                    .unwrap_or_else(|| "None".to_string());
                 write!(
                     f,
-                    "{} = elem_call {}({})",
+                    "{} - {} = elem_call {}({})",
+                    name,
                     result.hir_string(),
-                    element.hir_string(),
+                    element_str,
                     args_str.join(", ")
                 )
             }

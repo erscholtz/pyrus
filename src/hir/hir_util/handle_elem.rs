@@ -2,14 +2,13 @@ use std::collections::HashMap;
 
 use crate::ast::{
     ArgType, CallElem, ChildrenElem, CodeElem, DocElem, DocElemKind, Expr, ExprKind, ImageElem,
-    LinkElem, ListElem, ReturnStmt, SectionElem, Stmt, StmtKind, TableElem, TextElem,
+    LinkElem, ListElem, SectionElem, TableElem, TextElem,
 };
 use crate::diagnostic::{SemanticError, SourceLocation};
 use crate::hir::{
     HIRModule,
     hir_types::{AttributeNode, ElementId, ElementMetadata, FuncBlock, HirElementOp, Op, ValueId},
     hir_util::handle_args::handle_args,
-    hir_util::handle_expr::assign_local,
 };
 
 pub fn lower_document_element(
@@ -230,13 +229,6 @@ fn lower_call_element(
     location: SourceLocation,
 ) -> Result<usize, Vec<SemanticError>> {
     let mut errors = Vec::new();
-    let Some(element_id) = find_element_decl(hirmodule, name) else {
-        errors.push(SemanticError::UndefinedVariable {
-            name: name.to_string(),
-            location,
-        });
-        return Err(errors);
-    };
 
     let arg_value_ids = match handle_args(args, ir_body) {
         Ok(ids) => ids,
@@ -245,6 +237,7 @@ fn lower_call_element(
             return Err(errors);
         }
     };
+    let returned_element_ref = find_function_returned_element(hirmodule, name);
 
     let mut wrapper_attrs = HashMap::new();
     wrapper_attrs.insert(
@@ -261,6 +254,10 @@ fn lower_call_element(
     );
 
     let mut wrapper_children = Vec::new();
+    if let Some(returned_element_ref) = returned_element_ref {
+        wrapper_children.push(returned_element_ref);
+    }
+
     if let Some(children) = children.filter(|children| !children.is_empty()) {
         let mut children_attrs = HashMap::new();
         children_attrs.insert(
@@ -291,8 +288,9 @@ fn lower_call_element(
 
     let result_id = ValueId(ir_body.ops.len());
     ir_body.ops.push(Op::ElementCall {
+        name: name.to_string(),
         result: result_id,
-        element: element_id,
+        element: None,
         args: arg_value_ids,
     });
 
@@ -306,48 +304,6 @@ fn lower_call_element(
     }
 
     Ok(wrapper_index)
-}
-
-fn lower_element_body(
-    body: &[Stmt],
-    hirmodule: &mut HIRModule,
-) -> Result<FuncBlock, Vec<SemanticError>> {
-    let mut ir_body = FuncBlock {
-        ops: Vec::new(),
-        returned_element_ref: None,
-    };
-
-    for stmt in body {
-        match &stmt.node {
-            StmtKind::ConstAssign(stmt) => {
-                let id = ValueId(ir_body.ops.len());
-                let op = assign_local(stmt.name.clone(), &stmt.value, id, false);
-                ir_body.ops.push(op);
-            }
-            StmtKind::VarAssign(stmt) => {
-                let id = ValueId(ir_body.ops.len());
-                let op = assign_local(stmt.name.clone(), &stmt.value, id, true);
-                ir_body.ops.push(op);
-            }
-            StmtKind::Return(ReturnStmt::DocElem(doc_element)) => {
-                let element_id =
-                    lower_document_element(doc_element, hirmodule, &mut ir_body, None)?;
-                ir_body.ops.push(Op::Return {
-                    doc_element_ref: element_id,
-                });
-                ir_body.returned_element_ref = Some(element_id);
-            }
-            StmtKind::Return(ReturnStmt::Expr(expr)) => {
-                let id = ValueId(ir_body.ops.len());
-                let op = assign_local("__return".to_string(), expr, id, false);
-                ir_body.ops.push(op);
-            }
-            StmtKind::Children(_) => {}
-            _ => {}
-        }
-    }
-
-    Ok(ir_body)
 }
 
 fn extract_id_and_classes(
@@ -436,4 +392,12 @@ fn find_element_decl(hirmodule: &HIRModule, name: &str) -> Option<ElementId> {
         .element_decls
         .iter()
         .find_map(|(id, decl)| (decl.name == name).then_some(*id))
+}
+
+fn find_function_returned_element(hirmodule: &HIRModule, name: &str) -> Option<usize> {
+    hirmodule
+        .functions
+        .values()
+        .find(|decl| decl.name == name)
+        .and_then(|decl| decl.body.returned_element_ref)
 }

@@ -50,6 +50,10 @@ pub enum Op {
         literal: Literal,
         ty: Type,
     },
+    VarRef {
+        id: ValueId,
+        name: String,
+    },
     Binary {
         result: ValueId,
         op: BinOp,
@@ -62,8 +66,9 @@ pub enum Op {
         args: Vec<ValueId>,
     },
     ElementCall {
+        name: String,
         result: ValueId,
-        element: ElementId,
+        element: Option<ElementId>, // NOTE for validation maybe?
         args: Vec<ValueId>,
     },
     Return {

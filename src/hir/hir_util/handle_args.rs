@@ -24,11 +24,9 @@ pub fn handle_args(
             crate::ast::Type::Var => {
                 //  TODO Identifier argument resolution belongs in validation/name resolution.
                 let id = ValueId(ir_body.ops.len());
-                ir_body.ops.push(Op::Var {
+                ir_body.ops.push(Op::VarRef {
                     id,
                     name: arg.name.clone(),
-                    literal: Literal::String("temp".to_string()), // FIX see if this can be fixed vars dont have literals
-                    ty: Type::Int,
                 });
                 args.push(id);
             }
