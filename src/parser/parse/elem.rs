@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::{
     ast::{
         ArgType, CallElem, ChildrenElem, DocElem, DocElemKind, Expr, ImageElem, LinkElem, ListElem,
-        SectionElem, TableElem, TextElem,
+        SectionElem, SeparatorElem, TableElem, TextElem,
     },
     diagnostic::SyntaxError,
     lexer::TokenKind,
@@ -31,6 +31,7 @@ impl Parse for DocElemKind {
             TokenKind::Identifier => CallElem::parse(p).map(|s| s.into()),
             TokenKind::Link => LinkElem::parse(p).map(|s| s.into()),
             TokenKind::Section => SectionElem::parse(p).map(|s| s.into()),
+            TokenKind::Separator => SeparatorElem::parse(p).map(|s| s.into()),
             TokenKind::Children => ChildrenElem::parse(p).map(|s| s.into()),
             _ => {
                 return Err(SyntaxError::UnexpectedToken {
@@ -43,6 +44,7 @@ impl Parse for DocElemKind {
                         TokenKind::Identifier,
                         TokenKind::Link,
                         TokenKind::Section,
+                        TokenKind::Separator,
                         TokenKind::Children,
                     ],
                     found: p.cursor.cur_tok().clone(),
@@ -363,6 +365,17 @@ impl Parse for SectionElem {
             elements,
             attributes,
         })
+    }
+}
+
+impl Parse for SeparatorElem {
+    /// Parses a separator element, e.g. `@separator` or `@separator(class="rule")`.
+    fn parse(p: &mut Parser) -> Result<Self, SyntaxError> {
+        p.cursor.expect(TokenKind::Separator)?;
+
+        let attributes = DocElemKind::parse_style_attributes(p);
+
+        Ok(Self { attributes })
     }
 }
 

@@ -46,6 +46,7 @@ pub enum TokenKind {
     Table,
     Section,
     Link,
+    Separator,
 
     // Keywords
     Template,

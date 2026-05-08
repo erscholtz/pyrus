@@ -20,6 +20,7 @@ static KEYWORD_TABLE: phf::Map<&'static str, TokenKind> = phf::phf_map! {
     "section" => TokenKind::Section,
     "table" => TokenKind::Table,
     "link" => TokenKind::Link,
+    "separator" => TokenKind::Separator,
     "String" => TokenKind::String,
     "Int" => TokenKind::Int,
     "Float" => TokenKind::Float,

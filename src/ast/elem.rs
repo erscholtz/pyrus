@@ -63,6 +63,11 @@ pub struct SectionElem {
 }
 
 #[derive(Debug, Clone)]
+pub struct SeparatorElem {
+    pub attributes: Attributes,
+}
+
+#[derive(Debug, Clone)]
 pub struct ChildrenElem {
     pub render_childen: bool,
 }
@@ -78,6 +83,7 @@ pub enum DocElemKind {
     Call(CallElem),
     Link(LinkElem),
     Section(SectionElem),
+    Separator(SeparatorElem),
     Children(ChildrenElem),
 }
 
@@ -127,6 +133,12 @@ impl From<LinkElem> for DocElemKind {
 impl From<SectionElem> for DocElemKind {
     fn from(e: SectionElem) -> Self {
         DocElemKind::Section(e)
+    }
+}
+
+impl From<SeparatorElem> for DocElemKind {
+    fn from(e: SeparatorElem) -> Self {
+        DocElemKind::Separator(e)
     }
 }
 

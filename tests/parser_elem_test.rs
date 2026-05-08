@@ -222,6 +222,36 @@ fn test_parse_section_element() {
 }
 
 #[test]
+fn test_parse_separator_element() {
+    let elements = document_elements("document { @separator }");
+    assert_eq!(elements.len(), 1);
+
+    match &elements[0].node {
+        DocElemKind::Separator(separator) => assert!(separator.attributes.is_none()),
+        other => panic!("Expected separator element, got {other:?}"),
+    }
+}
+
+#[test]
+fn test_parse_separator_element_with_attributes() {
+    let elements = document_elements(r#"document { @separator(class="rule") }"#);
+    assert_eq!(elements.len(), 1);
+
+    match &elements[0].node {
+        DocElemKind::Separator(separator) => {
+            let attrs = separator
+                .attributes
+                .as_ref()
+                .expect("Expected separator attributes");
+            assert!(
+                matches!(attrs.get("class").map(|expr| &expr.node), Some(ExprKind::StringLiteral(value)) if value == "rule")
+            );
+        }
+        other => panic!("Expected separator element, got {other:?}"),
+    }
+}
+
+#[test]
 fn test_parse_children_element() {
     let elements = document_elements("document { @children }");
     assert_eq!(elements.len(), 1);

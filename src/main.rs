@@ -23,9 +23,9 @@ fn main() {
     }
 
     let filename = if args.len() > 1 {
-        args[1].to_str().unwrap_or("temp.ink")
+        args[1].to_str().unwrap_or("resume.ink")
     } else {
-        "temp.ink"
+        "resume.ink"
     };
     let data = fs::read_to_string(filename).expect("Should be able to read test file");
 
@@ -48,7 +48,7 @@ fn main() {
     parser.gather_errors(&mut dm);
     // println!("{:#?}", ast);
 
-    let hir_module = hir::lower(&ast, &mut dm).expect("Should be able to lower AST to HIR");
+    let hir_module = hir::lower(&ast).expect("Should be able to lower AST to HIR");
     println!("{}", hir_module.hir_display());
 
     // println!("HLIR before style resolution:");

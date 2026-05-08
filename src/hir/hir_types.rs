@@ -187,6 +187,9 @@ pub enum HirElementOp {
         table: Vec<Vec<usize>>,
         attributes: usize,
     },
+    Separator {
+        attributes: usize,
+    },
     // TODO code, images, etc
 }
 

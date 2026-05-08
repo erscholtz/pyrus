@@ -259,6 +259,9 @@ impl HirDebug for HirElementOp {
                     attributes
                 )
             }
+            HirElementOp::Separator { attributes } => {
+                write!(f, "separator attrs=#{attributes}")
+            }
         }
     }
 }

@@ -4,7 +4,6 @@
 //! the validation pass that should catch errors.
 
 use pyrus::ast::Ast;
-use pyrus::diagnostic::DiagnosticManager;
 use pyrus::hir::{
     hir_types::{HIRModule, Literal, Op, Type},
     lower,
@@ -17,9 +16,7 @@ fn parse(tokens: TokenStream) -> Result<Ast, Vec<pyrus::diagnostic::SyntaxError>
 }
 
 fn lower_ast(ast: &Ast) -> HIRModule {
-    let mut diagnostics = DiagnosticManager::new();
-    lower(ast, &mut diagnostics)
-        .unwrap_or_else(|_| panic!("Lowering failed: {:?}", diagnostics.diagnostics()))
+    lower(ast).unwrap_or_else(|errors| panic!("Lowering failed: {:?}", errors))
 }
 
 // ============================================================================
@@ -248,6 +245,22 @@ document {
     let meta = &hlir.element_metadata[0];
     assert_eq!(meta.id, Some("header".to_string()));
     assert_eq!(meta.classes, vec!["large", "bold"]);
+}
+
+#[test]
+fn test_lower_separator_element() {
+    let source = r#"
+document {
+    @separator(class="rule")
+}
+"#;
+    let tokens = lex(source, "test_lower_separator_element").expect("Lexing failed");
+    let ast = parse(tokens).expect("Parsing failed");
+    let hlir = lower_ast(&ast);
+
+    assert_eq!(hlir.elements.len(), 1);
+    assert_eq!(hlir.element_metadata[0].element_type, "separator");
+    assert_eq!(hlir.element_metadata[0].classes, vec!["rule"]);
 }
 
 // ============================================================================

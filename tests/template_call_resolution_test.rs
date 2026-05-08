@@ -1,5 +1,4 @@
 use pyrus::ast::Ast;
-use pyrus::diagnostic::DiagnosticManager;
 use pyrus::hir::{hir_types::HIRModule, lower};
 use pyrus::lexer::{TokenStream, lex};
 use pyrus::parser::Parser;
@@ -9,9 +8,7 @@ fn parse(tokens: TokenStream) -> Result<Ast, Vec<pyrus::diagnostic::SyntaxError>
 }
 
 fn lower_ast(ast: &Ast) -> HIRModule {
-    let mut diagnostics = DiagnosticManager::new();
-    lower(ast, &mut diagnostics)
-        .unwrap_or_else(|_| panic!("Lowering failed: {:?}", diagnostics.diagnostics()))
+    lower(ast).unwrap_or_else(|errors| panic!("Lowering failed: {:?}", errors))
 }
 
 fn text_contents(hlir: &HIRModule) -> Vec<&str> {

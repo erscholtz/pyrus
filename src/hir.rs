@@ -6,7 +6,7 @@ pub mod hir_util;
 use std::collections::HashMap;
 
 use crate::ast::Ast;
-use crate::diagnostic::{CompilerDiagnostic, DiagnosticManager};
+use crate::diagnostic::CompilerDiagnostic;
 use crate::hir::{
     hir_passes::{
         PassManager, document_pass::DocumentPass, func_pass::FuncPass, global_pass::GlobalPass,
@@ -16,7 +16,7 @@ use crate::hir::{
     hir_types::HIRModule,
 };
 
-pub fn lower(ast: &Ast, dm: &mut DiagnosticManager) -> Result<HIRModule, Vec<CompilerDiagnostic>> {
+pub fn lower(ast: &Ast) -> Result<HIRModule, Vec<CompilerDiagnostic>> {
     let mut hirmodule = HIRModule {
         file: ast.file.clone(),
         globals: HashMap::new(),

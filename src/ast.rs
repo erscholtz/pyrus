@@ -11,7 +11,7 @@ mod style;
 
 pub use elem::{
     CallElem, ChildrenElem, CodeElem, DocElem, DocElemKind, ImageElem, LinkElem, ListElem,
-    SectionElem, TableElem, TextElem,
+    SectionElem, SeparatorElem, TableElem, TextElem,
 };
 pub use expr::{
     BinOp, BinaryExpr, Expr, ExprKind, InterpolatedStringExpr, StructDefaultExpr, UnaryExpr,

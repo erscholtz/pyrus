@@ -164,6 +164,7 @@ impl LayoutEngine {
                     HirElementOp::Text { attributes, .. } => *attributes,
                     HirElementOp::Image { attributes, .. } => *attributes,
                     HirElementOp::Table { attributes, .. } => *attributes,
+                    HirElementOp::Separator { attributes } => *attributes,
                 };
                 self.create_node_from_metadata(*index, attributes_ref, hlir_module)
             }
@@ -226,6 +227,7 @@ impl LayoutEngine {
             HirElementOp::Text { attributes, .. } => *attributes,
             HirElementOp::Image { attributes, .. } => *attributes,
             HirElementOp::Table { attributes, .. } => *attributes,
+            HirElementOp::Separator { attributes } => *attributes,
         };
 
         let attributes = match hlir_module.attributes.find_node(attributes_ref) {
@@ -267,6 +269,7 @@ impl LayoutEngine {
             HirElementOp::Text { .. } => return,  // No children
             HirElementOp::Image { .. } => return, // No children
             HirElementOp::Table { .. } => return, // No children,
+            HirElementOp::Separator { .. } => return,
         };
 
         for child_idx in children {
@@ -583,6 +586,20 @@ impl LayoutEngine {
                     // TODO this is wrong fix in the future, should adjust cursor based on table content
                     *current_y += 10.0 + element_box.padding.bottom + element_box.margin.bottom;
                 }
+                HirElementOp::Separator { .. } => {
+                    let height = attrs.and_then(Self::parse_separator_height).unwrap_or(1.0);
+
+                    layouts.push(ComputedLayout {
+                        x: content_x,
+                        y: *current_y,
+                        width: content_width,
+                        height,
+                        element_index,
+                        marker,
+                    });
+
+                    *current_y += height + element_box.padding.bottom + element_box.margin.bottom;
+                }
             }
         }
     }
@@ -611,14 +628,9 @@ impl LayoutEngine {
 
         let mut row_height: f32 = 0.0;
         for child_idx in left_children {
-            row_height = row_height.max(self.push_text_layout(
-                *child_idx,
-                hlir,
-                layouts,
-                content_x,
-                *current_y,
-                left_width,
-            ));
+            row_height = row_height.max(
+                self.push_text_layout(*child_idx, hlir, layouts, content_x, *current_y, left_width),
+            );
         }
 
         row_height = row_height.max(self.push_text_layout(
@@ -729,7 +741,8 @@ impl LayoutEngine {
             | HirElementOp::List { attributes, .. }
             | HirElementOp::Text { attributes, .. }
             | HirElementOp::Image { attributes, .. }
-            | HirElementOp::Table { attributes, .. } => *attributes,
+            | HirElementOp::Table { attributes, .. }
+            | HirElementOp::Separator { attributes } => *attributes,
         }
     }
 
@@ -754,6 +767,13 @@ impl LayoutEngine {
         }
 
         Self::parse_css_length(value)
+    }
+
+    fn parse_separator_height(attributes: &StyleAttributes) -> Option<f32> {
+        attributes
+            .style
+            .get("height")
+            .and_then(|value| Self::parse_css_length(value))
     }
 
     pub(crate) fn wrap_text(content: &str, max_width: f32, font_size: f32) -> Vec<String> {

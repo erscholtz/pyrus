@@ -3,8 +3,8 @@ use std::io::BufWriter;
 use std::io::Write;
 
 use printpdf::{
-    BuiltinFont, Color, Mm, Op, PdfDocument, PdfFontHandle, PdfPage, PdfSaveOptions, Point, Pt,
-    Rgb, TextItem,
+    BuiltinFont, Color, Line, LinePoint, Mm, Op, PdfDocument, PdfFontHandle, PdfPage,
+    PdfSaveOptions, Point, Pt, Rgb, TextItem,
 };
 
 use crate::hir::hir_types::{HIRModule, HirElementOp, StyleAttributes};
@@ -74,12 +74,16 @@ impl PdfRenderer {
         // Get font size first so we can adjust for baseline
         let default_attrs = StyleAttributes::default();
         let attrs = match &element {
-            HirElementOp::Text { attributes, .. } => hlir
+            HirElementOp::Text { attributes, .. }
+            | HirElementOp::Separator { attributes }
+            | HirElementOp::List { attributes, .. }
+            | HirElementOp::Section { attributes, .. }
+            | HirElementOp::Image { attributes, .. }
+            | HirElementOp::Table { attributes, .. } => hlir
                 .attributes
                 .find_node(*attributes)
                 .map(|n| &n.computed)
                 .unwrap_or(&default_attrs),
-            _ => &default_attrs,
         };
         let font_size = Self::parse_font_size(attrs);
         let line_height = Self::parse_line_height(attrs, font_size);
@@ -159,6 +163,36 @@ impl PdfRenderer {
             }
             HirElementOp::Table { .. } => {
                 // Render table
+            }
+            HirElementOp::Separator { .. } => {
+                let line_y_pt = page_height_pt - layout.y - (layout.height / 2.0);
+                let color = fill_color.unwrap_or_else(|| Self::rgb(0.5, 0.5, 0.5));
+
+                pdf_ops.push(Op::SetOutlineColor { col: color });
+                pdf_ops.push(Op::SetOutlineThickness {
+                    pt: Pt(layout.height.max(1.0)),
+                });
+                pdf_ops.push(Op::DrawLine {
+                    line: Line {
+                        points: vec![
+                            LinePoint {
+                                p: Point {
+                                    x: Pt(layout.x),
+                                    y: Pt(line_y_pt),
+                                },
+                                bezier: false,
+                            },
+                            LinePoint {
+                                p: Point {
+                                    x: Pt(layout.x + layout.width),
+                                    y: Pt(line_y_pt),
+                                },
+                                bezier: false,
+                            },
+                        ],
+                        is_closed: false,
+                    },
+                });
             }
         }
     }

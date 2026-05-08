@@ -2,8 +2,8 @@ use std::collections::HashMap;
 
 use crate::ast::{
     ArgType, BinaryExpr, CallElem, ChildrenElem, CodeElem, DocElem, DocElemKind, Expr, ExprKind,
-    ImageElem, InterpolatedStringExpr, LinkElem, ListElem, SectionElem, StructDefaultExpr,
-    TableElem, TextElem, UnaryExpr,
+    ImageElem, InterpolatedStringExpr, LinkElem, ListElem, SectionElem, SeparatorElem,
+    StructDefaultExpr, TableElem, TextElem, UnaryExpr,
 };
 use crate::diagnostic::{SemanticError, SourceLocation};
 use crate::hir::{
@@ -111,6 +111,19 @@ pub fn lower_document_element(
             let lowered = lower_table_cells(table, hirmodule, ir_body, Some(index))?;
             hirmodule.elements[index] = HirElementOp::Table {
                 table: lowered,
+                attributes: attributes_ref,
+            };
+            Ok(index)
+        }
+        DocElemKind::Separator(SeparatorElem { attributes }) => {
+            let (index, attributes_ref) = reserve_element_slot(
+                hirmodule,
+                "separator",
+                attributes.as_ref(),
+                parent_index,
+                location,
+            );
+            hirmodule.elements[index] = HirElementOp::Separator {
                 attributes: attributes_ref,
             };
             Ok(index)
@@ -370,6 +383,9 @@ fn reserve_element_slot(
             table: Vec::new(),
             attributes: attributes_ref,
         },
+        "separator" => HirElementOp::Separator {
+            attributes: attributes_ref,
+        },
         _ => {
             // FIX return result
             // self.push_error(
@@ -491,6 +507,9 @@ fn clone_element_tree_for_call(
                 attributes: attributes_ref,
             }
         }
+        HirElementOp::Separator { .. } => HirElementOp::Separator {
+            attributes: attributes_ref,
+        },
     };
 
     hirmodule.elements[new_index] = cloned_element;
