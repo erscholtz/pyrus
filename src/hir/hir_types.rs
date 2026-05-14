@@ -312,6 +312,29 @@ impl AttributeNode {
 
 // ----------------------------------------------------------------------------------
 
+impl HirElementOp {
+    pub fn attributes_ref(&self) -> usize {
+        match self {
+            Self::Section { attributes, .. }
+            | Self::List { attributes, .. }
+            | Self::Text { attributes, .. }
+            | Self::Image { attributes, .. }
+            | Self::Table { attributes, .. }
+            | Self::Separator { attributes } => *attributes,
+        }
+    }
+
+    pub fn child_elements(&self) -> Option<&[usize]> {
+        match self {
+            Self::Section { children, .. } | Self::List { children, .. } => Some(children),
+            Self::Text { .. }
+            | Self::Image { .. }
+            | Self::Table { .. }
+            | Self::Separator { .. } => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum Align {
     Left,
@@ -409,6 +432,14 @@ impl StyleAttributes {
         }
     }
 
+    pub fn style_value(&self, property: &str) -> Option<&str> {
+        self.style.get(property).map(String::as_str)
+    }
+
+    pub fn style_length(&self, property: &str) -> Option<f32> {
+        self.style_value(property).and_then(Self::parse_css_length)
+    }
+
     pub fn set(&mut self, property: &str, value: String) {
         match property {
             "id" => self.id = Some(value),
@@ -438,6 +469,40 @@ impl StyleAttributes {
                 // Unknown property goes into the style map
                 self.style.insert(property.to_string(), value);
             }
+        }
+    }
+
+    pub fn apply_inline_override(&mut self, inline: &StyleAttributes) {
+        for (key, val) in &inline.style {
+            self.set(key, val.clone());
+        }
+
+        if let Some(id) = &inline.id {
+            self.id = Some(id.clone());
+        }
+        if !inline.class.is_empty() {
+            self.class = inline.class.clone();
+        }
+        if let Some(margin) = inline.margin {
+            self.margin = Some(margin);
+        }
+        if let Some(padding) = inline.padding {
+            self.padding = Some(padding);
+        }
+        if let Some(align) = &inline.align {
+            self.align = Some(align.clone());
+        }
+        if inline.hidden {
+            self.hidden = true;
+        }
+        if let Some(condition) = inline.condition {
+            self.condition = Some(condition);
+        }
+        if inline.page_break != PageBreak::None {
+            self.page_break = inline.page_break.clone();
+        }
+        if let Some(role) = &inline.role {
+            self.role = Some(role.clone());
         }
     }
 
@@ -477,29 +542,11 @@ impl StyleAttributes {
     }
 
     pub fn apply_inherited(&mut self, parent: &StyleAttributes) {
-        if self.style.get("font-family").is_none() {
-            if let Some(val) = parent.style.get("font-family") {
-                self.style.insert("font-family".to_string(), val.clone());
-            }
-        }
-        if self.style.get("font-size").is_none() {
-            if let Some(val) = parent.style.get("font-size") {
-                self.style.insert("font-size".to_string(), val.clone());
-            }
-        }
-        if self.style.get("font-weight").is_none() {
-            if let Some(val) = parent.style.get("font-weight") {
-                self.style.insert("font-weight".to_string(), val.clone());
-            }
-        }
-        if self.style.get("color").is_none() {
-            if let Some(val) = parent.style.get("color") {
-                self.style.insert("color".to_string(), val.clone());
-            }
-        }
-        if self.style.get("line-height").is_none() {
-            if let Some(val) = parent.style.get("line-height") {
-                self.style.insert("line-height".to_string(), val.clone());
+        for property in INHERITED_STYLE_PROPERTIES {
+            if !self.style.contains_key(*property) {
+                if let Some(val) = parent.style.get(*property) {
+                    self.style.insert((*property).to_string(), val.clone());
+                }
             }
         }
         if self.align.is_none() {
@@ -508,6 +555,14 @@ impl StyleAttributes {
     }
 }
 
+const INHERITED_STYLE_PROPERTIES: &[&str] = &[
+    "font-family",
+    "font-size",
+    "font-weight",
+    "color",
+    "line-height",
+];
+
 impl StyleAttributes {
     pub fn new_with_attributes(attributes: Option<&HashMap<String, Expr>>) -> Self {
         let mut result = Self::default();
@@ -515,51 +570,28 @@ impl StyleAttributes {
             return result;
         };
 
-        if let Some(expr) = attributes.get("id") {
-            result.id = Some(expr.to_string());
-        }
-
-        if let Some(expr) = attributes.get("class") {
-            result.class = expr
-                .to_string()
-                .split_whitespace()
-                .map(String::from)
-                .collect();
-        }
-
-        if let Some(expr) = attributes.get("style") {
-            result.style = Self::parse_style(&expr.to_string());
-        }
-
-        if let Some(expr) = attributes.get("margin") {
-            result.margin = expr.to_string().parse().ok();
-        }
-
-        if let Some(expr) = attributes.get("padding") {
-            result.padding = expr.to_string().parse().ok();
-        }
-
-        if let Some(expr) = attributes.get("align") {
-            result.align = expr.to_string().parse().ok();
-        }
-
-        if let Some(expr) = attributes.get("hidden") {
-            result.hidden = expr.to_string().parse().unwrap_or(false);
-        }
-
-        if let Some(expr) = attributes.get("condition") {
-            result.condition = expr.to_string().parse().ok();
-        }
-
-        if let Some(expr) = attributes.get("page_break") {
-            result.page_break = expr.to_string().parse().unwrap_or(PageBreak::None);
-        }
-
-        if let Some(expr) = attributes.get("role") {
-            result.role = Some(expr.to_string());
+        for (property, expr) in attributes {
+            result.set_from_expr(property, expr);
         }
 
         result
+    }
+
+    fn set_from_expr(&mut self, property: &str, expr: &Expr) {
+        let value = expr.to_string();
+
+        match property {
+            "class" => {
+                self.class = value.split_whitespace().map(String::from).collect();
+            }
+            "style" => {
+                self.style = Self::parse_style(&value);
+            }
+            "condition" => {
+                self.condition = value.parse().ok();
+            }
+            _ => self.set(property, value),
+        }
     }
 
     fn parse_style(input: &str) -> HashMap<String, String> {
@@ -572,9 +604,13 @@ impl StyleAttributes {
             .collect()
     }
 
-    fn parse_css_length(value: &str) -> Option<f32> {
+    pub fn parse_css_length(value: &str) -> Option<f32> {
         let value = value.trim();
         if value.is_empty() {
+            return None;
+        }
+
+        if value.eq_ignore_ascii_case("auto") {
             return None;
         }
 
@@ -589,15 +625,12 @@ impl StyleAttributes {
 
         match unit_str.as_str() {
             "pt" => Some(num),
-            "px" => Some(num * 0.75),    // 1px = 0.75pt
-            "mm" => Some(num * 2.83465), // 1mm = 2.83465pt
-            "cm" => Some(num * 28.3465), // 1cm = 28.3465pt
-            "in" => Some(num * 72.0),    // 1in = 72pt
-            "" => Some(num),             // No unit, assume points
-            _ => {
-                // Unknown unit, try to parse as number anyway
-                num_str.parse().ok()
-            }
+            "px" => Some(num * 0.75),
+            "mm" => Some(num * 2.83465),
+            "cm" => Some(num * 28.3465),
+            "in" => Some(num * 72.0),
+            "" => Some(num),
+            _ => Some(num),
         }
     }
 }

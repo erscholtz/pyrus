@@ -6,8 +6,7 @@ use taffy::{LengthPercentage, LengthPercentageAuto, NodeId, Rect, Size, Style, T
 use crate::hir::hir_types::{FuncId, HIRModule, HirElementOp, Op, StyleAttributes};
 
 pub fn setup_layout(hlir_module: &HIRModule) -> LayoutEngine {
-    let layout = LayoutEngine::build_from_hlir_module(hlir_module);
-    layout
+    LayoutEngine::build_from_hlir_module(hlir_module)
 }
 
 const PAGE_WIDTH_PT: f32 = 595.0;
@@ -43,6 +42,15 @@ struct BoxEdges {
 }
 
 impl BoxEdges {
+    fn all(value: f32) -> Self {
+        Self {
+            top: value,
+            right: value,
+            bottom: value,
+            left: value,
+        }
+    }
+
     fn horizontal(self) -> f32 {
         self.left + self.right
     }
@@ -67,16 +75,7 @@ impl ElementBox {
         style: &HashMap<String, String>,
         property: &str,
     ) -> BoxEdges {
-        let mut edges = BoxEdges::default();
-
-        if let Some(value) = shorthand {
-            edges = BoxEdges {
-                top: value,
-                right: value,
-                bottom: value,
-                left: value,
-            };
-        }
+        let mut edges = shorthand.map(BoxEdges::all).unwrap_or_default();
 
         if let Some(value) = Self::side_value(style, property, "top") {
             edges.top = value;
@@ -98,7 +97,7 @@ impl ElementBox {
         let key = format!("{property}-{suffix}");
         style
             .get(&key)
-            .and_then(|value| LayoutEngine::parse_css_length(value))
+            .and_then(|value| StyleAttributes::parse_css_length(value))
     }
 }
 
@@ -156,23 +155,12 @@ impl LayoutEngine {
     fn process_op_and_get_node(&mut self, op: &Op, hlir_module: &HIRModule) -> Option<NodeId> {
         match op {
             Op::HirElementEmit { index } => {
-                // Document element - has metadata and computed styles
                 let element = hlir_module.elements.get(*index).expect("element not found");
-                let attributes_ref = match element {
-                    HirElementOp::Section { attributes, .. } => *attributes,
-                    HirElementOp::List { attributes, .. } => *attributes,
-                    HirElementOp::Text { attributes, .. } => *attributes,
-                    HirElementOp::Image { attributes, .. } => *attributes,
-                    HirElementOp::Table { attributes, .. } => *attributes,
-                    HirElementOp::Separator { attributes } => *attributes,
-                };
-                self.create_node_from_metadata(*index, attributes_ref, hlir_module)
+                self.create_leaf_for_element(*index, element.attributes_ref(), hlir_module)
             }
             Op::FuncCall { func, .. } => {
-                // Template function call - element is in function's returned_element_ref
                 if let Some(function) = hlir_module.functions.get(func) {
                     if let Some(element_id) = function.body.returned_element_ref {
-                        // Template element - extract styles directly from DocElement
                         return self.create_node_from_element(element_id, hlir_module);
                     }
                 }
@@ -182,30 +170,18 @@ impl LayoutEngine {
         }
     }
 
-    fn create_node_from_metadata(
+    fn create_leaf_for_element(
         &mut self,
         element_index: usize,
         attributes_ref: usize,
         hlir_module: &HIRModule,
     ) -> Option<NodeId> {
-        let attributes = match hlir_module.attributes.find_node(attributes_ref) {
-            Some(a) => &a.computed,
-            None => return None,
-        };
+        let attributes = self.computed_attributes(attributes_ref, hlir_module)?;
 
         let style = Self::attr_to_style(attributes);
-        let node_id = match self.tree.new_leaf(style) {
-            Ok(id) => id,
-            Err(_) => return None,
-        };
+        let node_id = self.tree.new_leaf(style).ok()?;
 
-        if element_index < self.element_to_node.len() {
-            self.element_to_node[element_index] = Some(node_id);
-        }
-
-        if let Some(id) = &attributes.id {
-            self.id_to_node.insert(id.clone(), node_id);
-        }
+        self.track_node(element_index, node_id, attributes);
 
         Some(node_id)
     }
@@ -220,28 +196,29 @@ impl LayoutEngine {
             None => return None,
         };
 
-        // Get attributes_ref from the element and look up computed styles
-        let attributes_ref = match element {
-            HirElementOp::Section { attributes, .. } => *attributes,
-            HirElementOp::List { attributes, .. } => *attributes,
-            HirElementOp::Text { attributes, .. } => *attributes,
-            HirElementOp::Image { attributes, .. } => *attributes,
-            HirElementOp::Table { attributes, .. } => *attributes,
-            HirElementOp::Separator { attributes } => *attributes,
-        };
-
-        let attributes = match hlir_module.attributes.find_node(attributes_ref) {
-            Some(node) => &node.computed,
-            None => return None,
-        };
+        let attributes = self.computed_attributes(element.attributes_ref(), hlir_module)?;
 
         let style = Self::attr_to_style(attributes);
+        let node_id = self.tree.new_leaf(style).ok()?;
+        self.track_node(element_index, node_id, attributes);
 
-        let node_id = match self.tree.new_leaf(style) {
-            Ok(id) => id,
-            Err(_) => return None,
-        };
+        self.process_element_children(element, hlir_module, node_id);
 
+        Some(node_id)
+    }
+
+    fn computed_attributes<'hir>(
+        &self,
+        attributes_ref: usize,
+        hlir_module: &'hir HIRModule,
+    ) -> Option<&'hir StyleAttributes> {
+        hlir_module
+            .attributes
+            .find_node(attributes_ref)
+            .map(|node| &node.computed)
+    }
+
+    fn track_node(&mut self, element_index: usize, node_id: NodeId, attributes: &StyleAttributes) {
         if element_index < self.element_to_node.len() {
             self.element_to_node[element_index] = Some(node_id);
         }
@@ -249,11 +226,6 @@ impl LayoutEngine {
         if let Some(id) = &attributes.id {
             self.id_to_node.insert(id.clone(), node_id);
         }
-
-        // Handle children (for Section, List, etc.)
-        self.process_element_children(element, hlir_module, node_id);
-
-        Some(node_id)
     }
 
     fn process_element_children(
@@ -262,14 +234,8 @@ impl LayoutEngine {
         hlir_module: &HIRModule,
         parent_node: NodeId,
     ) {
-        // HlirElement stores children as indices into hlir_module.elements
-        let children = match element {
-            HirElementOp::Section { children, .. } => children,
-            HirElementOp::List { children, .. } => children,
-            HirElementOp::Text { .. } => return,  // No children
-            HirElementOp::Image { .. } => return, // No children
-            HirElementOp::Table { .. } => return, // No children,
-            HirElementOp::Separator { .. } => return,
+        let Some(children) = element.child_elements() else {
+            return;
         };
 
         for child_idx in children {
@@ -295,25 +261,19 @@ impl LayoutEngine {
 
         // Parse width from style map (e.g., "width: 100pt")
         let width = attributes
-            .style
-            .get("width")
-            .and_then(|v| Self::parse_css_length(v))
+            .style_length("width")
             .map(Dimension::from_length)
             .unwrap_or(Dimension::AUTO);
 
         // Parse height from style map
         let height = attributes
-            .style
-            .get("height")
-            .and_then(|v| Self::parse_css_length(v))
+            .style_length("height")
             .map(Dimension::from_length)
             .unwrap_or(Dimension::AUTO);
 
         // Parse display property
         let display = attributes
-            .style
-            .get("display")
-            .map(|v| v.as_str())
+            .style_value("display")
             .and_then(|v| match v {
                 "block" => Some(taffy::style::Display::Block),
                 "flex" => Some(taffy::style::Display::Flex),
@@ -324,9 +284,7 @@ impl LayoutEngine {
 
         // Parse flex-direction
         let flex_direction = attributes
-            .style
-            .get("flex-direction")
-            .map(|v| v.as_str())
+            .style_value("flex-direction")
             .and_then(|v| match v {
                 "row" => Some(taffy::style::FlexDirection::Row),
                 "row-reverse" => Some(taffy::style::FlexDirection::RowReverse),
@@ -338,9 +296,7 @@ impl LayoutEngine {
 
         // Parse justify-content
         let justify_content = attributes
-            .style
-            .get("justify-content")
-            .map(|v| v.as_str())
+            .style_value("justify-content")
             .and_then(|v| match v {
                 "flex-start" => Some(taffy::style::JustifyContent::FlexStart),
                 "flex-end" => Some(taffy::style::JustifyContent::FlexEnd),
@@ -354,9 +310,7 @@ impl LayoutEngine {
 
         // Parse align-items
         let align_items = attributes
-            .style
-            .get("align-items")
-            .map(|v| v.as_str())
+            .style_value("align-items")
             .and_then(|v| match v {
                 "flex-start" => Some(taffy::style::AlignItems::FlexStart),
                 "flex-end" => Some(taffy::style::AlignItems::FlexEnd),
@@ -386,44 +340,6 @@ impl LayoutEngine {
             justify_content: Some(justify_content),
             align_items: Some(align_items),
             ..Style::default()
-        }
-    }
-
-    /// Parse a CSS length value like "15pt", "20px", "10mm", or just "15"
-    /// Returns the numeric value in points (pt)
-    fn parse_css_length(value: &str) -> Option<f32> {
-        let value = value.trim();
-        if value.is_empty() {
-            return None;
-        }
-
-        // Handle "auto" keyword
-        if value.eq_ignore_ascii_case("auto") {
-            return None;
-        }
-
-        // Find where the number ends and unit begins
-        let num_end = value
-            .find(|c: char| !c.is_ascii_digit() && c != '.' && c != '-')
-            .unwrap_or(value.len());
-
-        let num_str = &value[..num_end];
-        let unit_str = &value[num_end..].trim().to_lowercase();
-
-        let num: f32 = num_str.parse().ok()?;
-
-        // Convert to points based on unit
-        match unit_str.as_str() {
-            "pt" => Some(num),
-            "px" => Some(num * 0.75),    // 1px ≈ 0.75pt
-            "mm" => Some(num * 2.83465), // 1mm ≈ 2.83465pt
-            "cm" => Some(num * 28.3465), // 1cm ≈ 28.3465pt
-            "in" => Some(num * 72.0),    // 1in = 72pt
-            "" => Some(num),             // No unit, assume points
-            _ => {
-                // Unknown unit, try to parse as number anyway
-                num_str.parse().ok()
-            }
         }
     }
 
@@ -498,10 +414,9 @@ impl LayoutEngine {
         marker: Option<String>,
     ) {
         if let Some(element) = hlir.elements.get(element_index) {
-            let attributes_ref = Self::element_attributes_ref(element);
             let attrs = hlir
                 .attributes
-                .find_node(attributes_ref)
+                .find_node(element.attributes_ref())
                 .map(|node| &node.computed);
             let element_box = attrs.map(ElementBox::from_attributes).unwrap_or_default();
 
@@ -660,7 +575,7 @@ impl LayoutEngine {
 
         let attrs = hlir
             .attributes
-            .find_node(Self::element_attributes_ref(&hlir.elements[element_index]))
+            .find_node(hlir.elements[element_index].attributes_ref())
             .map(|node| &node.computed);
         let font_size = attrs
             .and_then(Self::parse_font_size)
@@ -695,7 +610,7 @@ impl LayoutEngine {
 
         let attrs = hlir
             .attributes
-            .find_node(Self::element_attributes_ref(element))
+            .find_node(element.attributes_ref())
             .map(|node| &node.computed);
         let font_size = attrs
             .and_then(Self::parse_font_size)
@@ -735,22 +650,8 @@ impl LayoutEngine {
         }
     }
 
-    fn element_attributes_ref(element: &HirElementOp) -> usize {
-        match element {
-            HirElementOp::Section { attributes, .. }
-            | HirElementOp::List { attributes, .. }
-            | HirElementOp::Text { attributes, .. }
-            | HirElementOp::Image { attributes, .. }
-            | HirElementOp::Table { attributes, .. }
-            | HirElementOp::Separator { attributes } => *attributes,
-        }
-    }
-
     fn parse_font_size(attributes: &StyleAttributes) -> Option<f32> {
-        attributes
-            .style
-            .get("font-size")
-            .and_then(|value| Self::parse_css_length(value))
+        attributes.style_length("font-size")
     }
 
     fn parse_line_height(attributes: &StyleAttributes, font_size: f32) -> Option<f32> {
@@ -766,14 +667,11 @@ impl LayoutEngine {
                 .map(|multiple| multiple * font_size);
         }
 
-        Self::parse_css_length(value)
+        StyleAttributes::parse_css_length(value)
     }
 
     fn parse_separator_height(attributes: &StyleAttributes) -> Option<f32> {
-        attributes
-            .style
-            .get("height")
-            .and_then(|value| Self::parse_css_length(value))
+        attributes.style_length("height")
     }
 
     pub(crate) fn wrap_text(content: &str, max_width: f32, font_size: f32) -> Vec<String> {

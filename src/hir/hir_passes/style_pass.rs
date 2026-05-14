@@ -1,10 +1,6 @@
 use crate::ast::{Ast, KeyValue, Selector, StyleRule};
 use crate::diagnostic::SemanticError;
-use crate::hir::{
-    HIRModule,
-    hir_passes::HIRPass,
-    hir_types::{PageBreak, StyleAttributes},
-};
+use crate::hir::{HIRModule, hir_passes::HIRPass, hir_types::StyleAttributes};
 
 pub struct StylePass;
 
@@ -157,39 +153,7 @@ impl StylePass {
         hir: &HIRModule,
     ) {
         if let Some(node) = hir.attributes.find_node(attributes_ref) {
-            let inline = &node.inline;
-
-            // Merge inline styles into computed, with inline taking precedence
-            // This handles the inline style="..." attribute
-            for (key, val) in &inline.style {
-                computed.set(key, val.clone());
-            }
-
-            // Also apply known attributes as inline styles
-            if let Some(id) = &inline.id {
-                computed.id = Some(id.clone());
-            }
-            if !inline.class.is_empty() {
-                computed.class = inline.class.clone();
-            }
-            if let Some(margin) = inline.margin {
-                computed.margin = Some(margin);
-            }
-            if let Some(padding) = inline.padding {
-                computed.padding = Some(padding);
-            }
-            if let Some(align) = &inline.align {
-                computed.align = Some(align.clone());
-            }
-            if inline.hidden {
-                computed.hidden = true;
-            }
-            if inline.page_break != PageBreak::None {
-                computed.page_break = inline.page_break.clone();
-            }
-            if let Some(role) = &inline.role {
-                computed.role = Some(role.clone());
-            }
+            computed.apply_inline_override(&node.inline);
         }
     }
 
