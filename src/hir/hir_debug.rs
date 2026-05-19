@@ -247,6 +247,18 @@ impl HirDebug for HirElementOp {
                 let truncated = truncate_str(content, 40);
                 write!(f, "text {:?} attrs=#{}", truncated, attributes)
             }
+            HirElementOp::Link {
+                href,
+                content,
+                attributes,
+            } => {
+                let truncated = truncate_str(content, 40);
+                write!(
+                    f,
+                    "link {:?} href={:?} attrs=#{}",
+                    truncated, href, attributes
+                )
+            }
             HirElementOp::Image { src, attributes } => {
                 write!(f, "image src={:?} attrs=#{}", src, attributes)
             }

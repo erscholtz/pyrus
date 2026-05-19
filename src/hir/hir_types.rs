@@ -179,6 +179,11 @@ pub enum HirElementOp {
         content_expr: Option<Expr>,
         attributes: usize,
     },
+    Link {
+        href: String,
+        content: String,
+        attributes: usize,
+    },
     Image {
         src: String,
         attributes: usize,
@@ -318,6 +323,7 @@ impl HirElementOp {
             Self::Section { attributes, .. }
             | Self::List { attributes, .. }
             | Self::Text { attributes, .. }
+            | Self::Link { attributes, .. }
             | Self::Image { attributes, .. }
             | Self::Table { attributes, .. }
             | Self::Separator { attributes } => *attributes,
@@ -328,6 +334,7 @@ impl HirElementOp {
         match self {
             Self::Section { children, .. } | Self::List { children, .. } => Some(children),
             Self::Text { .. }
+            | Self::Link { .. }
             | Self::Image { .. }
             | Self::Table { .. }
             | Self::Separator { .. } => None,

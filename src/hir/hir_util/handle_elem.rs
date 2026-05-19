@@ -135,14 +135,14 @@ pub fn lower_document_element(
         }) => {
             let (index, attributes_ref) = reserve_element_slot(
                 hirmodule,
-                "text",
+                "link",
                 attributes.as_ref(),
                 parent_index,
                 location,
             );
-            hirmodule.elements[index] = HirElementOp::Text {
-                content: format!("{content} ({href})"),
-                content_expr: None,
+            hirmodule.elements[index] = HirElementOp::Link {
+                href: href.clone(),
+                content: content.clone(),
                 attributes: attributes_ref,
             };
             Ok(index)
@@ -375,6 +375,11 @@ fn reserve_element_slot(
             content_expr: None,
             attributes: attributes_ref,
         },
+        "link" => HirElementOp::Link {
+            href: String::new(),
+            content: String::new(),
+            attributes: attributes_ref,
+        },
         "image" => HirElementOp::Image {
             src: String::new(),
             attributes: attributes_ref,
@@ -486,6 +491,11 @@ fn clone_element_tree_for_call(
                 attributes: attributes_ref,
             }
         }
+        HirElementOp::Link { href, content, .. } => HirElementOp::Link {
+            href: render_string_with_substitutions(&href, substitutions),
+            content: render_string_with_substitutions(&content, substitutions),
+            attributes: attributes_ref,
+        },
         HirElementOp::Image { src, .. } => HirElementOp::Image {
             src,
             attributes: attributes_ref,
@@ -675,4 +685,19 @@ fn render_expr_with_substitutions(
             )
         }
     }
+}
+
+fn render_string_with_substitutions(
+    input: &str,
+    substitutions: &HashMap<String, String>,
+) -> String {
+    if let Some(value) = substitutions.get(input) {
+        return value.clone();
+    }
+
+    let mut rendered = input.to_string();
+    for (name, value) in substitutions {
+        rendered = rendered.replace(&format!("${{{name}}}"), value);
+    }
+    rendered
 }

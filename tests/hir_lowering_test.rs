@@ -5,7 +5,7 @@
 
 use pyrus::ast::Ast;
 use pyrus::hir::{
-    hir_types::{HIRModule, Literal, Op, Type},
+    hir_types::{HIRModule, HirElementOp, Literal, Op, Type},
     lower,
 };
 use pyrus::lexer::{TokenStream, lex};
@@ -261,6 +261,30 @@ document {
     assert_eq!(hlir.elements.len(), 1);
     assert_eq!(hlir.element_metadata[0].element_type, "separator");
     assert_eq!(hlir.element_metadata[0].classes, vec!["rule"]);
+}
+
+#[test]
+fn test_lower_link_element_preserves_href() {
+    let source = r#"
+document {
+    @link(class="external")["https://example.com", "Example"]
+}
+"#;
+    let tokens = lex(source, "test_lower_link_element_preserves_href").expect("Lexing failed");
+    let ast = parse(tokens).expect("Parsing failed");
+    let hlir = lower_ast(&ast);
+
+    assert_eq!(hlir.elements.len(), 1);
+    assert_eq!(hlir.element_metadata[0].element_type, "link");
+    assert_eq!(hlir.element_metadata[0].classes, vec!["external"]);
+
+    match &hlir.elements[0] {
+        HirElementOp::Link { href, content, .. } => {
+            assert_eq!(href, "https://example.com");
+            assert_eq!(content, "Example");
+        }
+        other => panic!("Expected link element, got {other:?}"),
+    }
 }
 
 // ============================================================================

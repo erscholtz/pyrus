@@ -428,7 +428,7 @@ impl LayoutEngine {
                     .max(0.0);
 
             match element {
-                HirElementOp::Text { content, .. } => {
+                HirElementOp::Text { content, .. } | HirElementOp::Link { content, .. } => {
                     let font_size = attrs
                         .and_then(Self::parse_font_size)
                         .unwrap_or(DEFAULT_FONT_SIZE_PT);
@@ -569,7 +569,9 @@ impl LayoutEngine {
         y: f32,
         width: f32,
     ) -> f32 {
-        let Some(HirElementOp::Text { content, .. }) = hlir.elements.get(element_index) else {
+        let Some(HirElementOp::Text { content, .. } | HirElementOp::Link { content, .. }) =
+            hlir.elements.get(element_index)
+        else {
             return 0.0;
         };
 
@@ -604,7 +606,8 @@ impl LayoutEngine {
         hlir: &'a HIRModule,
     ) -> Option<(&'a str, f32)> {
         let element = hlir.elements.get(element_index)?;
-        let HirElementOp::Text { content, .. } = element else {
+        let (HirElementOp::Text { content, .. } | HirElementOp::Link { content, .. }) = element
+        else {
             return None;
         };
 
