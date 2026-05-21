@@ -3,14 +3,26 @@ use std::io::BufWriter;
 use std::io::Write;
 
 use printpdf::{
-    Actions, BuiltinFont, Color, ColorArray, Line, LinePoint, LinkAnnotation, Mm, Op, PdfDocument,
-    PdfFontHandle, PdfPage, PdfSaveOptions, Point, Pt, Rect, Rgb, TextItem,
+    Actions, BuiltinFont, Color, FontId, Line, LinePoint, LinkAnnotation, Mm, Op, PdfDocument,
+    PdfFontHandle, PdfPage, PdfSaveOptions, Point, Pt, Rect, Rgb, TextItem, font::ParsedFont,
 };
 
 use crate::hir::hir_types::{HIRModule, HirElementOp, StyleAttributes};
 use crate::layout::{ComputedLayout, LayoutEngine};
 
 pub struct PdfRenderer;
+
+#[derive(Clone)]
+struct BorderStyle {
+    width: f32,
+    color: Color,
+}
+
+#[derive(Default)]
+struct FontRegistry {
+    georgia: Option<FontId>,
+    georgia_bold: Option<FontId>,
+}
 
 impl PdfRenderer {
     pub fn new() -> Self {
@@ -23,8 +35,9 @@ impl PdfRenderer {
         computed_layouts: &[ComputedLayout],
     ) -> Result<(), std::io::Error> {
         let mut doc = PdfDocument::new("Document");
+        let fonts = Self::load_external_fonts(&mut doc);
 
-        let pages = self.setup_pages(hlir, computed_layouts);
+        let pages = self.setup_pages(hlir, computed_layouts, &fonts);
         let pdf_bytes = doc
             .with_pages(pages)
             .save(&PdfSaveOptions::default(), &mut Vec::new());
@@ -37,23 +50,33 @@ impl PdfRenderer {
         Ok(())
     }
 
-    fn setup_pages(&self, hlir: HIRModule, computed_layouts: &[ComputedLayout]) -> Vec<PdfPage> {
+    fn setup_pages(
+        &self,
+        hlir: HIRModule,
+        computed_layouts: &[ComputedLayout],
+        fonts: &FontRegistry,
+    ) -> Vec<PdfPage> {
         let mut pages = Vec::new();
 
-        let ops = self.setup_ops(hlir, computed_layouts);
+        let ops = self.setup_ops(hlir, computed_layouts, fonts);
         let page = PdfPage::new(Mm(210.0), Mm(297.0), ops);
         pages.push(page);
 
         pages
     }
 
-    fn setup_ops(&self, hlir: HIRModule, computed_layouts: &[ComputedLayout]) -> Vec<Op> {
+    fn setup_ops(
+        &self,
+        hlir: HIRModule,
+        computed_layouts: &[ComputedLayout],
+        fonts: &FontRegistry,
+    ) -> Vec<Op> {
         let mut pdf_ops = Vec::new();
 
         // Render each element with its computed layout
         for layout in computed_layouts {
             if let Some(element) = hlir.elements.get(layout.element_index) {
-                self.format_hlir_to_pdf_op(element.clone(), &hlir, &mut pdf_ops, layout);
+                self.format_hlir_to_pdf_op(element.clone(), &hlir, &mut pdf_ops, layout, fonts);
             }
         }
 
@@ -66,6 +89,7 @@ impl PdfRenderer {
         hlir: &HIRModule,
         pdf_ops: &mut Vec<Op>,
         layout: &ComputedLayout,
+        fonts: &FontRegistry,
     ) {
         // Convert layout coordinates (points) to PDF coordinates (Mm)
         // Note: PDF y-coordinate starts from bottom, layout y starts from top
@@ -88,8 +112,9 @@ impl PdfRenderer {
         };
         let font_size = Self::parse_font_size(attrs);
         let line_height = Self::parse_line_height(attrs, font_size);
-        let font = Self::get_font(attrs);
+        let font = Self::get_font(attrs, fonts);
         let fill_color = Self::parse_color(attrs);
+        let sanitize_text = matches!(font, PdfFontHandle::Builtin(_));
 
         // Convert x from points to mm
         let x_mm = layout.x / 2.83465;
@@ -103,6 +128,7 @@ impl PdfRenderer {
         let y_mm = baseline_y_pt / 2.83465;
 
         let point = Point::new(Mm(x_mm), Mm(y_mm));
+        self.push_border_ops(pdf_ops, attrs, layout, page_height_pt);
 
         match element {
             HirElementOp::Text { content, .. } => {
@@ -116,6 +142,7 @@ impl PdfRenderer {
                     line_height,
                     fill_color,
                     y_mm,
+                    sanitize_text,
                 );
                 self.push_autolink_annotations(pdf_ops, &content, layout, font_size, line_height);
             }
@@ -130,33 +157,29 @@ impl PdfRenderer {
                     line_height,
                     fill_color,
                     y_mm,
+                    sanitize_text,
                 );
                 pdf_ops.push(Op::LinkAnnotation {
                     link: LinkAnnotation::new(
-                        Rect::from_xywh(
-                            Pt(layout.x),
-                            Pt(page_height_pt - layout.y - layout.height),
-                            Pt(layout.width),
-                            Pt(layout.height),
-                        ),
+                        Self::annotation_rect(layout, page_height_pt),
                         Actions::uri(Self::normalize_url(&href).unwrap_or(href)),
                         None,
-                        Some(ColorArray::Rgb([0.0, 0.0, 1.0])),
+                        None,
                         None,
                     ),
                 });
             }
             HirElementOp::List { .. } => {
-                // Container elements don't render directly
+                // TODO: Container elements don't render directly
             }
             HirElementOp::Section { .. } => {
-                // Container elements don't render directly
+                // TODO: Container elements don't render directly
             }
             HirElementOp::Image { .. } => {
-                // Render image
+                // TODO: Render image
             }
             HirElementOp::Table { .. } => {
-                // Render table
+                // TODO: Render table
             }
             HirElementOp::Separator { .. } => {
                 let line_y_pt = page_height_pt - layout.y - (layout.height / 2.0);
@@ -202,12 +225,21 @@ impl PdfRenderer {
         line_height: f32,
         fill_color: Option<Color>,
         y_mm: f32,
+        sanitize_text: bool,
     ) {
-        let lines = LayoutEngine::wrap_text(content, layout.width, font_size);
+        let lines =
+            LayoutEngine::wrap_text_with_mode(content, layout.width, font_size, layout.nowrap);
 
         if let Some(marker) = &layout.marker {
-            let marker_x_mm = (layout.x - 14.0).max(0.0) / 2.83465;
-            let marker_point = Point::new(Mm(marker_x_mm), Mm(y_mm));
+            let marker_x_mm = layout.marker_x.unwrap_or((layout.x - 14.0).max(0.0)) / 2.83465;
+            let marker_y_mm = layout
+                .marker_y
+                .map(|marker_y| {
+                    let ascent_pt = font_size * 0.8;
+                    (842.0 - marker_y - ascent_pt) / 2.83465
+                })
+                .unwrap_or(y_mm);
+            let marker_point = Point::new(Mm(marker_x_mm), Mm(marker_y_mm));
 
             pdf_ops.push(Op::StartTextSection);
             pdf_ops.push(Op::SetTextCursor { pos: marker_point });
@@ -221,8 +253,13 @@ impl PdfRenderer {
             if let Some(col) = fill_color.clone() {
                 pdf_ops.push(Op::SetFillColor { col });
             }
+            let marker_text = if sanitize_text {
+                Self::sanitize_builtin_text(marker)
+            } else {
+                marker.clone()
+            };
             pdf_ops.push(Op::ShowText {
-                items: vec![TextItem::Text(marker.clone())],
+                items: vec![TextItem::Text(marker_text)],
             });
             pdf_ops.push(Op::EndTextSection);
         }
@@ -244,8 +281,13 @@ impl PdfRenderer {
             if line_idx > 0 {
                 pdf_ops.push(Op::AddLineBreak);
             }
+            let text = if sanitize_text {
+                Self::sanitize_builtin_text(line)
+            } else {
+                line.clone()
+            };
             pdf_ops.push(Op::ShowText {
-                items: vec![TextItem::Text(line.clone())],
+                items: vec![TextItem::Text(text)],
             });
         }
         pdf_ops.push(Op::EndTextSection);
@@ -259,7 +301,8 @@ impl PdfRenderer {
         font_size: f32,
         line_height: f32,
     ) {
-        let lines = LayoutEngine::wrap_text(content, layout.width, font_size);
+        let lines =
+            LayoutEngine::wrap_text_with_mode(content, layout.width, font_size, layout.nowrap);
 
         for (line_idx, line) in lines.iter().enumerate() {
             for range in Self::url_ranges(line) {
@@ -283,12 +326,130 @@ impl PdfRenderer {
                         ),
                         Actions::uri(href),
                         None,
-                        Some(ColorArray::Rgb([0.0, 0.0, 1.0])),
+                        None,
                         None,
                     ),
                 });
             }
         }
+    }
+
+    fn annotation_rect(layout: &ComputedLayout, page_height_pt: f32) -> Rect {
+        Rect::from_xywh(
+            Pt(layout.box_x),
+            Pt(page_height_pt - layout.box_y - layout.box_height),
+            Pt(layout.box_width),
+            Pt(layout.box_height),
+        )
+    }
+
+    fn push_border_ops(
+        &self,
+        pdf_ops: &mut Vec<Op>,
+        attrs: &StyleAttributes,
+        layout: &ComputedLayout,
+        page_height_pt: f32,
+    ) {
+        if let Some(border) =
+            Self::parse_border(attrs.style.get("border").map(String::as_str), attrs)
+        {
+            self.push_rect_border(pdf_ops, layout, page_height_pt, border);
+        }
+
+        if let Some(border) =
+            Self::parse_border(attrs.style.get("border-bottom").map(String::as_str), attrs)
+        {
+            self.push_bottom_border(pdf_ops, layout, page_height_pt, border);
+        }
+    }
+
+    fn push_rect_border(
+        &self,
+        pdf_ops: &mut Vec<Op>,
+        layout: &ComputedLayout,
+        page_height_pt: f32,
+        border: BorderStyle,
+    ) {
+        let left = layout.box_x;
+        let right = layout.box_x + layout.box_width;
+        let top = page_height_pt - layout.box_y;
+        let bottom = page_height_pt - layout.box_y - layout.box_height;
+
+        pdf_ops.push(Op::SetOutlineColor { col: border.color });
+        pdf_ops.push(Op::SetOutlineThickness {
+            pt: Pt(border.width),
+        });
+        pdf_ops.push(Op::DrawLine {
+            line: Line {
+                points: vec![
+                    LinePoint {
+                        p: Point {
+                            x: Pt(left),
+                            y: Pt(top),
+                        },
+                        bezier: false,
+                    },
+                    LinePoint {
+                        p: Point {
+                            x: Pt(right),
+                            y: Pt(top),
+                        },
+                        bezier: false,
+                    },
+                    LinePoint {
+                        p: Point {
+                            x: Pt(right),
+                            y: Pt(bottom),
+                        },
+                        bezier: false,
+                    },
+                    LinePoint {
+                        p: Point {
+                            x: Pt(left),
+                            y: Pt(bottom),
+                        },
+                        bezier: false,
+                    },
+                ],
+                is_closed: true,
+            },
+        });
+    }
+
+    fn push_bottom_border(
+        &self,
+        pdf_ops: &mut Vec<Op>,
+        layout: &ComputedLayout,
+        page_height_pt: f32,
+        border: BorderStyle,
+    ) {
+        let y = page_height_pt - layout.box_y - layout.box_height;
+
+        pdf_ops.push(Op::SetOutlineColor { col: border.color });
+        pdf_ops.push(Op::SetOutlineThickness {
+            pt: Pt(border.width),
+        });
+        pdf_ops.push(Op::DrawLine {
+            line: Line {
+                points: vec![
+                    LinePoint {
+                        p: Point {
+                            x: Pt(layout.box_x),
+                            y: Pt(y),
+                        },
+                        bezier: false,
+                    },
+                    LinePoint {
+                        p: Point {
+                            x: Pt(layout.box_x + layout.box_width),
+                            y: Pt(y),
+                        },
+                        bezier: false,
+                    },
+                ],
+                is_closed: false,
+            },
+        });
     }
 
     fn url_ranges(line: &str) -> Vec<std::ops::Range<usize>> {
@@ -388,8 +549,22 @@ impl PdfRenderer {
             .unwrap_or(font_size * 1.2)
     }
 
+    fn load_external_fonts(doc: &mut PdfDocument) -> FontRegistry {
+        FontRegistry {
+            georgia: Self::load_font(doc, "C:\\Windows\\Fonts\\georgia.ttf"),
+            georgia_bold: Self::load_font(doc, "C:\\Windows\\Fonts\\georgiab.ttf"),
+        }
+    }
+
+    fn load_font(doc: &mut PdfDocument, path: &str) -> Option<FontId> {
+        let bytes = std::fs::read(path).ok()?;
+        let mut warnings = Vec::new();
+        let font = ParsedFont::from_bytes(&bytes, 0, &mut warnings)?;
+        Some(doc.add_font(&font))
+    }
+
     /// Get PDF font from font-family and font-weight CSS properties.
-    fn get_font(attrs: &StyleAttributes) -> PdfFontHandle {
+    fn get_font(attrs: &StyleAttributes, fonts: &FontRegistry) -> PdfFontHandle {
         let font_family = attrs
             .style
             .get("font-family")
@@ -407,6 +582,18 @@ impl PdfRenderer {
             .unwrap_or(false);
 
         let family = font_family.trim().trim_matches('"').to_lowercase();
+        if matches!(family.as_str(), "georgia") {
+            if is_bold {
+                if let Some(font_id) = &fonts.georgia_bold {
+                    return PdfFontHandle::External(font_id.clone());
+                }
+            }
+
+            if let Some(font_id) = &fonts.georgia {
+                return PdfFontHandle::External(font_id.clone());
+            }
+        }
+
         let font = match family.as_str() {
             "times" | "times new roman" | "serif" if is_bold => BuiltinFont::TimesBold,
             "times" | "times new roman" | "serif" => BuiltinFont::TimesRoman,
@@ -421,6 +608,62 @@ impl PdfRenderer {
 
     fn parse_color(attrs: &StyleAttributes) -> Option<Color> {
         let value = attrs.style.get("color")?.trim().trim_matches('"');
+        let color = match value.to_lowercase().as_str() {
+            "black" => Self::rgb(0.0, 0.0, 0.0),
+            "white" => Self::rgb(1.0, 1.0, 1.0),
+            "red" => Self::rgb(1.0, 0.0, 0.0),
+            "green" => Self::rgb(0.0, 0.5, 0.0),
+            "blue" => Self::rgb(0.0, 0.0, 1.0),
+            "gray" | "grey" => Self::rgb(0.5, 0.5, 0.5),
+            _ => return Self::parse_hex_color(value),
+        };
+
+        Some(color)
+    }
+
+    fn parse_border(value: Option<&str>, attrs: &StyleAttributes) -> Option<BorderStyle> {
+        let value = value?.trim().trim_matches('"');
+        if value.is_empty() || value.eq_ignore_ascii_case("none") {
+            return None;
+        }
+
+        let mut width = None;
+        let mut color = None;
+
+        for part in value.split_whitespace() {
+            if width.is_none() {
+                width = Self::parse_css_length(part);
+            }
+
+            if color.is_none() {
+                color = Self::parse_color_token(part);
+            }
+        }
+
+        Some(BorderStyle {
+            width: width.unwrap_or(1.0),
+            color: color
+                .or_else(|| Self::parse_color(attrs))
+                .unwrap_or_else(|| Self::rgb(0.0, 0.0, 0.0)),
+        })
+    }
+
+    fn sanitize_builtin_text(value: &str) -> String {
+        value
+            .chars()
+            .map(|ch| match ch {
+                '\u{2013}' | '\u{2014}' | '\u{2011}' | '\u{2010}' => '-',
+                '\u{00b7}' | '\u{2022}' => '|',
+                '\u{2018}' | '\u{2019}' => '\'',
+                '\u{201c}' | '\u{201d}' => '"',
+                '\u{00a0}' => ' ',
+                _ => ch,
+            })
+            .collect()
+    }
+
+    fn parse_color_token(value: &str) -> Option<Color> {
+        let value = value.trim().trim_matches('"');
         let color = match value.to_lowercase().as_str() {
             "black" => Self::rgb(0.0, 0.0, 0.0),
             "white" => Self::rgb(1.0, 1.0, 1.0),
@@ -478,5 +721,18 @@ impl PdfRenderer {
             "" => Some(num),
             _ => None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::PdfRenderer;
+
+    #[test]
+    fn sanitize_builtin_text_replaces_unicode_punctuation() {
+        assert_eq!(
+            PdfRenderer::sanitize_builtin_text("September 2025 – Present · Toronto"),
+            "September 2025 - Present | Toronto"
+        );
     }
 }

@@ -25,12 +25,21 @@ pub struct LayoutEngine {
 
 #[derive(Debug, Clone)]
 pub struct ComputedLayout {
+    /// Content rectangle used for text placement and wrapping.
     pub x: f32,
     pub y: f32,
     pub width: f32,
     pub height: f32,
+    /// Border-box rectangle used for PDF painting and link annotations.
+    pub box_x: f32,
+    pub box_y: f32,
+    pub box_width: f32,
+    pub box_height: f32,
     pub element_index: usize,
     pub marker: Option<String>,
+    pub marker_x: Option<f32>,
+    pub marker_y: Option<f32>,
+    pub nowrap: bool,
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -54,6 +63,10 @@ impl BoxEdges {
     fn horizontal(self) -> f32 {
         self.left + self.right
     }
+
+    fn vertical(self) -> f32 {
+        self.top + self.bottom
+    }
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -75,7 +88,11 @@ impl ElementBox {
         style: &HashMap<String, String>,
         property: &str,
     ) -> BoxEdges {
-        let mut edges = shorthand.map(BoxEdges::all).unwrap_or_default();
+        let mut edges = style
+            .get(property)
+            .and_then(|value| Self::parse_edge_shorthand(value))
+            .or_else(|| shorthand.map(BoxEdges::all))
+            .unwrap_or_default();
 
         if let Some(value) = Self::side_value(style, property, "top") {
             edges.top = value;
@@ -98,6 +115,36 @@ impl ElementBox {
         style
             .get(&key)
             .and_then(|value| StyleAttributes::parse_css_length(value))
+    }
+
+    fn parse_edge_shorthand(value: &str) -> Option<BoxEdges> {
+        let parts: Vec<_> = value
+            .split_whitespace()
+            .filter_map(StyleAttributes::parse_css_length)
+            .collect();
+
+        match parts.as_slice() {
+            [] => None,
+            [all] => Some(BoxEdges::all(*all)),
+            [vertical, horizontal] => Some(BoxEdges {
+                top: *vertical,
+                right: *horizontal,
+                bottom: *vertical,
+                left: *horizontal,
+            }),
+            [top, horizontal, bottom] => Some(BoxEdges {
+                top: *top,
+                right: *horizontal,
+                bottom: *bottom,
+                left: *horizontal,
+            }),
+            [top, right, bottom, left, ..] => Some(BoxEdges {
+                top: *top,
+                right: *right,
+                bottom: *bottom,
+                left: *left,
+            }),
+        }
     }
 }
 
@@ -420,54 +467,52 @@ impl LayoutEngine {
                 .map(|node| &node.computed);
             let element_box = attrs.map(ElementBox::from_attributes).unwrap_or_default();
 
-            *current_y += element_box.margin.top + element_box.padding.top;
-
             let content_x = x_offset + element_box.margin.left + element_box.padding.left;
             let content_width =
                 (page_width - element_box.margin.horizontal() - element_box.padding.horizontal())
                     .max(0.0);
 
             match element {
-                HirElementOp::Text { content, .. } | HirElementOp::Link { content, .. } => {
-                    let font_size = attrs
-                        .and_then(Self::parse_font_size)
-                        .unwrap_or(DEFAULT_FONT_SIZE_PT);
-                    let line_height = attrs
-                        .and_then(|attrs| Self::parse_line_height(attrs, font_size))
-                        .unwrap_or(font_size * DEFAULT_LINE_HEIGHT_MULTIPLIER);
-                    let line_count = Self::wrap_text(content, content_width, font_size)
-                        .len()
-                        .max(1) as f32;
-                    let height = line_count * line_height;
-
-                    layouts.push(ComputedLayout {
-                        x: content_x,
-                        y: *current_y,
-                        width: content_width,
-                        height,
+                HirElementOp::Text { .. } | HirElementOp::Link { .. } => {
+                    let text_height = self.push_text_layout(
                         element_index,
+                        hlir,
+                        layouts,
+                        x_offset,
+                        *current_y,
+                        page_width,
                         marker,
-                    });
-
-                    *current_y += height + element_box.padding.bottom + element_box.margin.bottom;
+                    );
+                    *current_y += text_height;
                 }
                 HirElementOp::List { children, .. } => {
+                    *current_y += element_box.margin.top + element_box.padding.top;
+
+                    let marker_width = attrs
+                        .and_then(Self::parse_list_marker_width)
+                        .unwrap_or(10.0);
+                    let marker_gap = attrs.and_then(Self::parse_list_marker_gap).unwrap_or(4.0);
+                    let list_padding_left = attrs
+                        .and_then(|attrs| attrs.style_length("list-indent"))
+                        .unwrap_or(0.0);
+                    let item_x = content_x + list_padding_left + marker_width + marker_gap;
+                    let marker_x = content_x + list_padding_left;
+                    let item_width =
+                        (content_width - list_padding_left - marker_width - marker_gap).max(0.0);
+
                     for (item_idx, child_idx) in children.iter().enumerate() {
                         let marker = attrs.and_then(|attrs| Self::list_marker(attrs, item_idx));
-                        self.process_element_for_layout(
-                            *child_idx,
-                            hlir,
-                            layouts,
-                            current_y,
-                            (content_width - 20.0).max(0.0),
-                            content_x + 20.0,
-                            marker,
+                        self.process_list_item_for_layout(
+                            *child_idx, hlir, layouts, current_y, item_width, item_x, marker,
+                            marker_x,
                         );
                     }
 
                     *current_y += element_box.padding.bottom + element_box.margin.bottom;
                 }
                 HirElementOp::Section { children, .. } if Self::is_flex_row(attrs) => {
+                    *current_y += element_box.margin.top + element_box.padding.top;
+
                     self.process_row_children(
                         children,
                         hlir,
@@ -475,11 +520,14 @@ impl LayoutEngine {
                         current_y,
                         content_width,
                         content_x,
+                        attrs,
                     );
 
                     *current_y += element_box.padding.bottom + element_box.margin.bottom;
                 }
                 HirElementOp::Section { children, .. } => {
+                    *current_y += element_box.margin.top + element_box.padding.top;
+
                     for child_idx in children {
                         self.process_element_for_layout(
                             *child_idx,
@@ -495,13 +543,17 @@ impl LayoutEngine {
                     *current_y += element_box.padding.bottom + element_box.margin.bottom;
                 }
                 HirElementOp::Image { .. } => {
+                    *current_y += element_box.margin.top + element_box.padding.top;
                     *current_y += 10.0 + element_box.padding.bottom + element_box.margin.bottom;
                 }
                 HirElementOp::Table { .. } => {
+                    *current_y += element_box.margin.top + element_box.padding.top;
                     // TODO this is wrong fix in the future, should adjust cursor based on table content
                     *current_y += 10.0 + element_box.padding.bottom + element_box.margin.bottom;
                 }
                 HirElementOp::Separator { .. } => {
+                    *current_y += element_box.margin.top + element_box.padding.top;
+
                     let height = attrs.and_then(Self::parse_separator_height).unwrap_or(1.0);
 
                     layouts.push(ComputedLayout {
@@ -509,12 +561,49 @@ impl LayoutEngine {
                         y: *current_y,
                         width: content_width,
                         height,
+                        box_x: content_x,
+                        box_y: *current_y,
+                        box_width: content_width,
+                        box_height: height,
                         element_index,
                         marker,
+                        marker_x: None,
+                        marker_y: None,
+                        nowrap: false,
                     });
 
                     *current_y += height + element_box.padding.bottom + element_box.margin.bottom;
                 }
+            }
+        }
+    }
+
+    fn process_list_item_for_layout(
+        &self,
+        element_index: usize,
+        hlir: &HIRModule,
+        layouts: &mut Vec<ComputedLayout>,
+        current_y: &mut f32,
+        page_width: f32,
+        x_offset: f32,
+        marker: Option<String>,
+        marker_x: f32,
+    ) {
+        let before_len = layouts.len();
+        self.process_element_for_layout(
+            element_index,
+            hlir,
+            layouts,
+            current_y,
+            page_width,
+            x_offset,
+            marker,
+        );
+
+        for layout in &mut layouts[before_len..] {
+            if layout.marker.is_some() {
+                layout.marker_x = Some(marker_x);
+                layout.marker_y = Some(layout.y);
             }
         }
     }
@@ -527,15 +616,15 @@ impl LayoutEngine {
         current_y: &mut f32,
         content_width: f32,
         content_x: f32,
+        attrs: Option<&StyleAttributes>,
     ) {
         let Some((&right_child, left_children)) = children.split_last() else {
             return;
         };
 
-        let gap = 12.0;
+        let gap = attrs.and_then(Self::parse_gap).unwrap_or(12.0);
         let right_width = self
-            .text_measurement(right_child, hlir)
-            .map(|(text, font_size)| Self::estimate_text_width(text, font_size))
+            .natural_outer_width(right_child, hlir, content_width)
             .unwrap_or(0.0)
             .min((content_width - gap).max(0.0));
         let right_x = content_x + (content_width - right_width).max(0.0);
@@ -543,12 +632,12 @@ impl LayoutEngine {
 
         let mut row_height: f32 = 0.0;
         for child_idx in left_children {
-            row_height = row_height.max(
-                self.push_text_layout(*child_idx, hlir, layouts, content_x, *current_y, left_width),
-            );
+            row_height = row_height.max(self.push_row_child_layout(
+                *child_idx, hlir, layouts, content_x, *current_y, left_width,
+            ));
         }
 
-        row_height = row_height.max(self.push_text_layout(
+        row_height = row_height.max(self.push_row_child_layout(
             right_child,
             hlir,
             layouts,
@@ -560,6 +649,28 @@ impl LayoutEngine {
         *current_y += row_height;
     }
 
+    fn push_row_child_layout(
+        &self,
+        element_index: usize,
+        hlir: &HIRModule,
+        layouts: &mut Vec<ComputedLayout>,
+        x: f32,
+        y: f32,
+        width: f32,
+    ) -> f32 {
+        let before_len = layouts.len();
+        let mut child_y = y;
+
+        self.process_element_for_layout(element_index, hlir, layouts, &mut child_y, width, x, None);
+
+        let emitted_height = layouts[before_len..]
+            .iter()
+            .map(|layout| layout.box_y + layout.box_height - y)
+            .fold(0.0_f32, f32::max);
+
+        emitted_height.max(child_y - y)
+    }
+
     fn push_text_layout(
         &self,
         element_index: usize,
@@ -568,6 +679,7 @@ impl LayoutEngine {
         x: f32,
         y: f32,
         width: f32,
+        marker: Option<String>,
     ) -> f32 {
         let Some(HirElementOp::Text { content, .. } | HirElementOp::Link { content, .. }) =
             hlir.elements.get(element_index)
@@ -585,19 +697,102 @@ impl LayoutEngine {
         let line_height = attrs
             .and_then(|attrs| Self::parse_line_height(attrs, font_size))
             .unwrap_or(font_size * DEFAULT_LINE_HEIGHT_MULTIPLIER);
-        let line_count = Self::wrap_text(content, width, font_size).len().max(1) as f32;
+        let element_box = attrs.map(ElementBox::from_attributes).unwrap_or_default();
+        let box_x = x + element_box.margin.left;
+        let box_y = y + element_box.margin.top;
+        let content_x = box_x + element_box.padding.left;
+        let content_y = box_y + element_box.padding.top;
+        let content_width =
+            (width - element_box.margin.horizontal() - element_box.padding.horizontal()).max(0.0);
+        let nowrap = attrs.is_some_and(Self::is_nowrap);
+        let line_count = Self::wrap_text_with_mode(content, content_width, font_size, nowrap)
+            .len()
+            .max(1) as f32;
         let height = line_count * line_height;
+        let box_height = height + element_box.padding.vertical();
 
         layouts.push(ComputedLayout {
-            x,
-            y,
-            width,
+            x: content_x,
+            y: content_y,
+            width: content_width,
             height,
+            box_x,
+            box_y,
+            box_width: (content_width + element_box.padding.horizontal()).max(0.0),
+            box_height,
             element_index,
-            marker: None,
+            marker,
+            marker_x: None,
+            marker_y: None,
+            nowrap,
         });
 
-        height
+        element_box.margin.top + box_height + element_box.margin.bottom
+    }
+
+    fn outer_text_width(
+        &self,
+        element_index: usize,
+        hlir: &HIRModule,
+        measurement: (&str, f32),
+        available_width: f32,
+    ) -> f32 {
+        let attrs = hlir
+            .elements
+            .get(element_index)
+            .and_then(|element| hlir.attributes.find_node(element.attributes_ref()))
+            .map(|node| &node.computed);
+        let element_box = attrs.map(ElementBox::from_attributes).unwrap_or_default();
+        let explicit_width = attrs.and_then(|attrs| attrs.style_length("width"));
+        let content_width = explicit_width
+            .unwrap_or_else(|| Self::estimate_text_width(measurement.0, measurement.1));
+
+        (content_width + element_box.margin.horizontal() + element_box.padding.horizontal())
+            .min(available_width)
+    }
+
+    fn natural_outer_width(
+        &self,
+        element_index: usize,
+        hlir: &HIRModule,
+        available_width: f32,
+    ) -> Option<f32> {
+        let element = hlir.elements.get(element_index)?;
+
+        match element {
+            HirElementOp::Text { .. } | HirElementOp::Link { .. } => self
+                .text_measurement(element_index, hlir)
+                .map(|measurement| {
+                    self.outer_text_width(element_index, hlir, measurement, available_width)
+                }),
+            HirElementOp::Section { children, .. } => {
+                let attrs = hlir
+                    .attributes
+                    .find_node(element.attributes_ref())
+                    .map(|node| &node.computed);
+                let element_box = attrs.map(ElementBox::from_attributes).unwrap_or_default();
+                let child_available = (available_width
+                    - element_box.margin.horizontal()
+                    - element_box.padding.horizontal())
+                .max(0.0);
+                let child_width = children
+                    .iter()
+                    .filter_map(|child_idx| {
+                        self.natural_outer_width(*child_idx, hlir, child_available)
+                    })
+                    .fold(None, |max_width: Option<f32>, width| {
+                        Some(max_width.map_or(width, |current| current.max(width)))
+                    })?;
+
+                Some(
+                    (child_width
+                        + element_box.margin.horizontal()
+                        + element_box.padding.horizontal())
+                    .min(available_width),
+                )
+            }
+            _ => None,
+        }
     }
 
     fn text_measurement<'a>(
@@ -635,6 +830,31 @@ impl LayoutEngine {
                 .style
                 .get("flex-direction")
                 .is_some_and(|value| value.trim() == "row")
+    }
+
+    fn is_nowrap(attrs: &StyleAttributes) -> bool {
+        attrs
+            .style
+            .get("white-space")
+            .is_some_and(|value| value.trim().trim_matches('"') == "nowrap")
+    }
+
+    fn parse_gap(attrs: &StyleAttributes) -> Option<f32> {
+        attrs
+            .style_length("column-gap")
+            .or_else(|| attrs.style_length("gap"))
+    }
+
+    fn parse_list_marker_width(attrs: &StyleAttributes) -> Option<f32> {
+        attrs
+            .style_length("marker-width")
+            .or_else(|| attrs.style_length("list-marker-width"))
+    }
+
+    fn parse_list_marker_gap(attrs: &StyleAttributes) -> Option<f32> {
+        attrs
+            .style_length("marker-gap")
+            .or_else(|| attrs.style_length("list-marker-gap"))
     }
 
     fn list_marker(attrs: &StyleAttributes, item_idx: usize) -> Option<String> {
@@ -677,12 +897,17 @@ impl LayoutEngine {
         attributes.style_length("height")
     }
 
-    pub(crate) fn wrap_text(content: &str, max_width: f32, font_size: f32) -> Vec<String> {
+    pub(crate) fn wrap_text_with_mode(
+        content: &str,
+        max_width: f32,
+        font_size: f32,
+        nowrap: bool,
+    ) -> Vec<String> {
         if content.is_empty() {
             return vec![String::new()];
         }
 
-        if max_width <= 0.0 {
+        if nowrap || max_width <= 0.0 {
             return vec![content.to_string()];
         }
 
@@ -757,8 +982,15 @@ impl LayoutEngine {
             y: layout.location.y,
             width: layout.size.width,
             height: layout.size.height,
+            box_x: layout.location.x,
+            box_y: layout.location.y,
+            box_width: layout.size.width,
+            box_height: layout.size.height,
             element_index,
             marker: None,
+            marker_x: None,
+            marker_y: None,
+            nowrap: false,
         })
     }
 
@@ -776,8 +1008,15 @@ impl LayoutEngine {
             y: layout.location.y,
             width: layout.size.width,
             height: layout.size.height,
+            box_x: layout.location.x,
+            box_y: layout.location.y,
+            box_width: layout.size.width,
+            box_height: layout.size.height,
             element_index,
             marker: None,
+            marker_x: None,
+            marker_y: None,
+            nowrap: false,
         })
     }
 
@@ -794,8 +1033,15 @@ impl LayoutEngine {
                     y: layout.location.y,
                     width: layout.size.width,
                     height: layout.size.height,
+                    box_x: layout.location.x,
+                    box_y: layout.location.y,
+                    box_width: layout.size.width,
+                    box_height: layout.size.height,
                     element_index: idx,
                     marker: None,
+                    marker_x: None,
+                    marker_y: None,
+                    nowrap: false,
                 })
             })
     }

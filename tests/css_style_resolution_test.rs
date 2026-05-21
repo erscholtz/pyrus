@@ -870,3 +870,274 @@ style {
     assert!((separator_layout.height - 2.0).abs() < 0.001);
     assert!(following_text_layout.y > separator_layout.y + separator_layout.height);
 }
+
+#[test]
+fn test_document_flow_row_uses_gap_and_nowrap_side_metadata() {
+    let source = r#"
+document {
+    @section(class="row")[
+        @text(class="title")[Project Title]
+        @text(class="side")[September 2025 - Present]
+    ]
+}
+style {
+    body {
+        font-size: 10pt;
+    }
+
+    .row {
+        display: flex;
+        flex-direction: row;
+        column-gap: 20pt;
+    }
+
+    .side {
+        white-space: nowrap;
+    }
+}
+"#;
+    let tokens = lex(
+        source,
+        "test_document_flow_row_uses_gap_and_nowrap_side_metadata",
+    )
+    .expect("Lexing failed");
+    let ast = parse(tokens).expect("Parsing failed");
+    let hlir = lower_ast(&ast);
+    let layout = setup_layout(&hlir);
+    let computed = layout.compute_document_flow(&hlir);
+
+    let title_layout = computed
+        .iter()
+        .find(|layout| {
+            hlir.element_metadata[layout.element_index]
+                .classes
+                .contains(&"title".to_string())
+        })
+        .expect("Title should have layout");
+    let side_layout = computed
+        .iter()
+        .find(|layout| {
+            hlir.element_metadata[layout.element_index]
+                .classes
+                .contains(&"side".to_string())
+        })
+        .expect("Side metadata should have layout");
+
+    assert!(side_layout.nowrap);
+    assert!(side_layout.x > title_layout.x + title_layout.width);
+    assert!((side_layout.x - (title_layout.x + title_layout.width)) >= 19.9);
+}
+
+#[test]
+fn test_document_flow_row_lays_out_wrapped_link_component_on_right() {
+    let source = r#"
+template {
+    func side_link(url: String) {
+        return @link(class="badge")["${url}", "GitHub"]
+    }
+}
+
+document {
+    @section(class="row")[
+        @text(class="title")[Project Title]
+        @side_link("github.com/example/project")
+    ]
+}
+style {
+    body {
+        font-size: 10pt;
+    }
+
+    .row {
+        display: flex;
+        flex-direction: row;
+        column-gap: 10pt;
+    }
+
+    .badge {
+        white-space: nowrap;
+        padding-top: 1pt;
+        padding-right: 3pt;
+        padding-bottom: 1pt;
+        padding-left: 3pt;
+        border: "0.55pt solid #1f4e79";
+    }
+}
+"#;
+    let tokens = lex(
+        source,
+        "test_document_flow_row_lays_out_wrapped_link_component_on_right",
+    )
+    .expect("Lexing failed");
+    let ast = parse(tokens).expect("Parsing failed");
+    let hlir = lower_ast(&ast);
+    let layout = setup_layout(&hlir);
+    let computed = layout.compute_document_flow(&hlir);
+
+    let title_layout = computed
+        .iter()
+        .find(|layout| {
+            hlir.element_metadata[layout.element_index]
+                .classes
+                .contains(&"title".to_string())
+        })
+        .expect("Title should have layout");
+    let badge_layout = computed
+        .iter()
+        .find(|layout| {
+            hlir.element_metadata[layout.element_index]
+                .classes
+                .contains(&"badge".to_string())
+        })
+        .expect("Wrapped badge link should have layout");
+
+    assert!(badge_layout.nowrap);
+    assert!(badge_layout.box_width > badge_layout.width);
+    assert!(badge_layout.x > title_layout.x + title_layout.width);
+    assert!(title_layout.x + title_layout.width <= badge_layout.box_x - 9.9);
+}
+
+#[test]
+fn test_document_flow_row_wraps_left_before_nowrap_side_metadata() {
+    let source = r#"
+document {
+    @section(class="row")[
+        @text(class="title")[This is a deliberately long project title that needs to wrap before it reaches the right aligned metadata and it keeps going with more descriptive project words to force another line]
+        @text(class="side")[GitHub]
+    ]
+}
+style {
+    body {
+        font-size: 10pt;
+    }
+
+    .row {
+        display: flex;
+        flex-direction: row;
+        column-gap: 10pt;
+    }
+
+    .side {
+        white-space: nowrap;
+    }
+}
+"#;
+    let tokens = lex(
+        source,
+        "test_document_flow_row_wraps_left_before_nowrap_side_metadata",
+    )
+    .expect("Lexing failed");
+    let ast = parse(tokens).expect("Parsing failed");
+    let hlir = lower_ast(&ast);
+    let layout = setup_layout(&hlir);
+    let computed = layout.compute_document_flow(&hlir);
+
+    let title_layout = computed
+        .iter()
+        .find(|layout| {
+            hlir.element_metadata[layout.element_index]
+                .classes
+                .contains(&"title".to_string())
+        })
+        .expect("Title should have layout");
+    let side_layout = computed
+        .iter()
+        .find(|layout| {
+            hlir.element_metadata[layout.element_index]
+                .classes
+                .contains(&"side".to_string())
+        })
+        .expect("Side metadata should have layout");
+
+    assert!(title_layout.height > 12.0);
+    assert!(side_layout.nowrap);
+    assert!(title_layout.x + title_layout.width <= side_layout.x - 9.9);
+}
+
+#[test]
+fn test_document_flow_list_uses_configurable_hanging_indent() {
+    let source = r#"
+document {
+    @list(class="bullets")[
+        - @text[This is a long bullet item that should wrap while keeping the continuation aligned with the text content and it keeps adding implementation detail about layout engines renderers annotations spacing and typography until the line has no choice but to wrap]
+    ]
+}
+style {
+    body {
+        font-size: 10pt;
+    }
+
+    .bullets {
+        padding-left: 11pt;
+        marker-width: 5pt;
+        marker-gap: 3pt;
+    }
+}
+"#;
+    let tokens = lex(
+        source,
+        "test_document_flow_list_uses_configurable_hanging_indent",
+    )
+    .expect("Lexing failed");
+    let ast = parse(tokens).expect("Parsing failed");
+    let hlir = lower_ast(&ast);
+    let layout = setup_layout(&hlir);
+    let computed = layout.compute_document_flow(&hlir);
+
+    let item_layout = computed
+        .iter()
+        .find(|layout| layout.marker.is_some())
+        .expect("List item should have marker layout");
+
+    assert_eq!(item_layout.marker.as_deref(), Some("-"));
+    assert!((item_layout.marker_x.unwrap() - 11.0).abs() < 0.001);
+    assert!((item_layout.x - 19.0).abs() < 0.001);
+    assert!(item_layout.height > 12.0);
+}
+
+#[test]
+fn test_document_flow_link_badge_uses_padding_for_box_geometry() {
+    let source = r#"
+document {
+    @link(class="badge")["github.com/example/project", "GitHub"]
+}
+style {
+    body {
+        font-size: 10pt;
+    }
+
+    .badge {
+        white-space: nowrap;
+        padding-top: 1pt;
+        padding-right: 3pt;
+        padding-bottom: 1pt;
+        padding-left: 3pt;
+        border: "0.55pt solid #1f4e79";
+    }
+}
+"#;
+    let tokens = lex(
+        source,
+        "test_document_flow_link_badge_uses_padding_for_box_geometry",
+    )
+    .expect("Lexing failed");
+    let ast = parse(tokens).expect("Parsing failed");
+    let hlir = lower_ast(&ast);
+    let layout = setup_layout(&hlir);
+    let computed = layout.compute_document_flow(&hlir);
+
+    let badge_layout = computed
+        .iter()
+        .find(|layout| {
+            hlir.element_metadata[layout.element_index]
+                .classes
+                .contains(&"badge".to_string())
+        })
+        .expect("Badge link should have layout");
+
+    assert!(badge_layout.nowrap);
+    assert!((badge_layout.x - 3.0).abs() < 0.001);
+    assert!((badge_layout.box_x - 0.0).abs() < 0.001);
+    assert!((badge_layout.box_width - (badge_layout.width + 6.0)).abs() < 0.001);
+    assert!((badge_layout.box_height - (badge_layout.height + 2.0)).abs() < 0.001);
+}
