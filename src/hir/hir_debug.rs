@@ -90,18 +90,14 @@ impl HirDebug for FuncDecl {
 
         writeln!(f, "{}({}) -> {}:", self.name, args.join(", "), ret)?;
 
-        if self.body.ops.is_empty() {
+        if self.body.items.is_empty() {
             writeln!(f, "    (empty body)")?;
         } else {
-            for (i, op) in self.body.ops.iter().enumerate() {
+            for (i, op) in self.body.items.iter().enumerate() {
                 write!(f, "    {:4} | ", i)?;
                 op.hir_fmt(f)?;
                 writeln!(f)?;
             }
-        }
-
-        if let Some(ret_ref) = self.body.returned_element_ref {
-            writeln!(f, "    (returns element#{})", ret_ref)?;
         }
 
         Ok(())
@@ -112,8 +108,8 @@ impl HirDebug for HirElemDecl {
     fn hir_fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let args: Vec<String> = self.args.iter().map(|t| format!("{:?}", t)).collect();
         writeln!(f, "{}({})", self.name, args.join(", "))?;
-        writeln!(f, "    body ops: {}", self.body.ops.len())?;
-        for (i, op) in self.body.ops.iter().enumerate() {
+        writeln!(f, "    body ops: {}", self.body.items.len())?;
+        for (i, op) in self.body.items.iter().enumerate() {
             write!(f, "      {:2} | ", i)?;
             op.hir_fmt(f)?;
             writeln!(f)?;
@@ -219,6 +215,27 @@ impl HirDebug for Op {
                     result.hir_string(),
                     parts_str.join(", ")
                 )
+            }
+            Op::If { cond, then, else_ } => {
+                write!(f, "if {} then [", cond.hir_string())?;
+
+                for op in &then.items {
+                    op.hir_fmt(f)?;
+                    write!(f, "; ")?;
+                }
+
+                write!(f, "]")?;
+
+                if let Some(else_) = else_ {
+                    write!(f, " else [")?;
+                    for op in &else_.items {
+                        op.hir_fmt(f)?;
+                        write!(f, "; ")?;
+                    }
+                    write!(f, "]")?;
+                }
+
+                Ok(())
             }
         }
     }

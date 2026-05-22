@@ -3,7 +3,7 @@ use taffy::style::{AvailableSpace, Dimension};
 use taffy::style_helpers::{FromLength, FromPercent, TaffyAuto};
 use taffy::{LengthPercentage, LengthPercentageAuto, NodeId, Rect, Size, Style, TaffyTree};
 
-use crate::hir::hir_types::{FuncId, HIRModule, HirElementOp, Op, StyleAttributes};
+use crate::hir::hir_types::{FuncId, HIRModule, HirElementOp, Op, ReturnSummary, StyleAttributes};
 
 pub fn setup_layout(hlir_module: &HIRModule) -> LayoutEngine {
     LayoutEngine::build_from_hlir_module(hlir_module)
@@ -185,7 +185,7 @@ impl LayoutEngine {
 
         // Collect all child nodes first
         let mut child_nodes = Vec::new();
-        for op in &document.body.ops {
+        for op in &document.body.items {
             if let Some(node_id) = layout.process_op_and_get_node(op, hlir_module) {
                 child_nodes.push(node_id);
             }
@@ -207,8 +207,8 @@ impl LayoutEngine {
             }
             Op::FuncCall { func, .. } => {
                 if let Some(function) = hlir_module.functions.get(func) {
-                    if let Some(element_id) = function.body.returned_element_ref {
-                        return self.create_node_from_element(element_id, hlir_module);
+                    if let ReturnSummary::SingleElem(element_id) = &function.return_summary {
+                        return self.create_node_from_element(*element_id, hlir_module);
                     }
                 }
                 None
@@ -413,7 +413,7 @@ impl LayoutEngine {
         // Get document ops in order and recursively process all elements
         let document_id = FuncId(hlir.functions.len() - 1);
         if let Some(document) = hlir.functions.get(&document_id) {
-            for op in &document.body.ops {
+            for op in &document.body.items {
                 match op {
                     Op::HirElementEmit { index } => {
                         self.process_element_for_layout(
@@ -428,9 +428,10 @@ impl LayoutEngine {
                     }
                     Op::FuncCall { func, .. } => {
                         if let Some(function) = hlir.functions.get(func) {
-                            if let Some(element_id) = function.body.returned_element_ref {
+                            if let ReturnSummary::SingleElem(element_id) = &function.return_summary
+                            {
                                 self.process_element_for_layout(
-                                    element_id,
+                                    *element_id,
                                     hlir,
                                     &mut layouts,
                                     &mut current_y,

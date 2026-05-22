@@ -3,7 +3,7 @@ use crate::diagnostic::SemanticError;
 use crate::hir::{
     HIRModule,
     hir_passes::HIRPass,
-    hir_types::{FuncBlock, FuncDecl, FuncId, Op},
+    hir_types::{Block, FuncDecl, FuncId, Op, ReturnSummary},
     hir_util::handle_elem::lower_document_element,
 };
 
@@ -12,15 +12,12 @@ pub struct DocumentPass;
 impl HIRPass for DocumentPass {
     fn run(&mut self, hir: &mut HIRModule, ast: &Ast) -> Result<(), Vec<SemanticError>> {
         let mut errors = Vec::new();
-        let mut document_body = FuncBlock {
-            ops: Vec::new(),
-            returned_element_ref: None,
-        };
+        let mut document_body = Block { items: Vec::new() };
         if let Some(document) = &ast.document {
             for element in &document.elements {
                 match lower_document_element(element, hir, &mut document_body, None) {
                     Ok(index) => {
-                        document_body.ops.push(Op::HirElementEmit { index });
+                        document_body.items.push(Op::HirElementEmit { index });
                     }
                     Err(err) => errors.extend(err),
                 }
@@ -34,6 +31,7 @@ impl HIRPass for DocumentPass {
                 arg_names: Vec::new(),
                 args: Vec::new(),
                 return_type: None,
+                return_summary: ReturnSummary::None,
                 body: document_body,
             },
         );

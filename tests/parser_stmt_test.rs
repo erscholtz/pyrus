@@ -83,6 +83,69 @@ fn test_parse_children_statement() {
 }
 
 #[test]
+fn test_parse_if_statement() {
+    let statements = template_statements("template { if x { let y = 1 } }");
+    assert_eq!(statements.len(), 1);
+
+    match &statements[0].node {
+        StmtKind::If(stmt) => {
+            assert!(matches!(&stmt.condition.node, ExprKind::Identifier(name) if name == "x"));
+            assert_eq!(stmt.body.len(), 1);
+            assert!(stmt.else_body.is_none());
+
+            match &stmt.body[0].node {
+                StmtKind::VarAssign(assign) => {
+                    assert_eq!(assign.name, "y");
+                    assert!(matches!(&assign.value.node, ExprKind::Int(1)));
+                }
+                other => panic!("Expected VarAssign in if body, got {other:?}"),
+            }
+        }
+        other => panic!("Expected If statement, got {other:?}"),
+    }
+}
+
+#[test]
+fn test_parse_if_else_statement() {
+    let statements = template_statements("template { if x { let y = 1 } else { let y = 2 } }");
+    assert_eq!(statements.len(), 1);
+
+    match &statements[0].node {
+        StmtKind::If(stmt) => {
+            assert!(matches!(&stmt.condition.node, ExprKind::Identifier(name) if name == "x"));
+            assert_eq!(stmt.body.len(), 1);
+
+            let else_body = stmt.else_body.as_ref().expect("Expected else body");
+            assert_eq!(else_body.len(), 1);
+
+            match &else_body[0].node {
+                StmtKind::VarAssign(assign) => {
+                    assert_eq!(assign.name, "y");
+                    assert!(matches!(&assign.value.node, ExprKind::Int(2)));
+                }
+                other => panic!("Expected VarAssign in else body, got {other:?}"),
+            }
+        }
+        other => panic!("Expected If statement, got {other:?}"),
+    }
+}
+
+#[test]
+fn test_parse_if_statement_with_multiple_body_statements() {
+    let statements = template_statements("template { if x { let a = 1 const B = 2 } }");
+    assert_eq!(statements.len(), 1);
+
+    match &statements[0].node {
+        StmtKind::If(stmt) => {
+            assert_eq!(stmt.body.len(), 2);
+            assert!(matches!(&stmt.body[0].node, StmtKind::VarAssign(_)));
+            assert!(matches!(&stmt.body[1].node, StmtKind::ConstAssign(_)));
+        }
+        other => panic!("Expected If statement, got {other:?}"),
+    }
+}
+
+#[test]
 fn test_parse_mixed_statements() {
     let statements = template_statements("template { let x = 10 const MAX = 100 width = 50 }");
     assert_eq!(statements.len(), 3);

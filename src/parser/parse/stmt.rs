@@ -1,7 +1,7 @@
 use crate::{
     ast::{
-        ChildrenStmt, ConstAssignStmt, DefaultSetStmt, DocElem, Expr, FuncDeclStmt, ReturnStmt,
-        Stmt, StmtKind, VarAssignStmt,
+        ChildrenStmt, ConstAssignStmt, DefaultSetStmt, DocElem, Expr, FuncDeclStmt, IfStmt,
+        ReturnStmt, Stmt, StmtKind, VarAssignStmt,
     },
     diagnostic::SyntaxError,
     lexer::TokenKind,
@@ -27,7 +27,7 @@ impl Parse for StmtKind {
             TokenKind::Func => FuncDeclStmt::parse(p).map(|s| s.into()),
             TokenKind::Children => ChildrenStmt::parse(p).map(|s| s.into()),
             // TODO: these ones below
-            // TokenKind::If => IfStmt::parse(p).map(|s| s.into()),
+            TokenKind::If => IfStmt::parse(p).map(|s| s.into()),
             // TokenKind::While => WhileStmt::parse(p).map(|s| s.into()),
             // TokenKind::For => ForStmt::parse(p).map(|s| s.into()),
             _ => Err(SyntaxError::UnexpectedToken {
@@ -109,4 +109,37 @@ impl Parse for ChildrenStmt {
         p.cursor.expect(TokenKind::Children)?;
         Ok(ChildrenStmt { children: true })
     }
+}
+
+impl Parse for IfStmt {
+    /// Parse an if statement.
+    fn parse(p: &mut Parser) -> Result<Self, SyntaxError> {
+        p.cursor.expect(TokenKind::If)?;
+        let cond = Expr::parse(p)?;
+        let body = parse_stmt_block(p)?;
+        let else_body = if p.cursor.cur_tok() == &TokenKind::Else {
+            p.cursor.advance();
+            Some(parse_stmt_block(p)?)
+        } else {
+            None
+        };
+
+        Ok(IfStmt {
+            condition: cond,
+            body,
+            else_body,
+        })
+    }
+}
+
+fn parse_stmt_block(p: &mut Parser) -> Result<Vec<Stmt>, SyntaxError> {
+    p.cursor.expect(TokenKind::LeftBrace)?;
+
+    let mut statements = Vec::new();
+    while p.cursor.cur_tok() != &TokenKind::RightBrace && p.cursor.cur_tok() != &TokenKind::Eof {
+        statements.push(Stmt::parse(p)?);
+    }
+
+    p.cursor.expect(TokenKind::RightBrace)?;
+    Ok(statements)
 }

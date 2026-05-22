@@ -8,14 +8,16 @@ use crate::ast::{
 use crate::diagnostic::{SemanticError, SourceLocation};
 use crate::hir::{
     HIRModule,
-    hir_types::{AttributeNode, ElementMetadata, FuncBlock, FuncDecl, HirElementOp, Op, ValueId},
+    hir_types::{
+        AttributeNode, Block, ElementMetadata, FuncDecl, HirElementOp, Op, ReturnSummary, ValueId,
+    },
     hir_util::handle_args::handle_args,
 };
 
 pub fn lower_document_element(
     element: &DocElem,
     hirmodule: &mut HIRModule,
-    ir_body: &mut FuncBlock,
+    ir_body: &mut Block<Op>,
     parent_index: Option<usize>,
 ) -> Result<usize, Vec<SemanticError>> {
     let location = element.location.clone();
@@ -193,7 +195,7 @@ pub fn lower_document_element(
 fn lower_document_children(
     elements: &[DocElem],
     hirmodule: &mut HIRModule,
-    ir_body: &mut FuncBlock,
+    ir_body: &mut Block<Op>,
     parent_index: Option<usize>,
 ) -> Result<Vec<usize>, Vec<SemanticError>> {
     let mut children = Vec::new();
@@ -216,7 +218,7 @@ fn lower_document_children(
 fn lower_table_cells(
     table: &[Vec<DocElem>],
     hirmodule: &mut HIRModule,
-    ir_body: &mut FuncBlock,
+    ir_body: &mut Block<Op>,
     parent_index: Option<usize>,
 ) -> Result<Vec<Vec<usize>>, Vec<SemanticError>> {
     let mut lowered = Vec::new();
@@ -241,7 +243,7 @@ fn lower_call_element(
     args: &[ArgType],
     children: Option<&Vec<DocElem>>,
     hirmodule: &mut HIRModule,
-    ir_body: &mut FuncBlock,
+    ir_body: &mut Block<Op>,
     parent_index: Option<usize>,
     location: SourceLocation,
 ) -> Result<usize, Vec<SemanticError>> {
@@ -273,10 +275,10 @@ fn lower_call_element(
 
     let mut wrapper_children = Vec::new();
     if let Some(function) = function {
-        if let Some(returned_element_ref) = function.body.returned_element_ref {
+        if let ReturnSummary::SingleElem(returned_element_ref) = &function.return_summary {
             let substitutions = build_arg_substitutions(&function, args);
             match clone_element_tree_for_call(
-                returned_element_ref,
+                *returned_element_ref,
                 hirmodule,
                 ir_body,
                 Some(wrapper_index),
@@ -299,8 +301,8 @@ fn lower_call_element(
         }
     }
 
-    let result_id = ValueId(ir_body.ops.len());
-    ir_body.ops.push(Op::ElementCall {
+    let result_id = ValueId(ir_body.items.len());
+    ir_body.items.push(Op::ElementCall {
         name: name.to_string(),
         result: result_id,
         element: None,
@@ -425,7 +427,7 @@ fn build_arg_substitutions(function: &FuncDecl, args: &[ArgType]) -> HashMap<Str
 fn clone_element_tree_for_call(
     element_index: usize,
     hirmodule: &mut HIRModule,
-    ir_body: &mut FuncBlock,
+    ir_body: &mut Block<Op>,
     parent_index: Option<usize>,
     substitutions: &HashMap<String, String>,
     call_children: Option<&Vec<DocElem>>,
@@ -529,7 +531,7 @@ fn clone_element_tree_for_call(
 fn clone_child_elements(
     children: &[usize],
     hirmodule: &mut HIRModule,
-    ir_body: &mut FuncBlock,
+    ir_body: &mut Block<Op>,
     parent_index: Option<usize>,
     substitutions: &HashMap<String, String>,
     call_children: Option<&Vec<DocElem>>,
@@ -566,7 +568,7 @@ fn is_children_placeholder(element: &HirElementOp, metadata: &ElementMetadata) -
 
 fn clone_children_placeholder(
     hirmodule: &mut HIRModule,
-    ir_body: &mut FuncBlock,
+    ir_body: &mut Block<Op>,
     parent_index: Option<usize>,
     old_attributes_ref: usize,
     location: SourceLocation,

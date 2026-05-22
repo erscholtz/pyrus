@@ -74,6 +74,11 @@ pub enum Op {
     Return {
         doc_element_ref: usize,
     },
+    If {
+        cond: ValueId,
+        then: Block<Op>,
+        else_: Option<Block<Op>>,
+    },
     HirElementEmit {
         index: usize,
     },
@@ -112,10 +117,18 @@ pub struct Local {
 
 // how functions are handled
 
-// #[derive(Debug, Clone)]
-// struct Block<T> {
-//     items: Vec<T>,
-// }
+#[derive(Debug, Clone)]
+pub struct Block<T> {
+    pub items: Vec<T>,
+}
+
+#[derive(Debug, Clone)]
+pub enum ReturnSummary {
+    None,
+    SingleElem(usize),
+    Conditional,
+    Expr,
+}
 
 #[derive(Debug, Clone)]
 pub struct FuncDecl {
@@ -123,20 +136,44 @@ pub struct FuncDecl {
     pub arg_names: Vec<String>,
     pub args: Vec<Type>,
     pub return_type: Option<Type>,
-    pub body: FuncBlock,
+    pub return_summary: ReturnSummary,
+    pub body: Block<Op>,
 }
 
 #[derive(Debug, Clone)]
 pub struct HirElemDecl {
     pub name: String,
     pub args: Vec<Type>,
-    pub body: FuncBlock,
+    pub body: Block<Op>,
 }
 
-#[derive(Debug, Clone)]
-pub struct FuncBlock {
-    pub ops: Vec<Op>,
-    pub returned_element_ref: Option<usize>,
+pub struct LoweredBlock {
+    // NOTE this is used during lowering to extract returned elem and block
+    pub block: Block<Op>,
+    pub return_summary: ReturnSummary,
+}
+
+impl ReturnSummary {
+    pub fn combine(self, other: Self) -> Self {
+        match (self, other) {
+            (Self::None, summary) | (summary, Self::None) => summary,
+            (Self::SingleElem(left), Self::SingleElem(right)) if left == right => {
+                Self::SingleElem(left)
+            }
+            (Self::Expr, Self::Expr) => Self::Expr,
+            _ => Self::Conditional,
+        }
+    }
+
+    pub fn from_if(then_summary: Self, else_summary: Option<Self>) -> Self {
+        match else_summary {
+            Some(else_summary) => then_summary.combine(else_summary),
+            None => match then_summary {
+                Self::None => Self::None,
+                _ => Self::Conditional,
+            },
+        }
+    }
 }
 
 // how template, document and style sections are handled

@@ -1,11 +1,9 @@
-use crate::ast::{Ast, FuncDeclStmt, ReturnStmt, StmtKind};
+use crate::ast::{Ast, FuncDeclStmt, StmtKind};
 use crate::diagnostic::SemanticError;
 use crate::hir::{
     hir_passes::HIRPass,
-    hir_types::{FuncBlock, FuncDecl, FuncId, HIRModule, Op, Type, ValueId},
-    hir_util::handle_args::parse_type,
-    hir_util::handle_elem::lower_document_element,
-    hir_util::handle_expr::assign_local,
+    hir_types::{FuncDecl, FuncId, HIRModule, Type},
+    hir_util::{handle_args::parse_type, handle_block::lower_block},
 };
 use crate::util::Spanned;
 pub struct FuncPass;
@@ -27,24 +25,20 @@ impl HIRPass for FuncPass {
                         ..
                     } => {
                         let func_id = FuncId(hir.functions.len());
-
                         let arg_names = args
                             .iter()
                             .map(|arg| arg.value.to_string())
                             .collect::<Vec<String>>();
-
                         let args = args
                             .iter()
                             .filter_map(|arg| parse_type(&arg.ty))
                             .collect::<Vec<Type>>();
-
                         let return_type = match return_type {
                             Some(ty) => parse_type(&ty),
                             None => None,
                         };
-
-                        let body = match self.parse_body(body.as_slice(), hir) {
-                            Ok(body) => body,
+                        let lowered = match lower_block(body, hir) {
+                            Ok(lowered) => lowered,
                             Err(err) => {
                                 errors.extend(err);
                                 continue;
@@ -58,7 +52,8 @@ impl HIRPass for FuncPass {
                                 arg_names,
                                 args,
                                 return_type,
-                                body,
+                                return_summary: lowered.return_summary,
+                                body: lowered.block,
                             },
                         );
                     }
@@ -83,64 +78,5 @@ impl HIRPass for FuncPass {
 impl Default for FuncPass {
     fn default() -> Self {
         Self {}
-    }
-}
-
-impl FuncPass {
-    fn parse_body(
-        &self,
-        body: &[Spanned<StmtKind>],
-        hir: &mut HIRModule,
-    ) -> Result<FuncBlock, Vec<SemanticError>> {
-        let mut ir_body = FuncBlock {
-            ops: Vec::new(),
-            returned_element_ref: None,
-        };
-        let mut errors = Vec::new();
-        for stmt in body {
-            let loc = stmt.location.clone();
-            match &stmt.node {
-                StmtKind::DefaultSet(_) => {
-                    // NOTE default sets are only allowed at the top level
-                    errors.push(SemanticError::DefaultSetAtInvalidLocation { location: loc });
-                }
-                StmtKind::ConstAssign(stmt) => {
-                    let id = ValueId(ir_body.ops.len());
-                    let op = assign_local(stmt.name.clone(), &stmt.value, id, false);
-                    ir_body.ops.push(op);
-                }
-                StmtKind::VarAssign(stmt) => {
-                    let id = ValueId(ir_body.ops.len());
-                    let op = assign_local(stmt.name.clone(), &stmt.value, id, true);
-                    ir_body.ops.push(op);
-                }
-                StmtKind::Return(ReturnStmt::DocElem(doc_element)) => {
-                    let element_id =
-                        match lower_document_element(doc_element, hir, &mut ir_body, None) {
-                            Ok(id) => id,
-                            Err(err) => {
-                                errors.extend(err);
-                                continue;
-                            }
-                        };
-                    ir_body.ops.push(Op::Return {
-                        doc_element_ref: element_id,
-                    });
-                    ir_body.returned_element_ref = Some(element_id);
-                }
-                StmtKind::Return(ReturnStmt::Expr(expr)) => {
-                    let id = ValueId(ir_body.ops.len());
-                    let op = assign_local("__return".to_string(), expr, id, false);
-                    ir_body.ops.push(op);
-                }
-                _ => {}
-            }
-        }
-
-        if errors.is_empty() {
-            return Ok(ir_body);
-        } else {
-            return Err(errors);
-        }
     }
 }
