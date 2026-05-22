@@ -513,15 +513,27 @@ impl LayoutEngine {
                 HirElementOp::Section { children, .. } if Self::is_flex_row(attrs) => {
                     *current_y += element_box.margin.top + element_box.padding.top;
 
-                    self.process_row_children(
-                        children,
-                        hlir,
-                        layouts,
-                        current_y,
-                        content_width,
-                        content_x,
-                        attrs,
-                    );
+                    if Self::is_packed_flex_row(children, attrs) {
+                        self.process_packed_row_children(
+                            children,
+                            hlir,
+                            layouts,
+                            current_y,
+                            content_width,
+                            content_x,
+                            attrs,
+                        );
+                    } else {
+                        self.process_row_children(
+                            children,
+                            hlir,
+                            layouts,
+                            current_y,
+                            content_width,
+                            content_x,
+                            attrs,
+                        );
+                    }
 
                     *current_y += element_box.padding.bottom + element_box.margin.bottom;
                 }
@@ -649,6 +661,70 @@ impl LayoutEngine {
         *current_y += row_height;
     }
 
+    fn process_packed_row_children(
+        &self,
+        children: &[usize],
+        hlir: &HIRModule,
+        layouts: &mut Vec<ComputedLayout>,
+        current_y: &mut f32,
+        content_width: f32,
+        content_x: f32,
+        attrs: Option<&StyleAttributes>,
+    ) {
+        let gap = attrs.and_then(Self::parse_gap).unwrap_or(12.0);
+        let mut row_height: f32 = 0.0;
+        let (child_widths, total_width) =
+            self.measure_packed_row_children(children, hlir, content_width, gap);
+
+        let row_right = content_x + content_width;
+        let mut child_x = if attrs.is_some_and(Self::is_flex_end) {
+            row_right - total_width.min(content_width)
+        } else {
+            content_x
+        };
+
+        for (idx, (child_idx, child_width)) in children.iter().zip(child_widths).enumerate() {
+            if idx > 0 {
+                child_x += gap;
+            }
+
+            row_height = row_height.max(self.push_row_child_layout(
+                *child_idx,
+                hlir,
+                layouts,
+                child_x,
+                *current_y,
+                child_width,
+            ));
+            child_x += child_width;
+        }
+
+        *current_y += row_height;
+    }
+
+    fn measure_packed_row_children(
+        &self,
+        children: &[usize],
+        hlir: &HIRModule,
+        content_width: f32,
+        gap: f32,
+    ) -> (Vec<f32>, f32) {
+        let mut child_widths = Vec::with_capacity(children.len());
+        let mut total_child_width = 0.0;
+
+        for child_idx in children {
+            let remaining_width = (content_width - total_child_width).max(0.0);
+            let child_width = self
+                .natural_outer_width(*child_idx, hlir, remaining_width)
+                .unwrap_or(remaining_width);
+            child_widths.push(child_width);
+            total_child_width += child_width;
+        }
+
+        let total_gap = gap * children.len().saturating_sub(1) as f32;
+        (child_widths, total_child_width + total_gap)
+    }
+
     fn push_row_child_layout(
         &self,
         element_index: usize,
@@ -705,16 +781,31 @@ impl LayoutEngine {
         let content_width =
             (width - element_box.margin.horizontal() - element_box.padding.horizontal()).max(0.0);
         let nowrap = attrs.is_some_and(Self::is_nowrap);
-        let line_count = Self::wrap_text_with_mode(content, content_width, font_size, nowrap)
-            .len()
-            .max(1) as f32;
+        let lines = Self::wrap_text_with_mode(content, content_width, font_size, nowrap);
+        let line_count = lines.len().max(1) as f32;
         let height = line_count * line_height;
         let box_height = height + element_box.padding.vertical();
+        let rendered_width = lines
+            .iter()
+            .map(|line| Self::estimate_text_width(line, font_size))
+            .fold(0.0_f32, f32::max)
+            .min(content_width);
+        let text_align_right = attrs.is_some_and(Self::is_text_align_right);
+        let layout_x = if text_align_right {
+            content_x + (content_width - rendered_width).max(0.0)
+        } else {
+            content_x
+        };
+        let layout_width = if text_align_right && nowrap {
+            rendered_width
+        } else {
+            content_width
+        };
 
         layouts.push(ComputedLayout {
-            x: content_x,
+            x: layout_x,
             y: content_y,
-            width: content_width,
+            width: layout_width,
             height,
             box_x,
             box_y,
@@ -771,18 +862,32 @@ impl LayoutEngine {
                     .find_node(element.attributes_ref())
                     .map(|node| &node.computed);
                 let element_box = attrs.map(ElementBox::from_attributes).unwrap_or_default();
+                if let Some(explicit_width) = attrs.and_then(|attrs| attrs.style_length("width")) {
+                    return Some(
+                        (explicit_width
+                            + element_box.margin.horizontal()
+                            + element_box.padding.horizontal())
+                        .min(available_width),
+                    );
+                }
+
                 let child_available = (available_width
                     - element_box.margin.horizontal()
                     - element_box.padding.horizontal())
                 .max(0.0);
-                let child_width = children
-                    .iter()
-                    .filter_map(|child_idx| {
-                        self.natural_outer_width(*child_idx, hlir, child_available)
-                    })
-                    .fold(None, |max_width: Option<f32>, width| {
-                        Some(max_width.map_or(width, |current| current.max(width)))
-                    })?;
+                let child_width = if Self::is_packed_flex_row(children, attrs) {
+                    let gap = attrs.and_then(Self::parse_gap).unwrap_or(12.0);
+                    self.natural_packed_row_width(children, hlir, child_available, gap)?
+                } else {
+                    children
+                        .iter()
+                        .filter_map(|child_idx| {
+                            self.natural_outer_width(*child_idx, hlir, child_available)
+                        })
+                        .fold(None, |max_width: Option<f32>, width| {
+                            Some(max_width.map_or(width, |current| current.max(width)))
+                        })?
+                };
 
                 Some(
                     (child_width
@@ -793,6 +898,23 @@ impl LayoutEngine {
             }
             _ => None,
         }
+    }
+
+    fn natural_packed_row_width(
+        &self,
+        children: &[usize],
+        hlir: &HIRModule,
+        available_width: f32,
+        gap: f32,
+    ) -> Option<f32> {
+        let mut total_child_width = 0.0;
+
+        for child_idx in children {
+            let remaining_width = (available_width - total_child_width).max(0.0);
+            total_child_width += self.natural_outer_width(*child_idx, hlir, remaining_width)?;
+        }
+
+        Some(total_child_width + gap * children.len().saturating_sub(1) as f32)
     }
 
     fn text_measurement<'a>(
@@ -837,6 +959,41 @@ impl LayoutEngine {
             .style
             .get("white-space")
             .is_some_and(|value| value.trim().trim_matches('"') == "nowrap")
+    }
+
+    fn is_packed_flex_row(children: &[usize], attrs: Option<&StyleAttributes>) -> bool {
+        Self::is_flex_row(attrs) && children.len() > 2 && !attrs.is_some_and(Self::is_space_between)
+    }
+
+    fn is_space_between(attrs: &StyleAttributes) -> bool {
+        attrs
+            .style
+            .get("justify-content")
+            .is_some_and(|value| Self::css_keyword(value) == "space-between")
+    }
+
+    fn is_flex_end(attrs: &StyleAttributes) -> bool {
+        attrs
+            .style
+            .get("justify-content")
+            .is_some_and(|value| matches!(Self::css_keyword(value).as_str(), "flex-end" | "end"))
+    }
+
+    fn is_text_align_right(attrs: &StyleAttributes) -> bool {
+        attrs
+            .style
+            .get("text-align")
+            .is_some_and(|value| Self::css_keyword(value) == "right")
+    }
+
+    fn css_keyword(value: &str) -> String {
+        let trimmed = value.trim().trim_matches('"');
+        let parts: Vec<_> = trimmed.split_whitespace().collect();
+        if parts.len() == 3 && matches!(parts[1], "-" | "Sub" | "Subtract") {
+            return format!("{}-{}", parts[0], parts[2]).to_lowercase();
+        }
+
+        parts.join("").to_lowercase()
     }
 
     fn parse_gap(attrs: &StyleAttributes) -> Option<f32> {

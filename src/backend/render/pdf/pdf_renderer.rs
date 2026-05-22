@@ -18,10 +18,27 @@ struct BorderStyle {
     color: Color,
 }
 
+struct FontFace {
+    id: FontId,
+    parsed: ParsedFont,
+}
+
 #[derive(Default)]
 struct FontRegistry {
-    georgia: Option<FontId>,
-    georgia_bold: Option<FontId>,
+    georgia: Option<FontFace>,
+    georgia_bold: Option<FontFace>,
+}
+
+struct TextRenderParams<'a> {
+    point: Point,
+    font: PdfFontHandle,
+    parsed_font: Option<&'a ParsedFont>,
+    font_size: f32,
+    line_height: f32,
+    fill_color: Option<Color>,
+    y_mm: f32,
+    sanitize_text: bool,
+    anchor_right: bool,
 }
 
 impl PdfRenderer {
@@ -112,7 +129,8 @@ impl PdfRenderer {
         };
         let font_size = Self::parse_font_size(attrs);
         let line_height = Self::parse_line_height(attrs, font_size);
-        let font = Self::get_font(attrs, fonts);
+        let font_face = Self::get_font_face(attrs, fonts);
+        let font = Self::get_font(attrs, font_face);
         let fill_color = Self::parse_color(attrs);
         let sanitize_text = matches!(font, PdfFontHandle::Builtin(_));
 
@@ -136,13 +154,17 @@ impl PdfRenderer {
                     pdf_ops,
                     &content,
                     layout,
-                    point,
-                    font,
-                    font_size,
-                    line_height,
-                    fill_color,
-                    y_mm,
-                    sanitize_text,
+                    TextRenderParams {
+                        point,
+                        font,
+                        parsed_font: font_face.map(|face| &face.parsed),
+                        font_size,
+                        line_height,
+                        fill_color,
+                        y_mm,
+                        sanitize_text,
+                        anchor_right: Self::is_text_align_right(attrs),
+                    },
                 );
                 self.push_autolink_annotations(pdf_ops, &content, layout, font_size, line_height);
             }
@@ -151,13 +173,17 @@ impl PdfRenderer {
                     pdf_ops,
                     &content,
                     layout,
-                    point,
-                    font,
-                    font_size,
-                    line_height,
-                    fill_color,
-                    y_mm,
-                    sanitize_text,
+                    TextRenderParams {
+                        point,
+                        font,
+                        parsed_font: font_face.map(|face| &face.parsed),
+                        font_size,
+                        line_height,
+                        fill_color,
+                        y_mm,
+                        sanitize_text,
+                        anchor_right: layout.nowrap,
+                    },
                 );
                 pdf_ops.push(Op::LinkAnnotation {
                     link: LinkAnnotation::new(
@@ -187,7 +213,7 @@ impl PdfRenderer {
 
                 pdf_ops.push(Op::SetOutlineColor { col: color });
                 pdf_ops.push(Op::SetOutlineThickness {
-                    pt: Pt(layout.height.max(1.0)),
+                    pt: Pt(layout.height.max(0.1)),
                 });
                 pdf_ops.push(Op::DrawLine {
                     line: Line {
@@ -219,41 +245,39 @@ impl PdfRenderer {
         pdf_ops: &mut Vec<Op>,
         content: &str,
         layout: &ComputedLayout,
-        point: Point,
-        font: PdfFontHandle,
-        font_size: f32,
-        line_height: f32,
-        fill_color: Option<Color>,
-        y_mm: f32,
-        sanitize_text: bool,
+        params: TextRenderParams<'_>,
     ) {
-        let lines =
-            LayoutEngine::wrap_text_with_mode(content, layout.width, font_size, layout.nowrap);
+        let lines = LayoutEngine::wrap_text_with_mode(
+            content,
+            layout.width,
+            params.font_size,
+            layout.nowrap,
+        );
 
         if let Some(marker) = &layout.marker {
             let marker_x_mm = layout.marker_x.unwrap_or((layout.x - 14.0).max(0.0)) / 2.83465;
             let marker_y_mm = layout
                 .marker_y
                 .map(|marker_y| {
-                    let ascent_pt = font_size * 0.8;
+                    let ascent_pt = params.font_size * 0.8;
                     (842.0 - marker_y - ascent_pt) / 2.83465
                 })
-                .unwrap_or(y_mm);
+                .unwrap_or(params.y_mm);
             let marker_point = Point::new(Mm(marker_x_mm), Mm(marker_y_mm));
 
             pdf_ops.push(Op::StartTextSection);
             pdf_ops.push(Op::SetTextCursor { pos: marker_point });
             pdf_ops.push(Op::SetFont {
-                font: font.clone(),
-                size: Pt(font_size),
+                font: params.font.clone(),
+                size: Pt(params.font_size),
             });
             pdf_ops.push(Op::SetLineHeight {
-                lh: Pt(line_height),
+                lh: Pt(params.line_height),
             });
-            if let Some(col) = fill_color.clone() {
+            if let Some(col) = params.fill_color.clone() {
                 pdf_ops.push(Op::SetFillColor { col });
             }
-            let marker_text = if sanitize_text {
+            let marker_text = if params.sanitize_text {
                 Self::sanitize_builtin_text(marker)
             } else {
                 marker.clone()
@@ -264,24 +288,32 @@ impl PdfRenderer {
             pdf_ops.push(Op::EndTextSection);
         }
 
-        pdf_ops.push(Op::StartTextSection);
-        pdf_ops.push(Op::SetTextCursor { pos: point });
-        pdf_ops.push(Op::SetFont {
-            font,
-            size: Pt(font_size),
-        });
-        pdf_ops.push(Op::SetLineHeight {
-            lh: Pt(line_height),
-        });
-        if let Some(col) = fill_color {
-            pdf_ops.push(Op::SetFillColor { col });
-        }
-
         for (line_idx, line) in lines.iter().enumerate() {
-            if line_idx > 0 {
-                pdf_ops.push(Op::AddLineBreak);
+            let line_width = Self::measure_text_width(line, params.font_size, params.parsed_font);
+            let line_x = if params.anchor_right {
+                layout.x + layout.width - line_width
+            } else {
+                layout.x
+            };
+            let line_y = params.point.y.0 - (line_idx as f32 * params.line_height);
+            let line_point = Point {
+                x: Pt(line_x),
+                y: Pt(line_y),
+            };
+
+            pdf_ops.push(Op::StartTextSection);
+            pdf_ops.push(Op::SetTextCursor { pos: line_point });
+            pdf_ops.push(Op::SetFont {
+                font: params.font.clone(),
+                size: Pt(params.font_size),
+            });
+            pdf_ops.push(Op::SetLineHeight {
+                lh: Pt(params.line_height),
+            });
+            if let Some(col) = params.fill_color.clone() {
+                pdf_ops.push(Op::SetFillColor { col });
             }
-            let text = if sanitize_text {
+            let text = if params.sanitize_text {
                 Self::sanitize_builtin_text(line)
             } else {
                 line.clone()
@@ -289,8 +321,8 @@ impl PdfRenderer {
             pdf_ops.push(Op::ShowText {
                 items: vec![TextItem::Text(text)],
             });
+            pdf_ops.push(Op::EndTextSection);
         }
-        pdf_ops.push(Op::EndTextSection);
     }
 
     fn push_autolink_annotations(
@@ -551,47 +583,33 @@ impl PdfRenderer {
 
     fn load_external_fonts(doc: &mut PdfDocument) -> FontRegistry {
         FontRegistry {
-            georgia: Self::load_font(doc, "C:\\Windows\\Fonts\\georgia.ttf"),
-            georgia_bold: Self::load_font(doc, "C:\\Windows\\Fonts\\georgiab.ttf"),
+            georgia: Self::load_font_face(doc, "C:\\Windows\\Fonts\\georgia.ttf"),
+            georgia_bold: Self::load_font_face(doc, "C:\\Windows\\Fonts\\georgiab.ttf"),
         }
     }
 
-    fn load_font(doc: &mut PdfDocument, path: &str) -> Option<FontId> {
+    fn load_font_face(doc: &mut PdfDocument, path: &str) -> Option<FontFace> {
         let bytes = std::fs::read(path).ok()?;
         let mut warnings = Vec::new();
-        let font = ParsedFont::from_bytes(&bytes, 0, &mut warnings)?;
-        Some(doc.add_font(&font))
+        let parsed = ParsedFont::from_bytes(&bytes, 0, &mut warnings)?;
+        let id = doc.add_font(&parsed);
+        Some(FontFace { id, parsed })
     }
 
     /// Get PDF font from font-family and font-weight CSS properties.
-    fn get_font(attrs: &StyleAttributes, fonts: &FontRegistry) -> PdfFontHandle {
-        let font_family = attrs
-            .style
-            .get("font-family")
-            .map(|v| v.as_str())
-            .unwrap_or("Helvetica");
-        let is_bold = attrs
-            .style
-            .get("font-weight")
-            .map(|value| {
-                let normalized = value.trim().trim_matches('"').to_lowercase();
-                normalized == "bold"
-                    || normalized == "bolder"
-                    || normalized.parse::<u16>().is_ok_and(|weight| weight >= 600)
-            })
-            .unwrap_or(false);
+    fn get_font(attrs: &StyleAttributes, font_face: Option<&FontFace>) -> PdfFontHandle {
+        if let Some(face) = font_face {
+            return PdfFontHandle::External(face.id.clone());
+        }
 
-        let family = font_family.trim().trim_matches('"').to_lowercase();
+        let family = Self::font_family(attrs);
+        let is_bold = Self::is_bold(attrs);
         if matches!(family.as_str(), "georgia") {
-            if is_bold {
-                if let Some(font_id) = &fonts.georgia_bold {
-                    return PdfFontHandle::External(font_id.clone());
-                }
-            }
-
-            if let Some(font_id) = &fonts.georgia {
-                return PdfFontHandle::External(font_id.clone());
-            }
+            return if is_bold {
+                PdfFontHandle::Builtin(BuiltinFont::TimesBold)
+            } else {
+                PdfFontHandle::Builtin(BuiltinFont::TimesRoman)
+            };
         }
 
         let font = match family.as_str() {
@@ -604,6 +622,66 @@ impl PdfRenderer {
         };
 
         PdfFontHandle::Builtin(font)
+    }
+
+    fn get_font_face<'a>(attrs: &StyleAttributes, fonts: &'a FontRegistry) -> Option<&'a FontFace> {
+        let family = Self::font_family(attrs);
+        if family != "georgia" {
+            return None;
+        }
+
+        if Self::is_bold(attrs) {
+            fonts.georgia_bold.as_ref().or(fonts.georgia.as_ref())
+        } else {
+            fonts.georgia.as_ref()
+        }
+    }
+
+    fn font_family(attrs: &StyleAttributes) -> String {
+        attrs
+            .style
+            .get("font-family")
+            .map(|v| v.trim().trim_matches('"').to_lowercase())
+            .unwrap_or_else(|| "helvetica".to_string())
+    }
+
+    fn is_bold(attrs: &StyleAttributes) -> bool {
+        attrs
+            .style
+            .get("font-weight")
+            .map(|value| {
+                let normalized = value.trim().trim_matches('"').to_lowercase();
+                normalized == "bold"
+                    || normalized == "bolder"
+                    || normalized.parse::<u16>().is_ok_and(|weight| weight >= 600)
+            })
+            .unwrap_or(false)
+    }
+
+    fn measure_text_width(text: &str, font_size: f32, parsed_font: Option<&ParsedFont>) -> f32 {
+        let Some(font) = parsed_font else {
+            return LayoutEngine::estimate_text_width(text, font_size);
+        };
+
+        let units_per_em = font.font_metrics.units_per_em as f32;
+        if units_per_em <= 0.0 {
+            return LayoutEngine::estimate_text_width(text, font_size);
+        }
+
+        let width_units = text
+            .chars()
+            .filter_map(|ch| font.lookup_glyph_index(ch as u32))
+            .map(|glyph_id| font.get_horizontal_advance(glyph_id) as f32)
+            .sum::<f32>();
+
+        width_units * font_size / units_per_em
+    }
+
+    fn is_text_align_right(attrs: &StyleAttributes) -> bool {
+        attrs
+            .style
+            .get("text-align")
+            .is_some_and(|value| value.trim().trim_matches('"') == "right")
     }
 
     fn parse_color(attrs: &StyleAttributes) -> Option<Color> {
