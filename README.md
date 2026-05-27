@@ -1,6 +1,6 @@
 # pyrus
 
-A domain-specific language (DSL) for creating styled documents. Pyrus aims to be an alternative to LaTeX and Typst, giving you fine-grained control over document styling while compiling to PDF.
+A domain-specific language (DSL) for creating styled documents. Pyrus aims to be an alternative to LaTeX and Typst, giving you fine-grained control over document styling using CSS while compiling to PDF. It is also possible to seperate out content into component-like structures that can be defined by the user.
 
 ## Quick Start
 
@@ -30,33 +30,35 @@ cargo test
 
 | Package | Version | Purpose |
 |---------|---------|---------|
+| phf | 0.11 | for better hashes in maps |
 | printpdf | 0.9.1 | PDF generation backend |
 | taffy | 0.9.2 | CSS-style layout engine |
 
 ## Project Status
 
-The compiler pipeline is currently implemented through HLIR (High-Level IR):
+The compiler pipeline is currently implemented through HIR (High-Level IR):
 
-- [x] Lexer — Tokenizes source code
-- [x] Parser — Builds AST
-- [x] HLIR — First intermediate representation
-- [ ] Layout Engine — Taffy integration (in progress)
-- [ ] Backend — PDF rendering (basic implementation)
+It is posible to fully use the Pyrus compiler in its current form and create documents.
 
-## Future Work: MLIR Backend
+- [x] Lexer 
+- [x] Parser 
+- [x] HIR 
+- [x] CSS Layout Engine and Attribute tree
+- [x] PDF Rendering Backend
 
-One of the major goals for pyrus is migrating the backend to **MLIR** (Multi-Level Intermediate Representation). This will enable:
+## Future Work
 
-- **Better optimization passes** — Leverage LLVM's optimization infrastructure
-- **Multiple output targets** — PDF, WASM, and potentially others from the same IR
-- **Performance** — Lower-level control over the compilation pipeline
-- **Extensibility** — Easier to add new backends and transformations
-
-The MLIR migration is planned after the current layout engine and basic PDF backend are stabilized.
+- [ ] Turing complete scripting
+- [ ] Default styling and settings
+- [ ] Formula support
+- [ ] `--watch` and incremental compilation
+- [ ] LLVM's MLIR passes
+- [ ] multiple file and project support
+- [ ] embedding support as framework for other projects 
 
 ## Example
 
-See `temp.ink` for a sample document:
+See `resume.ink` for a sample document:
 
 ```bash
 cargo run -- temp.ink
