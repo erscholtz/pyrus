@@ -20,17 +20,21 @@ pub enum TokenKind {
     Semicolon,
     Colon,
     Pipe, // |
-    Bang,
+    Bang, // !
     Plus,
     Minus,
     Star,
     Slash,
     Percent,
-    Equals,
+    Assign,    // =
+    Equals,    // ==
+    NotEquals, // !=
     Dollarsign,
     Hash,
     Greater,
+    GreaterEquals, // >=
     Less,
+    LessEquals, // <=
 
     // Literals
     Identifier,

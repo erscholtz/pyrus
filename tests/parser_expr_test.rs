@@ -2,7 +2,10 @@ mod common;
 
 use common::template_statements;
 use pyrus::ast::{BinOp, ExprKind, StmtKind, UnaryOp};
-use pyrus::lexer::lex;
+use pyrus::{
+    diagnostic::{CompilerDiagnostic, SyntaxError},
+    lexer::lex,
+};
 
 fn assigned_expr(source: &str) -> ExprKind {
     let statements = template_statements(source);
@@ -90,7 +93,13 @@ fn test_lex_unterminated_string() {
         !tokens.errors.is_empty(),
         "Should report an unterminated string"
     );
-    assert_eq!(tokens.errors[0].message, "Unterminated string literal");
+    assert!(matches!(
+        tokens.errors.first(),
+        Some(CompilerDiagnostic::Syntax(SyntaxError::UnterminatedDelimiter {
+            delimiter,
+            ..
+        })) if delimiter == "\""
+    ));
 }
 
 #[test]

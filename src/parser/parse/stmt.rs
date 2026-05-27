@@ -4,7 +4,7 @@ use crate::{
         ReturnStmt, Stmt, StmtKind, VarAssignStmt,
     },
     diagnostic::SyntaxError,
-    lexer::TokenKind,
+    lexer::tokens::TokenKind,
     parser::{Parser, parse::Parse},
     util::Spanned,
 };
@@ -51,7 +51,7 @@ impl Parse for DefaultSetStmt {
     fn parse(p: &mut Parser) -> Result<Self, SyntaxError> {
         let varname = p.cursor.cur_text().to_owned();
         p.cursor.advance();
-        p.cursor.expect(TokenKind::Equals)?;
+        p.cursor.expect(TokenKind::Assign)?;
         let value = Expr::parse(p)?;
         Ok(DefaultSetStmt {
             key: varname.to_string(),
@@ -66,7 +66,7 @@ impl Parse for ConstAssignStmt {
         p.cursor.expect(TokenKind::Const)?;
         let varname = p.cursor.cur_text().to_owned();
         p.cursor.advance();
-        p.cursor.expect(TokenKind::Equals)?;
+        p.cursor.expect(TokenKind::Assign)?;
         let value = Expr::parse(p)?;
         Ok(ConstAssignStmt {
             name: varname.to_string(),
@@ -81,7 +81,7 @@ impl Parse for VarAssignStmt {
         p.cursor.expect(TokenKind::Let)?;
         let varname = p.cursor.cur_text().to_owned();
         p.cursor.advance();
-        p.cursor.expect(TokenKind::Equals)?;
+        p.cursor.expect(TokenKind::Assign)?;
         let value = Expr::parse(p)?;
         Ok(VarAssignStmt {
             name: varname.to_string(),

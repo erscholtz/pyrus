@@ -6,7 +6,7 @@ use crate::{
         SectionElem, SeparatorElem, TableElem, TextElem,
     },
     diagnostic::SyntaxError,
-    lexer::TokenKind,
+    lexer::tokens::TokenKind,
     parser::{Parser, parse::Parse},
 };
 
@@ -66,7 +66,7 @@ impl DocElemKind {
             let name = p.cursor.cur_text().to_owned();
             p.cursor.advance(); // consume identifier
 
-            p.cursor.expect(TokenKind::Equals).ok()?;
+            p.cursor.expect(TokenKind::Assign).ok()?;
             let value = Expr::parse(p).ok()?;
             attributes.insert(name, value);
 

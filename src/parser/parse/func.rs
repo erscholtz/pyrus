@@ -1,7 +1,7 @@
 use crate::{
     ast::{ArgType, ExprKind, FuncDeclStmt, FuncParam, ReturnStmt, Stmt, StmtKind, Type},
     diagnostic::SyntaxError,
-    lexer::TokenKind,
+    lexer::tokens::TokenKind,
     parser::{Parser, parse::Parse},
     util::Spanned,
 };

@@ -2,7 +2,7 @@
 use crate::{
     ast::{Expr, KeyValue, Selector, StyleRule, StyleValue},
     diagnostic::SyntaxError,
-    lexer::TokenKind,
+    lexer::tokens::TokenKind,
     parser::{Parser, parse::Parse},
 };
 
@@ -60,7 +60,7 @@ impl Parse for KeyValue {
     fn parse(p: &mut Parser) -> Result<Self, SyntaxError> {
         if matches!(
             p.cursor.cur_tok(),
-            TokenKind::Colon | TokenKind::Equals | TokenKind::Semicolon | TokenKind::RightBrace
+            TokenKind::Colon | TokenKind::Assign | TokenKind::Semicolon | TokenKind::RightBrace
         ) {
             return Err(SyntaxError::UnexpectedToken {
                 location: p.cursor.location(),
@@ -72,13 +72,13 @@ impl Parse for KeyValue {
         let key = KeyValue::parse_key(p)?;
 
         match p.cursor.cur_tok() {
-            TokenKind::Colon | TokenKind::Equals => {
+            TokenKind::Colon | TokenKind::Assign => {
                 p.cursor.advance();
             }
             _ => {
                 return Err(SyntaxError::UnexpectedToken {
                     location: p.cursor.location(),
-                    expected: vec![TokenKind::Equals, TokenKind::Colon],
+                    expected: vec![TokenKind::Assign, TokenKind::Colon],
                     found: p.cursor.cur_tok().clone(),
                 });
             }
@@ -94,7 +94,7 @@ impl Parse for KeyValue {
 impl KeyValue {
     fn parse_key(p: &mut Parser) -> Result<String, SyntaxError> {
         let mut key = String::new();
-        while p.cursor.cur_tok() != &TokenKind::Colon && p.cursor.cur_tok() != &TokenKind::Equals {
+        while p.cursor.cur_tok() != &TokenKind::Colon && p.cursor.cur_tok() != &TokenKind::Assign {
             key.push_str(p.cursor.cur_text());
             p.cursor.advance();
         }

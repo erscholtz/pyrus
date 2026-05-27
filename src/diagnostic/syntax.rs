@@ -1,4 +1,4 @@
-use crate::lexer::TokenKind;
+use crate::lexer::tokens::TokenKind;
 
 use super::{Diagnostic, Severity, SourceLocation};
 

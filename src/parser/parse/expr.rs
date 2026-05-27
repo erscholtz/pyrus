@@ -1,7 +1,10 @@
 use crate::{
     ast::{BinOp, BinaryExpr, Expr, ExprKind, InterpolatedStringExpr, UnaryExpr, UnaryOp},
     diagnostic::{SourceLocation, SyntaxError},
-    lexer::{TokenKind, lex, tokens::StringEntry},
+    lexer::{
+        lex,
+        tokens::{StringEntry, TokenKind},
+    },
     parser::{Parser, parse::Parse},
     util::Spanned,
 };
@@ -67,7 +70,7 @@ impl ExprKind {
                         TokenKind::Minus,
                         TokenKind::Star,
                         TokenKind::Slash,
-                        TokenKind::Equals,
+                        TokenKind::Assign,
                     ],
                     found: p.cursor.cur_tok().clone(),
                 }
@@ -91,7 +94,7 @@ impl ExprKind {
         match tok {
             TokenKind::Plus | TokenKind::Minus => Some((1, 2)),
             TokenKind::Star | TokenKind::Slash => Some((3, 4)),
-            TokenKind::Equals => Some((5, 6)),
+            TokenKind::Assign => Some((5, 6)),
             _ => None,
         }
     }
@@ -201,7 +204,7 @@ impl ExprKind {
             TokenKind::Minus => Some(BinOp::Subtract),
             TokenKind::Star => Some(BinOp::Multiply),
             TokenKind::Slash => Some(BinOp::Divide),
-            TokenKind::Equals => Some(BinOp::Equals),
+            TokenKind::Assign => Some(BinOp::Equals),
             TokenKind::Percent => Some(BinOp::Mod),
             _ => None,
         }

@@ -1,10 +1,10 @@
-mod cursor;
 mod parse;
+mod parser_cursor;
 
 use crate::{
     diagnostic::{DiagnosticManager, SyntaxError},
-    lexer::{TokenKind, TokenStream},
-    parser::{cursor::Cursor, parse::Parse},
+    lexer::{TokenStream, tokens::TokenKind},
+    parser::{parse::Parse, parser_cursor::Cursor},
 };
 
 pub struct Parser {

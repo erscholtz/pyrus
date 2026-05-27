@@ -2,7 +2,10 @@
 
 use crate::{
     diagnostic::{SourceLocation, SyntaxError},
-    lexer::{TokenKind, TokenStream, tokens::StringEntry},
+    lexer::{
+        TokenStream,
+        tokens::{StringEntry, TokenKind},
+    },
 };
 
 pub struct Cursor {
@@ -171,3 +174,6 @@ impl Cursor {
         self.tokens.string_table.get(idx as usize)
     }
 }
+
+#[cfg(test)]
+mod tests;
