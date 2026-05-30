@@ -1,6 +1,9 @@
+#![allow(dead_code)]
+
 use pyrus::{
     ast::{Ast, DocElem, Stmt},
     diagnostic::SyntaxError,
+    hir::{hir_types::HIRModule, lower},
     lexer::lex,
     parser::Parser,
 };
@@ -29,4 +32,9 @@ pub fn document_elements(source: &str) -> Vec<DocElem> {
         .document
         .expect("Expected document block")
         .elements
+}
+
+pub fn lower_source(source: &str) -> HIRModule {
+    let ast = parse_ast(source);
+    lower(&ast).unwrap_or_else(|errors| panic!("Lowering failed: {errors:?}"))
 }

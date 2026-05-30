@@ -1,6 +1,4 @@
-mod common;
-
-use common::{document_elements, parse_errors};
+use crate::support::{document_elements, parse_errors};
 use pyrus::{
     ast::{DocElemKind, ExprKind, Type},
     diagnostic::SyntaxError,

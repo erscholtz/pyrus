@@ -1,6 +1,4 @@
-mod common;
-
-use common::{parse_ast, parse_errors};
+use crate::support::{parse_ast, parse_errors};
 use pyrus::diagnostic::SyntaxError;
 
 #[test]
@@ -57,4 +55,30 @@ fn test_duplicate_template_block_reports_error() {
         }
         other => panic!("Expected duplicate template construct error, got {other:?}"),
     }
+}
+
+#[test]
+fn duplicate_document_block_reports_error() {
+    let errors = parse_errors("document { } document { }");
+    assert!(matches!(
+        &errors[0],
+        SyntaxError::InvalidConstruct {
+            construct,
+            reason,
+            ..
+        } if construct == "document" && reason == "duplicate document block"
+    ));
+}
+
+#[test]
+fn duplicate_style_block_reports_error() {
+    let errors = parse_errors("style { } style { }");
+    assert!(matches!(
+        &errors[0],
+        SyntaxError::InvalidConstruct {
+            construct,
+            reason,
+            ..
+        } if construct == "style" && reason == "duplicate style block"
+    ));
 }

@@ -1,6 +1,4 @@
-mod common;
-
-use common::template_statements;
+use crate::support::template_statements;
 use pyrus::ast::{ExprKind, ReturnStmt, StmtKind, Type};
 
 #[test]

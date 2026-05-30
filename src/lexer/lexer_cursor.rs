@@ -1,7 +1,7 @@
 use crate::diagnostic::{CompilerDiagnostic, SourceLocation};
 
 pub struct Cursor<'src> {
-    src_name: String,
+    file: String,
     src: &'src String,
     line: usize,
     col: usize,
@@ -12,9 +12,9 @@ impl<'src> Cursor<'src> {
     /// Creates new cursor given a filename
     ///
     /// Results in fatal compiler error if filename does not match file on disk
-    pub fn new(filename: String, src: &'src String) -> Self {
+    pub fn new(file: String, src: &'src String) -> Self {
         Self {
-            src_name: filename,
+            file,
             src,
             line: 1,
             col: 1,
