@@ -4,7 +4,7 @@ use pyrus::hir::{
     lower,
 };
 use pyrus::layout::setup_layout;
-use pyrus::lexer::{TokenStream, lex};
+use pyrus::lexer::{TokenStream, lex_all};
 use pyrus::parser::Parser;
 
 fn parse(tokens: TokenStream) -> Result<Ast, Vec<pyrus::diagnostic::SyntaxError>> {
@@ -42,7 +42,7 @@ style {
     }
 }
 "#;
-    let tokens = lex(
+    let tokens = lex_all(
         source,
         "test_document_flow_row_uses_gap_and_nowrap_side_metadata",
     )
@@ -113,7 +113,7 @@ style {
     }
 }
 "#;
-    let tokens = lex(
+    let tokens = lex_all(
         source,
         "test_document_flow_row_lays_out_wrapped_link_component_on_right",
     )
@@ -202,7 +202,7 @@ style {
     }
 }
 "#;
-    let tokens = lex(
+    let tokens = lex_all(
         source,
         "test_document_flow_row_lays_out_grouped_project_links_on_right",
     )
@@ -272,7 +272,7 @@ style {
     }
 }
 "#;
-    let tokens = lex(
+    let tokens = lex_all(
         source,
         "test_document_flow_row_wraps_left_before_nowrap_side_metadata",
     )

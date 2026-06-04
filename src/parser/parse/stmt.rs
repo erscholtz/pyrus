@@ -5,7 +5,7 @@ use crate::{
     },
     diagnostic::SyntaxError,
     lexer::tokens::TokenKind,
-    parser::{Parser, parse::Parse},
+    parser::{parse::Parse, Parser},
     util::Spanned,
 };
 
@@ -20,7 +20,7 @@ impl Parse for StmtKind {
     /// Parse a statement kind.
     fn parse(p: &mut Parser) -> Result<Self, SyntaxError> {
         match p.cursor.cur_tok() {
-            TokenKind::Identifier => DefaultSetStmt::parse(p).map(|s| s.into()),
+            TokenKind::Identifier(_) => DefaultSetStmt::parse(p).map(|s| s.into()),
             TokenKind::Const => ConstAssignStmt::parse(p).map(|s| s.into()),
             TokenKind::Let => VarAssignStmt::parse(p).map(|s| s.into()),
             TokenKind::Return => ReturnStmt::parse(p).map(|s| s.into()),
@@ -33,7 +33,7 @@ impl Parse for StmtKind {
             _ => Err(SyntaxError::UnexpectedToken {
                 location: p.cursor.location(),
                 expected: vec![
-                    TokenKind::Identifier,
+                    TokenKind::Identifier(0),
                     TokenKind::Const,
                     TokenKind::Let,
                     TokenKind::Return,
@@ -49,8 +49,7 @@ impl Parse for StmtKind {
 impl Parse for DefaultSetStmt {
     /// Parse a default set statement.
     fn parse(p: &mut Parser) -> Result<Self, SyntaxError> {
-        let varname = p.cursor.cur_text().to_owned();
-        p.cursor.advance();
+        let varname = p.cursor.expect_identifier()?;
         p.cursor.expect(TokenKind::Assign)?;
         let value = Expr::parse(p)?;
         Ok(DefaultSetStmt {
@@ -64,8 +63,7 @@ impl Parse for ConstAssignStmt {
     /// Parse a constant assignment statement.
     fn parse(p: &mut Parser) -> Result<Self, SyntaxError> {
         p.cursor.expect(TokenKind::Const)?;
-        let varname = p.cursor.cur_text().to_owned();
-        p.cursor.advance();
+        let varname = p.cursor.expect_identifier()?;
         p.cursor.expect(TokenKind::Assign)?;
         let value = Expr::parse(p)?;
         Ok(ConstAssignStmt {
@@ -79,8 +77,7 @@ impl Parse for VarAssignStmt {
     /// Parse a variable assignment statement.
     fn parse(p: &mut Parser) -> Result<Self, SyntaxError> {
         p.cursor.expect(TokenKind::Let)?;
-        let varname = p.cursor.cur_text().to_owned();
-        p.cursor.advance();
+        let varname = p.cursor.expect_identifier()?;
         p.cursor.expect(TokenKind::Assign)?;
         let value = Expr::parse(p)?;
         Ok(VarAssignStmt {

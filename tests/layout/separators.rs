@@ -1,7 +1,7 @@
 use pyrus::ast::Ast;
 use pyrus::hir::{hir_types::HIRModule, lower};
 use pyrus::layout::setup_layout;
-use pyrus::lexer::{TokenStream, lex};
+use pyrus::lexer::{TokenStream, lex_all};
 use pyrus::parser::Parser;
 
 fn parse(tokens: TokenStream) -> Result<Ast, Vec<pyrus::diagnostic::SyntaxError>> {
@@ -28,7 +28,7 @@ style {
     }
 }
 "#;
-    let tokens = lex(source, "test_document_flow_lays_out_separator").expect("Lexing failed");
+    let tokens = lex_all(source, "test_document_flow_lays_out_separator").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower_ast(&ast);
     let layout = setup_layout(&hlir);
@@ -64,7 +64,7 @@ style {
     }
 }
 "#;
-    let tokens = lex(
+    let tokens = lex_all(
         source,
         "test_document_flow_separator_matches_body_content_width",
     )

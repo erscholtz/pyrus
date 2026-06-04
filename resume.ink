@@ -33,21 +33,21 @@ template {
         ]
     }
 
-    func project_links_paper_github_demo(paper_url: String, github_url: String, demo_url: String) {
+    func project_link(url: String, label: String) {
+        return @link(class="project_link")["${url}", "${label}"]
+    }
+
+    func project_links(url: String) {
         return @section(class="project_links")[
-            @project_link("${paper_url}", "[paper")
-            @text(class="project_link_sep")[|]
-            @project_link("${github_url}", "github")
-            @text(class="project_link_sep")[|]
-            @project_link("${demo_url}", "demo]")
+            @project_link("${url}", "github")
         ]
     }
 
-    func project_entry(title: String, stack: String, url: String, paper: String, demo: String) {
+    func project_entry(title: String, stack: String, url: String) {
         return @section(class="project")[
             @section(class="entry_header")[
                 @text(class="entry_title")[${title}]
-                @project_links_paper_github_demo("${paper}", "${url}", , "${demo}")
+                @project_links("${url}")
             ]
             @text(class="project_stack")[${stack}]
             @children
@@ -307,8 +307,7 @@ style {
         white-space: nowrap;
     }
 
-    .project_link,
-    .project_link_sep {
+    .project_link {
         display: block;
         font-size: 8.3pt;
         font-weight: 700;

@@ -7,7 +7,7 @@ use crate::{
     },
     diagnostic::SyntaxError,
     lexer::tokens::TokenKind,
-    parser::{Parser, parse::Parse},
+    parser::{parse::Parse, Parser},
 };
 
 impl Parse for DocElem {
@@ -28,7 +28,7 @@ impl Parse for DocElemKind {
             TokenKind::Image => ImageElem::parse(p).map(|s| s.into()),
             TokenKind::Table => TableElem::parse(p).map(|s| s.into()),
             TokenKind::List => ListElem::parse(p).map(|s| s.into()),
-            TokenKind::Identifier => CallElem::parse(p).map(|s| s.into()),
+            TokenKind::Identifier(_) => CallElem::parse(p).map(|s| s.into()),
             TokenKind::Link => LinkElem::parse(p).map(|s| s.into()),
             TokenKind::Section => SectionElem::parse(p).map(|s| s.into()),
             TokenKind::Separator => SeparatorElem::parse(p).map(|s| s.into()),
@@ -41,7 +41,7 @@ impl Parse for DocElemKind {
                         TokenKind::Image,
                         TokenKind::Table,
                         TokenKind::List,
-                        TokenKind::Identifier,
+                        TokenKind::Identifier(0),
                         TokenKind::Link,
                         TokenKind::Section,
                         TokenKind::Separator,
@@ -63,8 +63,7 @@ impl DocElemKind {
         p.cursor.expect(TokenKind::LeftParen).ok()?;
         let mut attributes = HashMap::new();
         while !p.cursor.check(TokenKind::RightParen) {
-            let name = p.cursor.cur_text().to_owned();
-            p.cursor.advance(); // consume identifier
+            let name = p.cursor.expect_identifier().ok()?;
 
             p.cursor.expect(TokenKind::Assign).ok()?;
             let value = Expr::parse(p).ok()?;
@@ -258,8 +257,7 @@ impl Parse for CallElem {
     ///
     /// `@Call("func", [arg1, arg2])` -> `CallElem { name: "func", args: [arg1, arg2], children: [] }`.
     fn parse(p: &mut Parser) -> Result<Self, SyntaxError> {
-        let name = p.cursor.cur_text().to_owned();
-        p.cursor.expect(TokenKind::Identifier)?;
+        let name = p.cursor.expect_identifier()?;
 
         p.cursor.expect(TokenKind::LeftParen)?;
         let args = match p.parse_split_on::<ArgType, _, _>(

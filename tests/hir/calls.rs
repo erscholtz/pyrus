@@ -3,7 +3,7 @@ use pyrus::hir::{
     hir_types::{HIRModule, Op},
     lower,
 };
-use pyrus::lexer::{TokenStream, lex};
+use pyrus::lexer::{TokenStream, lex_all};
 use pyrus::parser::Parser;
 
 fn parse(tokens: TokenStream) -> Result<Ast, Vec<pyrus::diagnostic::SyntaxError>> {
@@ -40,7 +40,7 @@ document {
 }
 "#;
     let tokens =
-        lex(source, "test_template_call_substitutes_text_arguments").expect("Lexing failed");
+        lex_all(source, "test_template_call_substitutes_text_arguments").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower_ast(&ast);
     let contents = text_contents(&hlir);
@@ -63,7 +63,7 @@ document {
 }
 "#;
     let tokens =
-        lex(source, "test_each_template_call_gets_its_own_substitutions").expect("Lexing failed");
+        lex_all(source, "test_each_template_call_gets_its_own_substitutions").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower_ast(&ast);
     let contents = text_contents(&hlir);
@@ -86,7 +86,7 @@ document {
     @header()
 }
 "#;
-    let tokens = lex(source, "test_lower_function_call_in_document").expect("Lexing failed");
+    let tokens = lex_all(source, "test_lower_function_call_in_document").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower_ast(&ast);
 
@@ -118,7 +118,7 @@ document {
     @greet("World")
 }
 "#;
-    let tokens = lex(source, "test_lower_function_call_with_args").expect("Lexing failed");
+    let tokens = lex_all(source, "test_lower_function_call_with_args").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower_ast(&ast);
 

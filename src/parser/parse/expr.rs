@@ -1,11 +1,11 @@
 use crate::{
     ast::{BinOp, BinaryExpr, Expr, ExprKind, InterpolatedStringExpr, UnaryExpr, UnaryOp},
-    diagnostic::{SourceLocation, SyntaxError},
+    diagnostic::{CompilerDiagnostic, SourceLocation, SyntaxError},
     lexer::{
-        lex,
         tokens::{StringEntry, TokenKind},
+        Lexer,
     },
-    parser::{Parser, parse::Parse},
+    parser::{parse::Parse, Parser},
     util::Spanned,
 };
 
@@ -31,7 +31,7 @@ impl ExprKind {
             TokenKind::Int => ExprKind::parse_int(p)?,
             TokenKind::Float => ExprKind::parse_float(p)?,
             TokenKind::StringLiteral(idx) => ExprKind::parse_string(p, *idx)?,
-            TokenKind::Identifier => ExprKind::parse_identifier(p)?,
+            TokenKind::Identifier(_) => ExprKind::parse_identifier(p)?,
             TokenKind::Minus | TokenKind::Bang => ExprKind::parse_prefix(p)?,
             TokenKind::LeftParen => ExprKind::parse_grouped(p)?,
             _ => {
@@ -41,7 +41,7 @@ impl ExprKind {
                         TokenKind::Int,
                         TokenKind::Float,
                         TokenKind::StringLiteral(0),
-                        TokenKind::Identifier,
+                        TokenKind::Identifier(0),
                         TokenKind::Minus,
                         TokenKind::Bang,
                         TokenKind::LeftParen,
@@ -154,8 +154,7 @@ impl ExprKind {
 
     /// Parse an identifier.
     fn parse_identifier(p: &mut Parser) -> Result<ExprKind, SyntaxError> {
-        let name = p.cursor.cur_text().to_owned();
-        p.cursor.advance();
+        let name = p.cursor.expect_identifier()?;
         Ok(ExprKind::Identifier(name))
     }
 
@@ -320,15 +319,32 @@ impl InterpolatedStringExpr {
             });
         }
 
-        let tokens = match lex(expr, &location.file) {
+        let tokens = match Lexer::new(location.file.clone(), expr.to_string()).lex_all() {
             Ok(tokens) => tokens,
             Err(errors) => {
-                return Err(errors.into_iter().next().unwrap());
+                return Err(compiler_diagnostic_to_syntax(
+                    errors.into_iter().next().unwrap(),
+                    location,
+                ));
             }
         };
 
         let mut parser = Parser::new(tokens);
         parser.cursor.set_trace_context("embedded-expr");
         ExprKind::parse(&mut parser)
+    }
+}
+
+fn compiler_diagnostic_to_syntax(
+    diagnostic: CompilerDiagnostic,
+    fallback_location: &SourceLocation,
+) -> SyntaxError {
+    match diagnostic {
+        CompilerDiagnostic::Syntax(error) => error,
+        CompilerDiagnostic::Semantic(error) => SyntaxError::invalid_construct(
+            "embedded expression",
+            error.to_string(),
+            fallback_location.clone(),
+        ),
     }
 }

@@ -4,18 +4,18 @@ use pyrus::{
     ast::{Ast, DocElem, Stmt},
     diagnostic::SyntaxError,
     hir::{hir_types::HIRModule, lower},
-    lexer::lex,
+    lexer::lex_all,
     parser::Parser,
 };
 
 pub fn parse_ast(source: &str) -> Ast {
-    let tokens = lex(source, "test.ink").expect("Lexing failed");
+    let tokens = lex_all(source, "test.ink").expect("Lexing failed");
     let mut parser = Parser::new(tokens);
     parser.parse::<Ast>().expect("Parsing failed")
 }
 
 pub fn parse_errors(source: &str) -> Vec<SyntaxError> {
-    let tokens = lex(source, "test.ink").expect("Lexing failed");
+    let tokens = lex_all(source, "test.ink").expect("Lexing failed");
     let mut parser = Parser::new(tokens);
     parser.parse::<Ast>().expect_err("Parsing should fail")
 }

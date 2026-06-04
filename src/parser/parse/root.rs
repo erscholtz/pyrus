@@ -74,13 +74,13 @@ impl Parse for TemplateBlock {
         p.cursor.expect(TokenKind::Template)?;
 
         p.cursor.expect(TokenKind::LeftBrace)?;
-        let statements = match p.parse_until::<Stmt>(TokenKind::RightBrace) {
-            Ok(statements) => statements,
+        let stmts = match p.parse_until::<Stmt>(TokenKind::RightBrace) {
+            Ok(stmts) => stmts,
             Err(errors) => return Err(errors.into_iter().next().unwrap()),
         };
         p.cursor.expect(TokenKind::RightBrace)?;
 
-        Ok(TemplateBlock { statements })
+        Ok(TemplateBlock { statements: stmts })
     }
 }
 
@@ -90,29 +90,28 @@ impl Parse for DocumentBlock {
         p.cursor.expect(TokenKind::Document)?;
 
         p.cursor.expect(TokenKind::LeftBrace)?;
-        let elements = match p.parse_until::<DocElem>(TokenKind::RightBrace) {
-            Ok(elements) => elements,
+        let elems = match p.parse_until::<DocElem>(TokenKind::RightBrace) {
+            Ok(elems) => elems,
             Err(errors) => return Err(errors.into_iter().next().unwrap()),
         };
         p.cursor.expect(TokenKind::RightBrace)?;
 
-        Ok(DocumentBlock { elements })
+        Ok(DocumentBlock { elements: elems })
     }
 }
 
-// TODO
 impl Parse for StyleBlock {
     /// Parse a style block.
     fn parse(p: &mut Parser) -> Result<Self, SyntaxError> {
         p.cursor.expect(TokenKind::Style)?;
 
         p.cursor.expect(TokenKind::LeftBrace)?;
-        let statements = match p.parse_until::<StyleRule>(TokenKind::RightBrace) {
-            Ok(statements) => statements,
+        let stmts = match p.parse_until::<StyleRule>(TokenKind::RightBrace) {
+            Ok(stmts) => stmts,
             Err(errors) => return Err(errors.into_iter().next().unwrap()),
         };
         p.cursor.expect(TokenKind::RightBrace)?;
 
-        Ok(StyleBlock { statements })
+        Ok(StyleBlock { statements: stmts })
     }
 }

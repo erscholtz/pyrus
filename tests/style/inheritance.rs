@@ -1,6 +1,6 @@
 use pyrus::ast::Ast;
 use pyrus::hir::{hir_types::HIRModule, lower};
-use pyrus::lexer::{TokenStream, lex};
+use pyrus::lexer::{TokenStream, lex_all};
 use pyrus::parser::Parser;
 
 fn parse(tokens: TokenStream) -> Result<Ast, Vec<pyrus::diagnostic::SyntaxError>> {
@@ -27,7 +27,7 @@ style {
     }
 }
 "#;
-    let tokens = lex(source, "test_style_inheritance").expect("Lexing failed");
+    let tokens = lex_all(source, "test_style_inheritance").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower_ast(&ast);
 
@@ -64,7 +64,7 @@ style {
     }
 }
 "#;
-    let tokens = lex(source, "test_non_inherited_properties").expect("Lexing failed");
+    let tokens = lex_all(source, "test_non_inherited_properties").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower_ast(&ast);
 
@@ -114,7 +114,7 @@ style {
     }
 }
 "#;
-    let tokens = lex(source, "test_multiple_classes_on_element").expect("Lexing failed");
+    let tokens = lex_all(source, "test_multiple_classes_on_element").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower_ast(&ast);
 

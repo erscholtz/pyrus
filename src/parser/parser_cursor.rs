@@ -3,8 +3,8 @@
 use crate::{
     diagnostic::{SourceLocation, SyntaxError},
     lexer::{
-        TokenStream,
         tokens::{StringEntry, TokenKind},
+        Token, TokenStream,
     },
 };
 
@@ -54,24 +54,33 @@ impl Cursor {
         }
     }
 
-    pub fn cur_tok(&self) -> &TokenKind {
+    fn cur_token(&self) -> &Token {
         self.tokens
-            .kinds
+            .tokens
             .get(self.pos)
-            .unwrap_or_else(|| self.tokens.kinds.last().unwrap()) // EOF is always last
+            .unwrap_or_else(|| self.tokens.tokens.last().unwrap()) // EOF is always last
+    }
+
+    pub fn cur_tok(&self) -> &TokenKind {
+        &self.cur_token().kind
     }
 
     pub fn cur_text(&self) -> &str {
-        let range = self
-            .tokens
-            .ranges
-            .get(self.pos)
-            .unwrap_or_else(|| self.tokens.ranges.last().unwrap()); // EOF is always last
-        &self.tokens.source[range.clone()]
+        match self.cur_tok() {
+            TokenKind::Identifier(idx) => self.get_identifier(*idx).unwrap_or(""),
+            TokenKind::Int | TokenKind::Float => self
+                .cur_range()
+                .and_then(|range| self.tokens.source.get(range))
+                .unwrap_or(""),
+            _ => "",
+        }
     }
 
     pub fn cur_range(&self) -> Option<std::ops::Range<usize>> {
-        self.tokens.ranges.get(self.pos).cloned()
+        self.tokens
+            .tokens
+            .get(self.pos)
+            .map(|token| token.range.clone())
     }
 
     pub fn source(&self) -> &str {
@@ -79,24 +88,20 @@ impl Cursor {
     }
 
     pub fn cur_line(&self) -> usize {
-        self.tokens.lines[self.pos]
+        self.cur_token().line
     }
 
     pub fn cur_col(&self) -> usize {
-        self.tokens.cols[self.pos]
+        self.cur_token().col
     }
 
     pub fn location(&self) -> SourceLocation {
-        SourceLocation::new(
-            self.tokens.lines[self.pos],
-            self.tokens.cols[self.pos],
-            self.tokens.file.clone(),
-        )
+        SourceLocation::new(self.cur_line(), self.cur_col(), self.tokens.file.clone())
     }
 
     pub fn advance(&mut self) -> &TokenKind {
         self.trace("advance:before");
-        if self.pos < self.tokens.kinds.len() {
+        if self.pos < self.tokens.tokens.len() {
             self.pos += 1;
         }
         self.trace("advance:after");
@@ -106,6 +111,10 @@ impl Cursor {
     pub fn check(&self, kind: TokenKind) -> bool {
         let token = self.cur_tok();
         token == &kind
+    }
+
+    pub fn check_identifier(&self) -> bool {
+        matches!(self.cur_tok(), TokenKind::Identifier(_))
     }
 
     pub fn expect(&mut self, kind: TokenKind) -> Result<TokenKind, SyntaxError> {
@@ -120,7 +129,7 @@ impl Cursor {
                 self.cur_col(),
             );
         }
-        if self.check(kind) {
+        if self.check(kind.clone()) {
             self.advance();
             Ok(kind)
         } else {
@@ -130,6 +139,20 @@ impl Cursor {
                 found: self.cur_tok().clone(),
             })
         }
+    }
+
+    pub fn expect_identifier(&mut self) -> Result<String, SyntaxError> {
+        let TokenKind::Identifier(name) = self.cur_tok() else {
+            return Err(SyntaxError::UnexpectedToken {
+                location: self.location(),
+                expected: vec![TokenKind::Identifier(0)],
+                found: self.cur_tok().clone(),
+            });
+        };
+
+        let name = self.get_identifier(*name).unwrap_or("").to_string();
+        self.advance();
+        Ok(name)
     }
 
     // backtracking
@@ -156,15 +179,24 @@ impl Cursor {
     // lookahead
 
     pub fn peek_tok(&self) -> Option<&TokenKind> {
-        self.tokens.kinds.get(self.pos + 1)
+        self.tokens
+            .tokens
+            .get(self.pos + 1)
+            .map(|token| &token.kind)
     }
 
     pub fn peek_text(&self) -> Option<&str> {
-        let range = self.tokens.ranges.get(self.pos + 1)?;
-        self.tokens.source.get(range.clone())
+        match self.peek_tok()? {
+            TokenKind::Identifier(idx) => self.get_identifier(*idx),
+            _ => Some(""),
+        }
     }
 
     // string_table specific
+
+    pub fn get_identifier(&self, idx: usize) -> Option<&str> {
+        self.tokens.identifier_table.get(idx).map(String::as_str)
+    }
 
     pub fn get_string(&self, idx: usize) -> Option<&StringEntry> {
         self.tokens.string_table.get(idx)
@@ -175,5 +207,3 @@ impl Cursor {
     }
 }
 
-#[cfg(test)]
-mod tests;

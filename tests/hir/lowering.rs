@@ -3,7 +3,7 @@ use pyrus::hir::{
     hir_types::{HIRModule, Literal, Op, Type},
     lower,
 };
-use pyrus::lexer::{TokenStream, lex};
+use pyrus::lexer::{TokenStream, lex_all};
 use pyrus::parser::Parser;
 
 fn parse(tokens: TokenStream) -> Result<Ast, Vec<pyrus::diagnostic::SyntaxError>> {
@@ -22,7 +22,7 @@ fn test_lower_empty_document() {
 document {
 }
 "#;
-    let tokens = lex(source, "test_lower_empty_document").expect("Lexing failed");
+    let tokens = lex_all(source, "test_lower_empty_document").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower_ast(&ast);
 
@@ -46,7 +46,7 @@ template {
 document {
 }
 "#;
-    let tokens = lex(source, "test_lower_global_const").expect("Lexing failed");
+    let tokens = lex_all(source, "test_lower_global_const").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower_ast(&ast);
 
@@ -62,7 +62,7 @@ template {
 document {
 }
 "#;
-    let tokens = lex(source, "test_lower_global_var").expect("Lexing failed");
+    let tokens = lex_all(source, "test_lower_global_var").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower_ast(&ast);
 
@@ -80,7 +80,7 @@ template {
 document {
 }
 "#;
-    let tokens = lex(source, "test_lower_multiple_globals").expect("Lexing failed");
+    let tokens = lex_all(source, "test_lower_multiple_globals").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower_ast(&ast);
 
@@ -103,7 +103,7 @@ template {
 document {
 }
 "#;
-    let tokens = lex(source, "test_lower_simple_function").expect("Lexing failed");
+    let tokens = lex_all(source, "test_lower_simple_function").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower_ast(&ast);
 
@@ -132,7 +132,7 @@ template {
 document {
 }
 "#;
-    let tokens = lex(source, "test_lower_function_with_args").expect("Lexing failed");
+    let tokens = lex_all(source, "test_lower_function_with_args").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower_ast(&ast);
 
@@ -156,7 +156,7 @@ template {
 document {
 }
 "#;
-    let tokens = lex(source, "test_lower_function_with_multiple_args").expect("Lexing failed");
+    let tokens = lex_all(source, "test_lower_function_with_multiple_args").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower_ast(&ast);
 
@@ -182,7 +182,7 @@ document {
     @text[Second]
 }
 "#;
-    let tokens = lex(source, "test_lower_generates_doc_element_emit_ops").expect("Lexing failed");
+    let tokens = lex_all(source, "test_lower_generates_doc_element_emit_ops").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower_ast(&ast);
 
@@ -211,7 +211,7 @@ template {
 document {
 }
 "#;
-    let tokens = lex(source, "test_lower_const_generates_const_op").expect("Lexing failed");
+    let tokens = lex_all(source, "test_lower_const_generates_const_op").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower_ast(&ast);
 

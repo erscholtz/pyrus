@@ -1,7 +1,7 @@
 use pyrus::ast::Ast;
 use pyrus::hir::{hir_types::HIRModule, lower};
 use pyrus::layout::setup_layout;
-use pyrus::lexer::{TokenStream, lex};
+use pyrus::lexer::{TokenStream, lex_all};
 use pyrus::parser::Parser;
 
 fn parse(tokens: TokenStream) -> Result<Ast, Vec<pyrus::diagnostic::SyntaxError>> {
@@ -32,7 +32,7 @@ style {
     }
 }
 "#;
-    let tokens = lex(
+    let tokens = lex_all(
         source,
         "test_document_flow_link_badge_uses_padding_for_box_geometry",
     )

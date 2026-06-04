@@ -1,18 +1,24 @@
 use crate::diagnostic::{CompilerDiagnostic, SourceLocation};
 
-pub struct Cursor<'src> {
-    file: String,
-    src: &'src String,
-    line: usize,
-    col: usize,
-    offset: usize,
+pub struct Cursor {
+    pub file: String,
+    pub src: String,
+    pub line: usize,
+    pub col: usize,
+    pub offset: usize,
 }
 
-impl<'src> Cursor<'src> {
+pub struct Mark {
+    pub line: usize,
+    pub col: usize,
+    pub offset: usize,
+}
+
+impl Cursor {
     /// Creates new cursor given a filename
     ///
     /// Results in fatal compiler error if filename does not match file on disk
-    pub fn new(file: String, src: &'src String) -> Self {
+    pub fn new(file: String, src: String) -> Self {
         Self {
             file,
             src,
@@ -41,7 +47,8 @@ impl<'src> Cursor<'src> {
                     Err(CompilerDiagnostic::Syntax(
                         crate::diagnostic::SyntaxError::UnexpectedEof {
                             location: self.location(),
-                            expected: "expected next token, found None".to_string(),
+                            expected: "expected next token, found None"
+                                .to_string(),
                         },
                     ))
                 };
@@ -56,20 +63,25 @@ impl<'src> Cursor<'src> {
             self.offset += 1;
             self.col += 1;
         }
-        Ok(()) // TODO this is not correct to just return nothing I think
-    }
-
-    /// returns the offset from the start of the current source file
-    pub fn offset(&self) -> usize {
-        self.offset
+        Ok(()) // NOTE this is not correct to just return nothing I think
     }
 
     /// source location of the current location of the cursor
-    fn location(&self) -> SourceLocation {
+    pub fn location(&self) -> SourceLocation {
         SourceLocation {
             line: self.line,
             column: self.col,
-            file: self.src_name.clone(),
+            file: self.file.clone(),
+        }
+    }
+    
+    /// creates a mark for a location, this is useful for marking the start of
+    /// a token
+    pub fn mark(&self) -> Mark {
+        Mark {
+            line: self.line,
+            col: self.col,
+            offset: self.offset,
         }
     }
 }

@@ -1,6 +1,6 @@
 use pyrus::ast::Ast;
 use pyrus::hir::{hir_types::HIRModule, lower};
-use pyrus::lexer::{TokenStream, lex};
+use pyrus::lexer::{TokenStream, lex_all};
 use pyrus::parser::Parser;
 
 fn parse(tokens: TokenStream) -> Result<Ast, Vec<pyrus::diagnostic::SyntaxError>> {
@@ -25,7 +25,7 @@ style {
     }
 }
 "#;
-    let tokens = lex(source, "test_typed_margin_property").expect("Lexing failed");
+    let tokens = lex_all(source, "test_typed_margin_property").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower_ast(&ast);
 
@@ -48,7 +48,7 @@ style {
     }
 }
 "#;
-    let tokens = lex(source, "test_typed_padding_property").expect("Lexing failed");
+    let tokens = lex_all(source, "test_typed_padding_property").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower_ast(&ast);
 
@@ -74,7 +74,7 @@ style {
     }
 }
 "#;
-    let tokens = lex(source, "test_no_matching_rules").expect("Lexing failed");
+    let tokens = lex_all(source, "test_no_matching_rules").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower_ast(&ast);
 
@@ -95,7 +95,7 @@ document {
 style {
 }
 "#;
-    let tokens = lex(source, "test_empty_style_block").expect("Lexing failed");
+    let tokens = lex_all(source, "test_empty_style_block").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower_ast(&ast);
 
@@ -113,7 +113,7 @@ document {
     @text[Text]
 }
 "#;
-    let tokens = lex(source, "test_no_style_block").expect("Lexing failed");
+    let tokens = lex_all(source, "test_no_style_block").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower_ast(&ast);
 
@@ -162,7 +162,7 @@ style {
     }
 }
 "#;
-    let tokens = lex(source, "test_complex_css_scenario").expect("Lexing failed");
+    let tokens = lex_all(source, "test_complex_css_scenario").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower_ast(&ast);
 
@@ -239,7 +239,7 @@ fn test_css_from_file() {
 
     let data =
         fs::read_to_string("tests/input/css_test.ink").expect("Should be able to read test file");
-    let tokens = lex(&data, "test_css_from_file").expect("Lexing failed");
+    let tokens = lex_all(&data, "test_css_from_file").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower_ast(&ast);
 
@@ -282,7 +282,7 @@ style {
 }
 "#;
     let tokens =
-        lex(source, "test_body_styles_are_document_styles_and_inherit").expect("Lexing failed");
+        lex_all(source, "test_body_styles_are_document_styles_and_inherit").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower_ast(&ast);
 

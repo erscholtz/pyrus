@@ -3,7 +3,7 @@ use pyrus::hir::{
     hir_types::{HIRModule, HirElementOp},
     lower,
 };
-use pyrus::lexer::{TokenStream, lex};
+use pyrus::lexer::{TokenStream, lex_all};
 use pyrus::parser::Parser;
 
 fn parse(tokens: TokenStream) -> Result<Ast, Vec<pyrus::diagnostic::SyntaxError>> {
@@ -23,7 +23,7 @@ document {
     @text[Hello World]
 }
 "#;
-    let tokens = lex(source, "test_lower_text_element").expect("Lexing failed");
+    let tokens = lex_all(source, "test_lower_text_element").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower_ast(&ast);
 
@@ -42,7 +42,7 @@ document {
     ]
 }
 "#;
-    let tokens = lex(source, "test_lower_section_with_children").expect("Lexing failed");
+    let tokens = lex_all(source, "test_lower_section_with_children").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower_ast(&ast);
 
@@ -72,7 +72,7 @@ document {
     @text(id="header", class="large bold")[Title]
 }
 "#;
-    let tokens = lex(source, "test_lower_element_with_id_and_class").expect("Lexing failed");
+    let tokens = lex_all(source, "test_lower_element_with_id_and_class").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower_ast(&ast);
 
@@ -88,7 +88,7 @@ document {
     @separator(class="rule")
 }
 "#;
-    let tokens = lex(source, "test_lower_separator_element").expect("Lexing failed");
+    let tokens = lex_all(source, "test_lower_separator_element").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower_ast(&ast);
 
@@ -104,7 +104,7 @@ document {
     @link(class="external")["https://example.com", "Example"]
 }
 "#;
-    let tokens = lex(source, "test_lower_link_element_preserves_href").expect("Lexing failed");
+    let tokens = lex_all(source, "test_lower_link_element_preserves_href").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower_ast(&ast);
 
@@ -140,7 +140,7 @@ style {
     }
 }
 "#;
-    let tokens = lex(source, "test_lower_preserves_css_rules").expect("Lexing failed");
+    let tokens = lex_all(source, "test_lower_preserves_css_rules").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower_ast(&ast);
 
@@ -162,7 +162,7 @@ document {
     @text[Last]
 }
 "#;
-    let tokens = lex(source, "test_lower_preserves_element_order").expect("Lexing failed");
+    let tokens = lex_all(source, "test_lower_preserves_element_order").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower_ast(&ast);
 
@@ -181,7 +181,7 @@ template {
 document {
 }
 "#;
-    let tokens = lex(source, "test_lower_empty_template_is_ok").expect("Lexing failed");
+    let tokens = lex_all(source, "test_lower_empty_template_is_ok").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower_ast(&ast);
 
@@ -200,7 +200,7 @@ document {
     ]
 }
 "#;
-    let tokens = lex(source, "test_lower_nested_sections").expect("Lexing failed");
+    let tokens = lex_all(source, "test_lower_nested_sections").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower_ast(&ast);
 

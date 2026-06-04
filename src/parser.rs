@@ -7,24 +7,24 @@ use crate::{
     parser::{parse::Parse, parser_cursor::Cursor},
 };
 
+/// parser type
 pub struct Parser {
-    pub file: String,
+    pub file: String, // FIX this might be duplicate info, cursor has this
     pub cursor: Cursor,
-    pub errors: Vec<SyntaxError>,
+    pub errors: Vec<SyntaxError>, // FIX also duplicate maybe? main parser var
+    // shoud handle this instead
     pub trace_enabled: bool,
 }
 
 impl Parser {
-    // flags
-
+    /// ebables or disables tracing/debug printing for the parser
     pub fn enable_tracing(mut self) -> Self {
         self.trace_enabled = true;
         self.cursor.enable_tracing();
         self
     }
 
-    // work
-
+    /// trace printing
     fn trace(&self, event: &str) {
         if !self.trace_enabled {
             return;
@@ -49,6 +49,7 @@ impl Parser {
         }
     }
 
+    /// gathers errors in builder pattern
     pub fn gather_errors(mut self, dm: &mut DiagnosticManager) -> Self {
         for error in self.errors.drain(..) {
             dm.push(error);
@@ -57,6 +58,9 @@ impl Parser {
     }
 
     /// Entry: parse any T that implements Parse
+    ///
+    /// TODO: revisit this and change it to take diagnostics wrapper instead of
+    /// syntax error
     pub fn parse<T: Parse>(&mut self) -> Result<T, Vec<SyntaxError>> {
         self.trace("parse:start");
         let result = match T::parse(self) {
@@ -64,7 +68,8 @@ impl Parser {
             Err(err) => {
                 self.errors.push(err);
                 self.trace("parse:error");
-                return Err(std::mem::take(&mut self.errors)); // FIX this is wrong I think
+                // FIX this is wrong I think
+                return Err(std::mem::take(&mut self.errors));
             }
         };
 
@@ -95,6 +100,10 @@ impl Parser {
         }
     }
 
+    /// parse until a specific token is met
+    ///
+    /// NOTE: usually used for parsing blocks where we know it should end with
+    /// a right bracket
     pub fn parse_until<T: Parse>(&mut self, end: TokenKind) -> Result<Vec<T>, Vec<SyntaxError>> {
         if self.trace_enabled {
             eprintln!(
@@ -139,6 +148,8 @@ impl Parser {
     }
 
     /// Parses all items until the given condition is no longer true.
+    ///
+    /// NOTE: this function takes in a closure for should_continue
     pub fn parse_all<T: Parse, F>(&mut self, should_continue: F) -> Result<Vec<T>, Vec<SyntaxError>>
     where
         F: Fn(&mut Self) -> bool,
@@ -173,7 +184,11 @@ impl Parser {
         }
     }
 
-    /// Parses all items until the given condition is no longer true, and then splits the result on the given delimiter.
+    /// Parses all items until the given condition is no longer true, and then
+    /// splits the result on the given delimiter.
+    ///
+    /// NOTE: this function takes in two closures, one for the splitting case
+    /// and one for the ending case
     pub fn parse_split_on<T: Parse, FEnd, FDelim>(
         &mut self,
         end: FEnd,
@@ -224,7 +239,8 @@ impl Parser {
             Ok(items)
         } else {
             self.trace("parse_split_on:errors");
-            Err(std::mem::take(&mut self.errors)) // Why?
+            Err(std::mem::take(&mut self.errors)) // FIX Why is this done like
+            // this?
         }
     }
 }

@@ -4,7 +4,6 @@ pub struct StringEntry {
     pub has_interpolation: bool,
 }
 
-#[repr(u8)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum TokenKind {
     // Single-char symbols
@@ -37,7 +36,7 @@ pub enum TokenKind {
     LessEquals, // <=
 
     // Literals
-    Identifier,
+    Identifier(usize),
     Int,
     Float,
     String,

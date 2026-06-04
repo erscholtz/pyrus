@@ -1,10 +1,11 @@
-mod common;
+#[path = "support/mod.rs"]
+mod support;
 
-use common::template_statements;
+use support::template_statements;
 use pyrus::ast::{BinOp, ExprKind, StmtKind, UnaryOp};
 use pyrus::{
     diagnostic::{CompilerDiagnostic, SyntaxError},
-    lexer::lex,
+    lexer::lex_all,
 };
 
 fn assigned_expr(source: &str) -> ExprKind {
@@ -88,13 +89,13 @@ fn test_parse_string_with_escaped_quote() {
 
 #[test]
 fn test_lex_unterminated_string() {
-    let tokens = lex(r#"template { let msg = "unterminated }"#, "test.ink").expect("Lexing failed");
+    let errors = lex_all(r#"template { let msg = "unterminated }"#, "test.ink").unwrap_err();
     assert!(
-        !tokens.errors.is_empty(),
+        !errors.is_empty(),
         "Should report an unterminated string"
     );
     assert!(matches!(
-        tokens.errors.first(),
+        errors.first(),
         Some(CompilerDiagnostic::Syntax(SyntaxError::UnterminatedDelimiter {
             delimiter,
             ..

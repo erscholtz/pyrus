@@ -1,7 +1,7 @@
 use pyrus::ast::Ast;
 use pyrus::hir::{hir_types::HIRModule, lower};
 use pyrus::layout::setup_layout;
-use pyrus::lexer::{TokenStream, lex};
+use pyrus::lexer::{TokenStream, lex_all};
 use pyrus::parser::Parser;
 
 fn parse(tokens: TokenStream) -> Result<Ast, Vec<pyrus::diagnostic::SyntaxError>> {
@@ -22,7 +22,7 @@ document {
 }
 "#;
     let tokens =
-        lex(source, "test_document_flow_adds_unordered_list_markers").expect("Lexing failed");
+        lex_all(source, "test_document_flow_adds_unordered_list_markers").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower_ast(&ast);
     let layout = setup_layout(&hlir);
@@ -52,7 +52,7 @@ style {
 }
 "#;
     let tokens =
-        lex(source, "test_document_flow_adds_decimal_list_markers").expect("Lexing failed");
+        lex_all(source, "test_document_flow_adds_decimal_list_markers").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower_ast(&ast);
     let layout = setup_layout(&hlir);
@@ -86,7 +86,7 @@ style {
     }
 }
 "#;
-    let tokens = lex(
+    let tokens = lex_all(
         source,
         "test_document_flow_list_uses_configurable_hanging_indent",
     )
