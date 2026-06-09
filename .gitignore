@@ -1,3 +1,7 @@
+# binaries and generated artifacts
 /target*
 /generated
-/src/docmlir/llvm-project
+
+# planning
+/src/scratch/*
+/docs/planning/*

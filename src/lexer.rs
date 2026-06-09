@@ -115,9 +115,9 @@ pub struct Lexer {
     cursor: Cursor,  // info on where in source we are
     mode: LexerMode, // current mode of the lexer
     // TODO make into mode stack
-    identifier_table: Vec<String>, // variable names
-    string_table: Vec<StringEntry>, // strings deduplication table
-    queued_tokens: Vec<Token>,     // any trailing tokens like ], }, "
+    identifier_table: Vec<String>,       // variable names
+    string_table: Vec<StringEntry>,      // strings deduplication table
+    queued_tokens: Vec<Token>,           // any trailing tokens like ], }, "
     last_significant: Option<TokenKind>, //
 }
 
@@ -223,23 +223,15 @@ impl Lexer {
         Err(SyntaxError::invalid_construct(
             "character",
             format!("unknown character: '{}'", byte as char),
-            SourceLocation::new(
-                start.line,
-                start.col,
-                self.cursor.file.clone(),
-            ),
+            SourceLocation::new(start.line, start.col, self.cursor.file.clone()),
         )
         .into())
     }
 
-    fn lex_text_transition_token(
-        &mut self,
-    ) -> Result<Token, CompilerDiagnostic> {
+    fn lex_text_transition_token(&mut self) -> Result<Token, CompilerDiagnostic> {
         let start = self.cursor.mark();
 
-        if self.cursor.peek() == Some(b'[')
-            && self.mode == LexerMode::AwaitTextBodyOrAttrs
-        {
+        if self.cursor.peek() == Some(b'[') && self.mode == LexerMode::AwaitTextBodyOrAttrs {
             self.cursor.advance()?;
             self.mode = LexerMode::TextBody;
             return Ok(self.token(TokenKind::LeftBracket, start));
@@ -269,11 +261,9 @@ impl Lexer {
             }
 
             if byte == b']' && interpolation_depth == 0 {
-                let content = self.cursor.src[start.offset..self.cursor.offset]
-                    .to_string();
+                let content = self.cursor.src[start.offset..self.cursor.offset].to_string();
                 let string_idx = self.push_string(content);
-                let body_token =
-                    self.token(TokenKind::StringLiteral(string_idx), start);
+                let body_token = self.token(TokenKind::StringLiteral(string_idx), start);
 
                 let close_start = self.cursor.mark();
                 self.cursor.advance()?;
@@ -289,37 +279,28 @@ impl Lexer {
 
         Err(SyntaxError::unterminated_delimiter(
             "]",
-            SourceLocation::new(
-                start.line,
-                start.col,
-                self.cursor.file.clone(),
-            ),
+            SourceLocation::new(start.line, start.col, self.cursor.file.clone()),
         )
         .into())
     }
 
-    fn lex_identifier_or_keyword(
-        &mut self,
-        start: Mark,
-    ) -> Result<Token, CompilerDiagnostic> {
+    fn lex_identifier_or_keyword(&mut self, start: Mark) -> Result<Token, CompilerDiagnostic> {
         self.cursor.advance()?;
-        while self.cursor.peek().is_some_and(|byte| {
-            byte.is_ascii_alphabetic() || byte == b'_' || byte.is_ascii_digit()
-        }) {
+        while self
+            .cursor
+            .peek()
+            .is_some_and(|byte| byte.is_ascii_alphabetic() || byte == b'_' || byte.is_ascii_digit())
+        {
             self.cursor.advance()?;
         }
 
         let text = &self.cursor.src[start.offset..self.cursor.offset];
         let kind = match KEYWORD_TABLE.get(text).copied() {
             Some(kind) => kind,
-            None => {
-                TokenKind::Identifier(self.push_identifier(text.to_string()))
-            }
+            None => TokenKind::Identifier(self.push_identifier(text.to_string())),
         };
 
-        if kind == TokenKind::Text
-            && self.last_significant == Some(TokenKind::At)
-        {
+        if kind == TokenKind::Text && self.last_significant == Some(TokenKind::At) {
             self.mode = LexerMode::AwaitTextBodyOrAttrs;
         }
 
@@ -349,10 +330,7 @@ impl Lexer {
         Ok(self.token(kind, start))
     }
 
-    fn lex_quoted_string(
-        &mut self,
-        start: Mark,
-    ) -> Result<Token, CompilerDiagnostic> {
+    fn lex_quoted_string(&mut self, start: Mark) -> Result<Token, CompilerDiagnostic> {
         self.cursor.advance()?;
         let content_start = self.cursor.offset;
         let mut escaped = false;
@@ -363,14 +341,10 @@ impl Lexer {
             } else if byte == b'\\' {
                 escaped = true;
             } else if byte == b'"' {
-                let content = self.cursor.src
-                    [content_start..self.cursor.offset]
-                    .to_string();
+                let content = self.cursor.src[content_start..self.cursor.offset].to_string();
                 self.cursor.advance()?;
                 let string_idx = self.push_string(content);
-                return Ok(
-                    self.token(TokenKind::StringLiteral(string_idx), start)
-                );
+                return Ok(self.token(TokenKind::StringLiteral(string_idx), start));
             }
 
             self.cursor.advance()?;
@@ -378,11 +352,7 @@ impl Lexer {
 
         Err(SyntaxError::unterminated_delimiter(
             "\"",
-            SourceLocation::new(
-                start.line,
-                start.col,
-                self.cursor.file.clone(),
-            ),
+            SourceLocation::new(start.line, start.col, self.cursor.file.clone()),
         )
         .into())
     }
@@ -390,9 +360,7 @@ impl Lexer {
     fn skip_trivia(&mut self) -> Result<(), CompilerDiagnostic> {
         loop {
             match (self.cursor.peek(), self.cursor.peek_next()) {
-                (Some(byte), _) if byte.is_ascii_whitespace() => {
-                    self.cursor.advance()?
-                }
+                (Some(byte), _) if byte.is_ascii_whitespace() => self.cursor.advance()?,
                 (Some(b'/'), Some(b'/')) => {
                     self.cursor.advance()?;
                     self.cursor.advance()?;
@@ -419,15 +387,11 @@ impl Lexer {
 
     fn update_text_transition_mode(&mut self, kind: TokenKind) {
         self.mode = match (self.mode, kind) {
-            (LexerMode::AwaitTextBodyOrAttrs, TokenKind::LeftParen) => {
-                LexerMode::TextAttributes(1)
-            }
+            (LexerMode::AwaitTextBodyOrAttrs, TokenKind::LeftParen) => LexerMode::TextAttributes(1),
             (LexerMode::TextAttributes(depth), TokenKind::LeftParen) => {
                 LexerMode::TextAttributes(depth + 1)
             }
-            (LexerMode::TextAttributes(depth), TokenKind::RightParen)
-                if depth > 1 =>
-            {
+            (LexerMode::TextAttributes(depth), TokenKind::RightParen) if depth > 1 => {
                 LexerMode::TextAttributes(depth - 1)
             }
             (LexerMode::TextAttributes(1), TokenKind::RightParen) => {
@@ -451,7 +415,8 @@ impl Lexer {
         idx
     }
 
-    // TODO can be squashed
+    // TODO can be squashed, also could know that the if interp exists based on
+    // the string lexing function with a simple if check
     fn push_string(&mut self, content: String) -> usize {
         let idx = self.string_table.len();
         self.string_table.push(StringEntry {
