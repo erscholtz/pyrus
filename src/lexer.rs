@@ -420,7 +420,7 @@ impl Lexer {
     fn push_string(&mut self, content: String) -> usize {
         let idx = self.string_table.len();
         self.string_table.push(StringEntry {
-            has_interpolation: has_unescaped_interpolation(&content),
+            has_interpolation: Self::has_unescaped_interpolation(&content),
             content,
         });
         idx
@@ -434,24 +434,21 @@ impl Lexer {
             col: start.col,
         }
     }
-}
 
-fn has_unescaped_interpolation(content: &str) -> bool {
-    let bytes = content.as_bytes();
-    let mut i = 0;
+    fn has_unescaped_interpolation(content: &str) -> bool {
+        let bytes = content.as_bytes();
+        let mut i = 0;
 
-    while i + 1 < bytes.len() {
-        if bytes[i] == b'\\' {
-            i += 2;
-            continue;
+        while i + 1 < bytes.len() {
+            if bytes[i] == b'\\' {
+                i += 2;
+                continue;
+            }
+            if bytes[i] == b'$' && bytes[i + 1] == b'{' {
+                return true;
+            }
+            i += 1;
         }
-
-        if bytes[i] == b'$' && bytes[i + 1] == b'{' {
-            return true;
-        }
-
-        i += 1;
+        false
     }
-
-    false
 }

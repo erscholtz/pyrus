@@ -62,8 +62,8 @@ document {
     @item("Second")
 }
 "#;
-    let tokens =
-        lex_all(source, "test_each_template_call_gets_its_own_substitutions").expect("Lexing failed");
+    let tokens = lex_all(source, "test_each_template_call_gets_its_own_substitutions")
+        .expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower_ast(&ast);
     let contents = text_contents(&hlir);
