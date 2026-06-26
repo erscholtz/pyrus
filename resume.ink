@@ -33,13 +33,13 @@ template {
         ]
     }
 
+    func project_link(url: String, label: String) {
+        return @link(class="project_link")["${url}", "${label}"]
+    }
+
     func project_links_paper_github_demo(paper_url: String, github_url: String, demo_url: String) {
         return @section(class="project_links")[
-            @project_link("${paper_url}", "[paper")
-            @text(class="project_link_sep")[|]
             @project_link("${github_url}", "github")
-            @text(class="project_link_sep")[|]
-            @project_link("${demo_url}", "demo]")
         ]
     }
 
