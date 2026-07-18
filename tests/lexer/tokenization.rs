@@ -16,6 +16,20 @@ fn kinds(ts: &lexer::TokenStream) -> Vec<TokenKind> {
 }
 
 #[test]
+fn formats_tokens_for_debugging() {
+    let tokens = lexer::lex_all("@text[Hello ${name}] title", "debug").unwrap();
+    let debug = tokens.debug_tokens();
+
+    assert!(debug.contains("tokens for debug"));
+    assert!(debug.contains("idx"));
+    assert!(debug.contains("Text"));
+    assert!(debug.contains("StringLiteral(0)"));
+    assert!(debug.contains("\"Hello ${name}\" (interpolated)"));
+    assert!(debug.contains("Identifier(0)"));
+    assert!(debug.contains("\"title\""));
+}
+
+#[test]
 fn lexes_sample_file_tokens() {
     let data = fs::read_to_string("tests/input/lexer_test.ink").expect("read sample file");
     let tokens = lexer::lex_all(&data, "lexer_test.ink").expect("Lexing failed");

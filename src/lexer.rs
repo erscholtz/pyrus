@@ -1,6 +1,8 @@
 mod lexer_cursor;
 pub mod tokens;
 
+use std::fmt::Write as _;
+
 use tokens::{StringEntry, TokenKind};
 
 use crate::{
@@ -96,6 +98,62 @@ impl TokenStream {
             string_table: Vec::new(),
         }
     }
+
+    pub fn debug_tokens(&self) -> String {
+        let mut out = String::new();
+
+        writeln!(&mut out, "tokens for {}", self.file).unwrap();
+        writeln!(
+            &mut out,
+            "{:>4}  {:<24} {:>9}  {:<12} text",
+            "idx", "kind", "line:col", "range"
+        )
+        .unwrap();
+
+        for (idx, token) in self.tokens.iter().enumerate() {
+            let kind = format!("{:?}", token.kind);
+            let location = format!("{}:{}", token.line, token.col);
+            let range = format!("{}..{}", token.range.start, token.range.end);
+
+            writeln!(
+                &mut out,
+                "{idx:>4}  {kind:<24} {location:>9}  {range:<12} {}",
+                self.debug_text(token)
+            )
+            .unwrap();
+        }
+
+        out
+    }
+
+    fn debug_text(&self, token: &Token) -> String {
+        let text = match token.kind {
+            TokenKind::Identifier(idx) => self
+                .identifier_table
+                .get(idx)
+                .map(String::as_str)
+                .unwrap_or("<missing identifier>"),
+            TokenKind::StringLiteral(idx) => self
+                .string_table
+                .get(idx)
+                .map(|entry| entry.content.as_str())
+                .unwrap_or("<missing string>"),
+            _ => self.source.get(token.range.clone()).unwrap_or(""),
+        };
+
+        let mut text = format!("{text:?}");
+        if let TokenKind::StringLiteral(idx) = token.kind {
+            if self
+                .string_table
+                .get(idx)
+                .is_some_and(|entry| entry.has_interpolation)
+            {
+                text.push_str(" (interpolated)");
+            }
+        }
+
+        text
+    }
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -112,25 +170,33 @@ enum LexerMode {
 /// as a state machine of the different types of tokens that need to be
 /// generated
 pub struct Lexer {
-    cursor: Cursor,  // info on where in source we are
-    mode: LexerMode, // current mode of the lexer
-    // TODO make into mode stack
+    cursor: Cursor,                      // info on where in source we are
+    mode: Vec<LexerMode>,                // current mode of the lexer
     identifier_table: Vec<String>,       // variable names
     string_table: Vec<StringEntry>,      // strings deduplication table
     queued_tokens: Vec<Token>,           // any trailing tokens like ], }, "
     last_significant: Option<TokenKind>, //
+    pub debug: bool,
 }
 
 impl Lexer {
     pub fn new(file: String, src: String) -> Self {
-        Lexer {
+        let mut lexer = Lexer {
             cursor: Cursor::new(file, src),
-            mode: LexerMode::Normal,
+            mode: Vec::new(),
             identifier_table: Vec::new(),
             string_table: Vec::new(),
             queued_tokens: Vec::new(),
             last_significant: None,
-        }
+            debug: false,
+        };
+
+        lexer.mode.push(LexerMode::Normal);
+        lexer
+    }
+
+    pub fn enable_debug(&mut self) {
+        self.debug = true;
     }
 
     /// eager lexing implementation
@@ -162,6 +228,9 @@ impl Lexer {
         }
         output.identifier_table = std::mem::take(&mut self.identifier_table);
         output.string_table = std::mem::take(&mut self.string_table);
+        if self.debug {
+            eprintln!("{}", output.debug_tokens());
+        }
         Ok(output)
     }
 
@@ -172,11 +241,11 @@ impl Lexer {
             return Ok(token);
         }
 
-        if self.mode != LexerMode::TextBody {
+        if self.current_mode() != LexerMode::TextBody {
             self.skip_trivia()?;
         }
 
-        let token = match self.mode {
+        let token = match self.current_mode() {
             LexerMode::Normal => self.lex_normal_token(),
             LexerMode::AwaitTextBodyOrAttrs | LexerMode::TextAttributes(_) => {
                 self.lex_text_transition_token()
@@ -231,9 +300,11 @@ impl Lexer {
     fn lex_text_transition_token(&mut self) -> Result<Token, CompilerDiagnostic> {
         let start = self.cursor.mark();
 
-        if self.cursor.peek() == Some(b'[') && self.mode == LexerMode::AwaitTextBodyOrAttrs {
+        if self.cursor.peek() == Some(b'[')
+            && self.current_mode() == LexerMode::AwaitTextBodyOrAttrs
+        {
             self.cursor.advance()?;
-            self.mode = LexerMode::TextBody;
+            self.set_mode(LexerMode::TextBody);
             return Ok(self.token(TokenKind::LeftBracket, start));
         }
 
@@ -267,7 +338,7 @@ impl Lexer {
 
                 let close_start = self.cursor.mark();
                 self.cursor.advance()?;
-                self.mode = LexerMode::Normal;
+                self.set_mode(LexerMode::Normal);
                 self.queued_tokens
                     .push(self.token(TokenKind::RightBracket, close_start));
 
@@ -301,7 +372,7 @@ impl Lexer {
         };
 
         if kind == TokenKind::Text && self.last_significant == Some(TokenKind::At) {
-            self.mode = LexerMode::AwaitTextBodyOrAttrs;
+            self.set_mode(LexerMode::AwaitTextBodyOrAttrs);
         }
 
         Ok(self.token(kind, start))
@@ -386,7 +457,8 @@ impl Lexer {
     }
 
     fn update_text_transition_mode(&mut self, kind: TokenKind) {
-        self.mode = match (self.mode, kind) {
+        let mode = self.current_mode();
+        let next = match (mode, kind) {
             (LexerMode::AwaitTextBodyOrAttrs, TokenKind::LeftParen) => LexerMode::TextAttributes(1),
             (LexerMode::TextAttributes(depth), TokenKind::LeftParen) => {
                 LexerMode::TextAttributes(depth + 1)
@@ -398,8 +470,21 @@ impl Lexer {
                 LexerMode::AwaitTextBodyOrAttrs
             }
             (mode, TokenKind::Eof) => mode,
-            (_, _) => self.mode,
+            (_, _) => mode,
         };
+        self.set_mode(next);
+    }
+
+    fn current_mode(&self) -> LexerMode {
+        self.mode.last().copied().unwrap_or(LexerMode::Normal)
+    }
+
+    fn set_mode(&mut self, mode: LexerMode) {
+        if let Some(current) = self.mode.last_mut() {
+            *current = mode;
+        } else {
+            self.mode.push(mode);
+        }
     }
 
     fn record_significant(&mut self, kind: TokenKind) {
@@ -451,4 +536,8 @@ impl Lexer {
         }
         false
     }
+}
+
+pub fn lex_all(source: &str, file: &str) -> Result<TokenStream, Vec<CompilerDiagnostic>> {
+    Lexer::new(file.to_string(), source.to_string()).lex_all()
 }

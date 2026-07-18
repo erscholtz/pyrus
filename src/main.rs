@@ -4,7 +4,13 @@ use std::fs;
 use std::time::Instant;
 
 use pyrus::{
-    ast::Ast, backend, diagnostic::DiagnosticManager, hir::{self, hir_debug::HirDisplayExt}, layout::setup_layout, lexer::{self, Lexer}, parser::Parser
+    ast::Ast,
+    backend,
+    diagnostic::DiagnosticManager,
+    hir::{self, hir_debug::HirDisplayExt},
+    layout::setup_layout,
+    lexer::{self, Lexer},
+    parser::Parser,
 };
 
 fn main() {
@@ -25,8 +31,7 @@ fn main() {
     } else {
         "resume.ink"
     };
-    let data =
-        fs::read_to_string(filename).expect("Should be able to read test file");
+    let data = fs::read_to_string(filename).expect("Should be able to read test file");
 
     let mut dm = DiagnosticManager::default();
     let mut lexer = Lexer::new(filename.to_string(), data);
@@ -39,17 +44,16 @@ fn main() {
             return;
         }
     };
-    println!("{:?}", &tokens);
+    println!("{}", tokens.debug_tokens());
 
-    let mut parser = Parser::new(tokens);
+    // let mut parser = Parser::new(tokens);
     // parser.enable_tracing();
-    let ast = parser.parse::<Ast>().unwrap();
-    parser.gather_errors(&mut dm);
-    println!("{:#?}", ast);
+    // let ast = parser.parse::<Ast>().unwrap();
+    // parser.gather_errors(&mut dm);
+    // println!("{:#?}", ast);
 
-    let hir_module =
-        hir::lower(&ast).expect("Should be able to lower AST to HIR");
-    println!("{}", hir_module.hir_display());
+    // let hir_module = hir::lower(&ast).expect("Should be able to lower AST to HIR");
+    // println!("{}", hir_module.hir_display());
 
     // println!("HLIR before style resolution:");
     // println!("  Elements: {}", hlir_module.elements.len());
@@ -80,10 +84,10 @@ fn main() {
     //     }
     // }
 
-    let layout = setup_layout(&hir_module);
+    // let layout = setup_layout(&hir_module);
 
     // Compute document flow layout (simple vertical stacking)
-    let computed_layouts = layout.compute_document_flow(&hir_module);
+    // let computed_layouts = layout.compute_document_flow(&hir_module);
 
     // Print computed layouts for each element
     // println!("\n=== Computed Layouts ===");
@@ -103,12 +107,12 @@ fn main() {
     // }
 
     // Render to PDF using backend
-    let backend = backend::Backend::new(backend::Renderer::Pdf);
-    if let Err(e) = backend.render(hir_module, &layout, &computed_layouts) {
-        eprintln!("Failed to render PDF: {}", e);
-    } else {
-        println!("\nPDF rendered successfully to generated/output.pdf");
-    }
+    // let backend = backend::Backend::new(backend::Renderer::Pdf);
+    // if let Err(e) = backend.render(hir_module, &layout, &computed_layouts) {
+    //     eprintln!("Failed to render PDF: {}", e);
+    // } else {
+    //     println!("\nPDF rendered successfully to generated/output.pdf");
+    // }
 
     let now = Instant::now();
     let time = now - last;
