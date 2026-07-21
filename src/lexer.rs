@@ -181,7 +181,7 @@ pub struct Lexer {
 
 impl Lexer {
     pub fn new(file: String, src: String) -> Self {
-        let mut lexer = Lexer {
+        let lexer = Lexer {
             cursor: Cursor::new(file, src),
             mode: Vec::new(),
             identifier_table: Vec::new(),
@@ -190,8 +190,6 @@ impl Lexer {
             last_significant: None,
             debug: false,
         };
-
-        lexer.mode.push(LexerMode::Normal);
         lexer
     }
 
@@ -204,11 +202,18 @@ impl Lexer {
         let mut errors = Vec::new();
         let mut output = TokenStream::new(self.cursor.file.clone());
         output.source = self.cursor.src.clone();
+
+        // right before lexing starts define normal state
+        self.mode.push(LexerMode::Normal);
         loop {
             let token = match self.pull() {
                 Ok(token) => token,
                 Err(err) => {
                     errors.push(err);
+
+                    if self.cursor.peek().is_none() {
+                        break;
+                    }
                     continue;
                 }
             };
@@ -222,6 +227,14 @@ impl Lexer {
                 break;
             }
         }
+
+        // sanity check that lexer mode is normal after lexing
+        let last = self.mode.pop();
+        debug_assert_eq!(
+            last,
+            Some(LexerMode::Normal),
+            "lexer mode should be normal after lexing"
+        );
 
         if !errors.is_empty() {
             return Err(errors);
@@ -298,18 +311,41 @@ impl Lexer {
     }
 
     fn lex_text_transition_token(&mut self) -> Result<Token, CompilerDiagnostic> {
+        let mode = self.current_mode();
         let start = self.cursor.mark();
 
-        if self.cursor.peek() == Some(b'[')
-            && self.current_mode() == LexerMode::AwaitTextBodyOrAttrs
-        {
+        // TODO: this should only be called in AwaitTextBodyOrAttrs mode, should
+        // assert!(mode == LexerMode::AwaitTextBodyOrAttrs);
+        // but we don't have access to the mode here, so we can't assert,
+
+        if mode == LexerMode::AwaitTextBodyOrAttrs && self.cursor.peek() == Some(b'[') {
             self.cursor.advance()?;
-            self.set_mode(LexerMode::TextBody);
+            self.mode.pop(); // remove await
+            self.mode.push(LexerMode::TextBody);
             return Ok(self.token(TokenKind::LeftBracket, start));
         }
 
         let token = self.lex_normal_token()?;
-        self.update_text_transition_mode(token.kind);
+        match (mode, token.kind) {
+            (LexerMode::AwaitTextBodyOrAttrs, TokenKind::LeftParen) => {
+                self.mode.push(LexerMode::TextAttributes(1));
+            }
+            (LexerMode::TextAttributes(depth), TokenKind::LeftParen) => {
+                self.mode.push(LexerMode::TextAttributes(depth + 1));
+            }
+            (LexerMode::TextAttributes(depth), TokenKind::RightParen) if depth > 1 => {
+                self.mode.pop();
+            }
+            (LexerMode::TextAttributes(1), TokenKind::RightParen) => {
+                self.mode.pop();
+            }
+            (mode, TokenKind::Eof) => {
+                // TODO
+                todo!("decide on decide whether an unfinished text element is an error");
+            }
+            (_, _) => {} // TODO
+        };
+
         Ok(token)
     }
 
@@ -338,7 +374,7 @@ impl Lexer {
 
                 let close_start = self.cursor.mark();
                 self.cursor.advance()?;
-                self.set_mode(LexerMode::Normal);
+                self.mode.pop();
                 self.queued_tokens
                     .push(self.token(TokenKind::RightBracket, close_start));
 
@@ -372,7 +408,7 @@ impl Lexer {
         };
 
         if kind == TokenKind::Text && self.last_significant == Some(TokenKind::At) {
-            self.set_mode(LexerMode::AwaitTextBodyOrAttrs);
+            self.mode.push(LexerMode::AwaitTextBodyOrAttrs);
         }
 
         Ok(self.token(kind, start))
@@ -456,35 +492,8 @@ impl Lexer {
         }
     }
 
-    fn update_text_transition_mode(&mut self, kind: TokenKind) {
-        let mode = self.current_mode();
-        let next = match (mode, kind) {
-            (LexerMode::AwaitTextBodyOrAttrs, TokenKind::LeftParen) => LexerMode::TextAttributes(1),
-            (LexerMode::TextAttributes(depth), TokenKind::LeftParen) => {
-                LexerMode::TextAttributes(depth + 1)
-            }
-            (LexerMode::TextAttributes(depth), TokenKind::RightParen) if depth > 1 => {
-                LexerMode::TextAttributes(depth - 1)
-            }
-            (LexerMode::TextAttributes(1), TokenKind::RightParen) => {
-                LexerMode::AwaitTextBodyOrAttrs
-            }
-            (mode, TokenKind::Eof) => mode,
-            (_, _) => mode,
-        };
-        self.set_mode(next);
-    }
-
     fn current_mode(&self) -> LexerMode {
-        self.mode.last().copied().unwrap_or(LexerMode::Normal)
-    }
-
-    fn set_mode(&mut self, mode: LexerMode) {
-        if let Some(current) = self.mode.last_mut() {
-            *current = mode;
-        } else {
-            self.mode.push(mode);
-        }
+        *self.mode.last().expect("lexer mode must not be empty")
     }
 
     fn record_significant(&mut self, kind: TokenKind) {

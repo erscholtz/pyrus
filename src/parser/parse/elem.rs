@@ -7,7 +7,7 @@ use crate::{
     },
     diagnostic::SyntaxError,
     lexer::tokens::TokenKind,
-    parser::{parse::Parse, Parser},
+    parser::{Parser, parse::Parse},
 };
 
 impl Parse for DocElem {
@@ -255,7 +255,7 @@ impl Parse for ListElem {
 impl Parse for CallElem {
     /// Parses a call element, e.g.
     ///
-    /// `@Call("func", [arg1, arg2])` -> `CallElem { name: "func", args: [arg1, arg2], children: [] }`.
+    /// `func([arg1, arg2])` -> `CallElem { name: "func", args: [arg1, arg2], children: [] }`.
     fn parse(p: &mut Parser) -> Result<Self, SyntaxError> {
         let name = p.cursor.expect_identifier()?;
 

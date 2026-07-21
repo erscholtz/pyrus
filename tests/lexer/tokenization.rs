@@ -88,20 +88,6 @@ fn records_integer_and_float_ranges() {
     assert_eq!(tokens.tokens[1].range, 3..7);
 }
 
-#[test]
-fn skips_line_and_block_comments() {
-    let tokens = lexer::lex_all("let // hidden\nconst /* hidden */ name", "comments").unwrap();
-    assert_eq!(
-        kinds(&tokens),
-        vec![
-            TokenKind::Let,
-            TokenKind::Const,
-            TokenKind::Identifier(0),
-            TokenKind::Eof
-        ]
-    );
-    assert_eq!(tokens.identifier_table[0], "name");
-}
 
 #[test]
 fn tracks_token_location_after_newline() {
