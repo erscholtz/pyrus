@@ -6,7 +6,9 @@ pub mod semantic;
 pub mod syntax;
 // pub mod warning;
 
-pub use diagnostic::{Diagnostic, Severity, SourceLocation, Span, format_diagnostic};
+pub use diagnostic::{
+    Diagnostic, Severity, SourceLocation, Span, format_diagnostic,
+};
 pub use diagnostic_manager::{CompilerDiagnostic, DiagnosticManager};
 // pub use fatal::FatalError;
 // pub use note::Note;

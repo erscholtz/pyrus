@@ -4,7 +4,9 @@ use pyrus::layout::setup_layout;
 use pyrus::lexer::{TokenStream, lex_all};
 use pyrus::parser::Parser;
 
-fn parse(tokens: TokenStream) -> Result<Ast, Vec<pyrus::diagnostic::SyntaxError>> {
+fn parse(
+    tokens: TokenStream,
+) -> Result<Ast, Vec<pyrus::diagnostic::SyntaxError>> {
     Parser::new(tokens).parse::<Ast>()
 }
 
@@ -28,7 +30,8 @@ style {
     }
 }
 "#;
-    let tokens = lex_all(source, "test_document_flow_lays_out_separator").expect("Lexing failed");
+    let tokens = lex_all(source, "test_document_flow_lays_out_separator")
+        .expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower_ast(&ast);
     let layout = setup_layout(&hlir);
@@ -36,16 +39,23 @@ style {
 
     let separator_layout = computed
         .iter()
-        .find(|layout| hlir.element_metadata[layout.element_index].element_type == "separator")
+        .find(|layout| {
+            hlir.element_metadata[layout.element_index].element_type
+                == "separator"
+        })
         .expect("Separator should have a computed layout");
     let following_text_layout = computed
         .iter()
-        .filter(|layout| hlir.element_metadata[layout.element_index].element_type == "text")
+        .filter(|layout| {
+            hlir.element_metadata[layout.element_index].element_type == "text"
+        })
         .nth(1)
         .expect("Text after separator should have a computed layout");
 
     assert!((separator_layout.height - 2.0).abs() < 0.001);
-    assert!(following_text_layout.y > separator_layout.y + separator_layout.height);
+    assert!(
+        following_text_layout.y > separator_layout.y + separator_layout.height
+    );
 }
 
 #[test]
@@ -76,7 +86,10 @@ style {
 
     let separator_layout = computed
         .iter()
-        .find(|layout| hlir.element_metadata[layout.element_index].element_type == "separator")
+        .find(|layout| {
+            hlir.element_metadata[layout.element_index].element_type
+                == "separator"
+        })
         .expect("Separator should have a computed layout");
 
     assert!((separator_layout.x - 36.0).abs() < 0.001);

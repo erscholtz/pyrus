@@ -99,7 +99,10 @@ impl SemanticError {
         }
     }
 
-    pub fn undefined_variable(name: impl Into<String>, location: SourceLocation) -> Self {
+    pub fn undefined_variable(
+        name: impl Into<String>,
+        location: SourceLocation,
+    ) -> Self {
         Self::UndefinedVariable {
             location,
             name: name.into(),
@@ -233,16 +236,30 @@ impl Diagnostic for SemanticError {
     fn message(&self) -> &str {
         match self {
             SemanticError::TypeMismatch { .. } => "type mismatch",
-            SemanticError::UndefinedVariable { .. } => "undefined variable or function",
+            SemanticError::UndefinedVariable { .. } => {
+                "undefined variable or function"
+            }
             SemanticError::InvalidBinaryOp { .. } => "invalid binary operation",
             SemanticError::InvalidUnaryOp { .. } => "invalid unary operation",
-            SemanticError::ArgumentCountMismatch { .. } => "argument count mismatch",
-            SemanticError::ArgumentTypeMismatch { .. } => "argument type mismatch",
+            SemanticError::ArgumentCountMismatch { .. } => {
+                "argument count mismatch"
+            }
+            SemanticError::ArgumentTypeMismatch { .. } => {
+                "argument type mismatch"
+            }
             SemanticError::DuplicateDefinition { .. } => "duplicate definition",
-            SemanticError::InvalidStyleProperty { .. } => "invalid style property or value",
-            SemanticError::MissingStyleProperty { .. } => "missing required style property",
-            SemanticError::InvalidLayoutConstraint { .. } => "invalid layout constraint",
-            SemanticError::DefaultSetAtInvalidLocation { .. } => "default set at invalid location",
+            SemanticError::InvalidStyleProperty { .. } => {
+                "invalid style property or value"
+            }
+            SemanticError::MissingStyleProperty { .. } => {
+                "missing required style property"
+            }
+            SemanticError::InvalidLayoutConstraint { .. } => {
+                "invalid layout constraint"
+            }
+            SemanticError::DefaultSetAtInvalidLocation { .. } => {
+                "default set at invalid location"
+            }
             SemanticError::FuncDeclAtInvalidLocation { .. } => {
                 "function declaration at invalid location"
             }
@@ -252,17 +269,35 @@ impl Diagnostic for SemanticError {
     fn location(&self) -> SourceLocation {
         match self {
             SemanticError::TypeMismatch { location, .. } => location.clone(),
-            SemanticError::UndefinedVariable { location, .. } => location.clone(),
+            SemanticError::UndefinedVariable { location, .. } => {
+                location.clone()
+            }
             SemanticError::InvalidBinaryOp { location, .. } => location.clone(),
             SemanticError::InvalidUnaryOp { location, .. } => location.clone(),
-            SemanticError::ArgumentCountMismatch { location, .. } => location.clone(),
-            SemanticError::ArgumentTypeMismatch { location, .. } => location.clone(),
-            SemanticError::DuplicateDefinition { location, .. } => location.clone(),
-            SemanticError::InvalidStyleProperty { location, .. } => location.clone(),
-            SemanticError::MissingStyleProperty { location, .. } => location.clone(),
-            SemanticError::InvalidLayoutConstraint { location, .. } => location.clone(),
-            SemanticError::DefaultSetAtInvalidLocation { location, .. } => location.clone(),
-            SemanticError::FuncDeclAtInvalidLocation { location, .. } => location.clone(),
+            SemanticError::ArgumentCountMismatch { location, .. } => {
+                location.clone()
+            }
+            SemanticError::ArgumentTypeMismatch { location, .. } => {
+                location.clone()
+            }
+            SemanticError::DuplicateDefinition { location, .. } => {
+                location.clone()
+            }
+            SemanticError::InvalidStyleProperty { location, .. } => {
+                location.clone()
+            }
+            SemanticError::MissingStyleProperty { location, .. } => {
+                location.clone()
+            }
+            SemanticError::InvalidLayoutConstraint { location, .. } => {
+                location.clone()
+            }
+            SemanticError::DefaultSetAtInvalidLocation { location, .. } => {
+                location.clone()
+            }
+            SemanticError::FuncDeclAtInvalidLocation { location, .. } => {
+                location.clone()
+            }
         }
     }
 
@@ -328,7 +363,10 @@ impl SemanticError {
             SemanticError::InvalidUnaryOp {
                 op, operand_type, ..
             } => {
-                format!("cannot apply operator `{}` to type `{}`", op, operand_type)
+                format!(
+                    "cannot apply operator `{}` to type `{}`",
+                    op, operand_type
+                )
             }
             SemanticError::ArgumentCountMismatch {
                 function,
@@ -384,9 +422,14 @@ impl SemanticError {
                 )
             }
             SemanticError::InvalidLayoutConstraint {
-                constraint, reason, ..
+                constraint,
+                reason,
+                ..
             } => {
-                format!("invalid layout constraint `{}`: {}", constraint, reason)
+                format!(
+                    "invalid layout constraint `{}`: {}",
+                    constraint, reason
+                )
             }
             SemanticError::DefaultSetAtInvalidLocation { .. } => {
                 format!("default set at invalid location")

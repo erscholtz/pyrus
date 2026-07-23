@@ -31,14 +31,18 @@ fn formats_tokens_for_debugging() {
 
 #[test]
 fn lexes_sample_file_tokens() {
-    let data = fs::read_to_string("tests/input/lexer_test.ink").expect("read sample file");
-    let tokens = lexer::lex_all(&data, "lexer_test.ink").expect("Lexing failed");
+    let data = fs::read_to_string("tests/input/lexer_test.ink")
+        .expect("read sample file");
+    let tokens =
+        lexer::lex_all(&data, "lexer_test.ink").expect("Lexing failed");
 
     let non_ws_indices: Vec<usize> = tokens
         .tokens
         .iter()
         .enumerate()
-        .filter_map(|(i, token)| (token.kind != TokenKind::Whitespace).then_some(i))
+        .filter_map(|(i, token)| {
+            (token.kind != TokenKind::Whitespace).then_some(i)
+        })
         .collect();
 
     assert!(!non_ws_indices.is_empty());
@@ -49,13 +53,16 @@ fn lexes_sample_file_tokens() {
         .tokens
         .iter()
         .enumerate()
-        .filter_map(|(i, token)| matches!(token.kind, TokenKind::StringLiteral(_)).then_some(i))
+        .filter_map(|(i, token)| {
+            matches!(token.kind, TokenKind::StringLiteral(_)).then_some(i)
+        })
         .collect();
     assert!(!string_indices.is_empty());
 
     let has_my_document = string_indices.iter().any(|&i| {
         let raw = lexeme(&tokens, i);
-        raw.contains("My Document") || raw.trim_matches('"').contains("My Document")
+        raw.contains("My Document")
+            || raw.trim_matches('"').contains("My Document")
     });
     assert!(has_my_document);
     assert_eq!(tokens.tokens.last().unwrap().kind, TokenKind::Eof);
@@ -69,7 +76,9 @@ fn lexes_single_equals_as_assignment() {
 
 #[test]
 fn distinguishes_keywords_from_identifiers() {
-    let tokens = lexer::lex_all("template template_name text text2", "keywords").unwrap();
+    let tokens =
+        lexer::lex_all("template template_name text text2", "keywords")
+            .unwrap();
     assert_eq!(kind(&tokens, 0), TokenKind::Template);
     assert!(matches!(kind(&tokens, 1), TokenKind::Identifier(_)));
     assert_eq!(kind(&tokens, 2), TokenKind::Text);
@@ -87,7 +96,6 @@ fn records_integer_and_float_ranges() {
     assert_eq!(tokens.tokens[0].range, 0..2);
     assert_eq!(tokens.tokens[1].range, 3..7);
 }
-
 
 #[test]
 fn tracks_token_location_after_newline() {

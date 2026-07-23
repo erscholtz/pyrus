@@ -3,7 +3,9 @@ use pyrus::hir::{hir_types::HIRModule, lower};
 use pyrus::lexer::{TokenStream, lex_all};
 use pyrus::parser::Parser;
 
-fn parse(tokens: TokenStream) -> Result<Ast, Vec<pyrus::diagnostic::SyntaxError>> {
+fn parse(
+    tokens: TokenStream,
+) -> Result<Ast, Vec<pyrus::diagnostic::SyntaxError>> {
     Parser::new(tokens).parse::<Ast>()
 }
 
@@ -25,7 +27,8 @@ style {
     }
 }
 "#;
-    let tokens = lex_all(source, "test_specificity_inline_wins").expect("Lexing failed");
+    let tokens =
+        lex_all(source, "test_specificity_inline_wins").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower_ast(&ast);
 
@@ -54,7 +57,8 @@ style {
     }
 }
 "#;
-    let tokens = lex_all(source, "test_specificity_id_over_class").expect("Lexing failed");
+    let tokens = lex_all(source, "test_specificity_id_over_class")
+        .expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower_ast(&ast);
 
@@ -84,7 +88,8 @@ style {
 }
 "#;
     let tokens =
-        lex_all(source, "test_specificity_class_over_less_specific_rule").expect("Lexing failed");
+        lex_all(source, "test_specificity_class_over_less_specific_rule")
+            .expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower_ast(&ast);
 
@@ -151,7 +156,8 @@ style {
     }
 }
 "#;
-    let tokens = lex_all(source, "test_multiple_rules_combine").expect("Lexing failed");
+    let tokens =
+        lex_all(source, "test_multiple_rules_combine").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower_ast(&ast);
 
@@ -181,7 +187,8 @@ style {
     }
 }
 "#;
-    let tokens = lex_all(source, "test_same_property_last_wins").expect("Lexing failed");
+    let tokens =
+        lex_all(source, "test_same_property_last_wins").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower_ast(&ast);
 
@@ -212,7 +219,8 @@ style {
     }
 }
 "#;
-    let tokens = lex_all(source, "test_multiple_selectors_in_rule").expect("Lexing failed");
+    let tokens = lex_all(source, "test_multiple_selectors_in_rule")
+        .expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower_ast(&ast);
 

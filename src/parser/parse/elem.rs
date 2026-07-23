@@ -2,8 +2,8 @@ use std::collections::HashMap;
 
 use crate::{
     ast::{
-        ArgType, CallElem, ChildrenElem, DocElem, DocElemKind, Expr, ImageElem, LinkElem, ListElem,
-        SectionElem, SeparatorElem, TableElem, TextElem,
+        ArgType, CallElem, ChildrenElem, DocElem, DocElemKind, Expr, ImageElem,
+        LinkElem, ListElem, SectionElem, SeparatorElem, TableElem, TextElem,
     },
     diagnostic::SyntaxError,
     lexer::tokens::TokenKind,
@@ -165,7 +165,8 @@ impl TableElem {
                     (p.cursor.cur_tok() == &TokenKind::Pipe
                         && p.cursor.peek_tok() == Some(&TokenKind::Pipe))
                         || (p.cursor.cur_tok() == &TokenKind::Pipe
-                            && p.cursor.peek_tok() == Some(&TokenKind::RightBracket))
+                            && p.cursor.peek_tok()
+                                == Some(&TokenKind::RightBracket))
                 },
                 |p: &mut Parser| p.cursor.cur_tok() == &TokenKind::Pipe,
                 Some(TokenKind::Pipe),
@@ -179,7 +180,11 @@ impl TableElem {
                 return Err(SyntaxError::InvalidConstruct {
                     location: p.cursor.location(),
                     construct: "table row".to_string(),
-                    reason: format!("Expected {} columns, got {}", colum_count, row.len()),
+                    reason: format!(
+                        "Expected {} columns, got {}",
+                        colum_count,
+                        row.len()
+                    ),
                 });
             }
         }
@@ -193,7 +198,10 @@ impl TableElem {
         Ok(table)
     }
 
-    fn parse_divider_row(p: &mut Parser, column_count: usize) -> Result<(), SyntaxError> {
+    fn parse_divider_row(
+        p: &mut Parser,
+        column_count: usize,
+    ) -> Result<(), SyntaxError> {
         p.cursor.expect(TokenKind::Pipe)?;
         p.cursor.expect(TokenKind::Pipe)?;
 

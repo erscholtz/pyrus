@@ -39,7 +39,10 @@ impl StylePass {
         }
     }
 
-    fn compute_document_styles(&mut self, rules: &[StyleRule]) -> StyleAttributes {
+    fn compute_document_styles(
+        &mut self,
+        rules: &[StyleRule],
+    ) -> StyleAttributes {
         let mut computed = StyleAttributes::default();
 
         for rule in rules {
@@ -48,7 +51,10 @@ impl StylePass {
                 .iter()
                 .any(Self::selector_targets_document)
             {
-                self.apply_rule_declarations(&mut computed, &rule.declaration_block);
+                self.apply_rule_declarations(
+                    &mut computed,
+                    &rule.declaration_block,
+                );
             }
         }
 
@@ -76,14 +82,21 @@ impl StylePass {
 
         let mut matching_rules = Vec::new();
         for (source_order, rule) in rules.iter().enumerate() {
-            if let Some(specificity) = self.matching_specificity(rule, element_idx, hir) {
+            if let Some(specificity) =
+                self.matching_specificity(rule, element_idx, hir)
+            {
                 matching_rules.push((specificity, source_order, rule));
             }
         }
-        matching_rules.sort_by_key(|(specificity, source_order, _)| (*specificity, *source_order));
+        matching_rules.sort_by_key(|(specificity, source_order, _)| {
+            (*specificity, *source_order)
+        });
 
         for (_, _, rule) in matching_rules {
-            self.apply_rule_declarations(&mut computed, &rule.declaration_block);
+            self.apply_rule_declarations(
+                &mut computed,
+                &rule.declaration_block,
+            );
         }
 
         self.apply_inline_styles(&mut computed, metadata.attributes_ref, hir);
@@ -98,7 +111,9 @@ impl StylePass {
     ) {
         let parent_metadata = &hir.element_metadata[parent_idx];
 
-        if let Some(parent_node) = hir.attributes.find_node(parent_metadata.attributes_ref) {
+        if let Some(parent_node) =
+            hir.attributes.find_node(parent_metadata.attributes_ref)
+        {
             computed.apply_inherited(&parent_node.computed);
         }
     }
@@ -111,7 +126,9 @@ impl StylePass {
     ) -> Option<usize> {
         rule.selector_list
             .iter()
-            .filter(|selector| self.selector_matches(selector, element_idx, hir))
+            .filter(|selector| {
+                self.selector_matches(selector, element_idx, hir)
+            })
             .map(Self::selector_specificity)
             .max()
     }
@@ -124,7 +141,12 @@ impl StylePass {
         }
     }
 
-    fn selector_matches(&self, selector: &Selector, element_idx: usize, hir: &HIRModule) -> bool {
+    fn selector_matches(
+        &self,
+        selector: &Selector,
+        element_idx: usize,
+        hir: &HIRModule,
+    ) -> bool {
         let metadata = hir.element_metadata[element_idx].clone();
 
         match selector {
@@ -181,7 +203,9 @@ impl StylePass {
     }
 
     fn expr_kind_to_string(&self, expr: &crate::ast::ExprKind) -> String {
-        use crate::ast::{BinaryExpr, ExprKind, InterpolatedStringExpr, UnaryExpr};
+        use crate::ast::{
+            BinaryExpr, ExprKind, InterpolatedStringExpr, UnaryExpr,
+        };
 
         match expr {
             ExprKind::StringLiteral(s) => s.clone(),

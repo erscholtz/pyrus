@@ -3,8 +3,8 @@
 use crate::{
     diagnostic::{SourceLocation, SyntaxError},
     lexer::{
-        tokens::{StringEntry, TokenKind},
         Token, TokenStream,
+        tokens::{StringEntry, TokenKind},
     },
 };
 
@@ -67,7 +67,9 @@ impl Cursor {
 
     pub fn cur_text(&self) -> &str {
         match self.cur_tok() {
-            TokenKind::Identifier(idx) => self.get_identifier(*idx).unwrap_or(""),
+            TokenKind::Identifier(idx) => {
+                self.get_identifier(*idx).unwrap_or("")
+            }
             TokenKind::Int | TokenKind::Float => self
                 .cur_range()
                 .and_then(|range| self.tokens.source.get(range))
@@ -96,7 +98,11 @@ impl Cursor {
     }
 
     pub fn location(&self) -> SourceLocation {
-        SourceLocation::new(self.cur_line(), self.cur_col(), self.tokens.file.clone())
+        SourceLocation::new(
+            self.cur_line(),
+            self.cur_col(),
+            self.tokens.file.clone(),
+        )
     }
 
     pub fn advance(&mut self) -> &TokenKind {
@@ -117,7 +123,10 @@ impl Cursor {
         matches!(self.cur_tok(), TokenKind::Identifier(_))
     }
 
-    pub fn expect(&mut self, kind: TokenKind) -> Result<TokenKind, SyntaxError> {
+    pub fn expect(
+        &mut self,
+        kind: TokenKind,
+    ) -> Result<TokenKind, SyntaxError> {
         if self.trace_enabled {
             eprintln!(
                 "[parse:{}:expect] want={:?} have={:?} text={:?} line={} col={}",
@@ -206,4 +215,3 @@ impl Cursor {
         self.tokens.string_table.get(idx as usize)
     }
 }
-

@@ -1,6 +1,8 @@
 use crate::lexer::tokens::TokenKind;
 
-use super::{Diagnostic, SemanticError, Severity, SourceLocation, Span, SyntaxError};
+use super::{
+    Diagnostic, SemanticError, Severity, SourceLocation, Span, SyntaxError,
+};
 
 #[derive(Debug, Clone)]
 pub enum CompilerDiagnostic {
@@ -48,7 +50,9 @@ impl Diagnostic for CompilerDiagnostic {
     fn recoverable(&self) -> bool {
         match self {
             CompilerDiagnostic::Syntax(diagnostic) => diagnostic.recoverable(),
-            CompilerDiagnostic::Semantic(diagnostic) => diagnostic.recoverable(),
+            CompilerDiagnostic::Semantic(diagnostic) => {
+                diagnostic.recoverable()
+            }
         }
     }
 
@@ -123,9 +127,9 @@ impl DiagnosticManager {
     }
 
     pub fn has_errors(&self) -> bool {
-        self.diagnostics
-            .iter()
-            .any(|diagnostic| matches!(diagnostic.severity(), Severity::Error | Severity::Fatal))
+        self.diagnostics.iter().any(|diagnostic| {
+            matches!(diagnostic.severity(), Severity::Error | Severity::Fatal)
+        })
     }
 
     pub fn has_fatal(&self) -> bool {

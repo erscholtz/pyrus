@@ -25,8 +25,12 @@ fn test_parse_binary_addition() {
     match assigned_expr("template { let sum = x + y }") {
         ExprKind::Binary(expr) => {
             assert!(matches!(expr.op, BinOp::Add));
-            assert!(matches!(expr.left.as_ref(), ExprKind::Identifier(name) if name == "x"));
-            assert!(matches!(expr.right.as_ref(), ExprKind::Identifier(name) if name == "y"));
+            assert!(
+                matches!(expr.left.as_ref(), ExprKind::Identifier(name) if name == "x")
+            );
+            assert!(
+                matches!(expr.right.as_ref(), ExprKind::Identifier(name) if name == "y")
+            );
         }
         other => panic!("Expected Binary expr, got {other:?}"),
     }
@@ -129,7 +133,9 @@ fn parses_logical_not_prefix_expression() {
     match assigned_expr("template { let shown = !hidden }") {
         ExprKind::Unary(expr) => {
             assert!(matches!(expr.op, UnaryOp::Not));
-            assert!(matches!(expr.expr.as_ref(), ExprKind::Identifier(name) if name == "hidden"));
+            assert!(
+                matches!(expr.expr.as_ref(), ExprKind::Identifier(name) if name == "hidden")
+            );
         }
         other => panic!("Expected Unary expr, got {other:?}"),
     }

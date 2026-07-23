@@ -58,10 +58,13 @@ fn test_parse_return_doc_element() {
     assert_eq!(statements.len(), 1);
 
     match &statements[0].node {
-        StmtKind::Return(ReturnStmt::DocElem(doc_elem)) => match &doc_elem.node {
+        StmtKind::Return(ReturnStmt::DocElem(doc_elem)) => match &doc_elem.node
+        {
             DocElemKind::Text(text) => match &text.content.node {
                 ExprKind::StringLiteral(value) => assert_eq!(value, "done"),
-                other => panic!("Expected StringLiteral content, got {other:?}"),
+                other => {
+                    panic!("Expected StringLiteral content, got {other:?}")
+                }
             },
             other => panic!("Expected text element, got {other:?}"),
         },
@@ -87,7 +90,9 @@ fn test_parse_if_statement() {
 
     match &statements[0].node {
         StmtKind::If(stmt) => {
-            assert!(matches!(&stmt.condition.node, ExprKind::Identifier(name) if name == "x"));
+            assert!(
+                matches!(&stmt.condition.node, ExprKind::Identifier(name) if name == "x")
+            );
             assert_eq!(stmt.body.len(), 1);
             assert!(stmt.else_body.is_none());
 
@@ -105,15 +110,20 @@ fn test_parse_if_statement() {
 
 #[test]
 fn test_parse_if_else_statement() {
-    let statements = template_statements("template { if x { let y = 1 } else { let y = 2 } }");
+    let statements = template_statements(
+        "template { if x { let y = 1 } else { let y = 2 } }",
+    );
     assert_eq!(statements.len(), 1);
 
     match &statements[0].node {
         StmtKind::If(stmt) => {
-            assert!(matches!(&stmt.condition.node, ExprKind::Identifier(name) if name == "x"));
+            assert!(
+                matches!(&stmt.condition.node, ExprKind::Identifier(name) if name == "x")
+            );
             assert_eq!(stmt.body.len(), 1);
 
-            let else_body = stmt.else_body.as_ref().expect("Expected else body");
+            let else_body =
+                stmt.else_body.as_ref().expect("Expected else body");
             assert_eq!(else_body.len(), 1);
 
             match &else_body[0].node {
@@ -121,7 +131,9 @@ fn test_parse_if_else_statement() {
                     assert_eq!(assign.name, "y");
                     assert!(matches!(&assign.value.node, ExprKind::Int(2)));
                 }
-                other => panic!("Expected VarAssign in else body, got {other:?}"),
+                other => {
+                    panic!("Expected VarAssign in else body, got {other:?}")
+                }
             }
         }
         other => panic!("Expected If statement, got {other:?}"),
@@ -130,7 +142,8 @@ fn test_parse_if_else_statement() {
 
 #[test]
 fn test_parse_if_statement_with_multiple_body_statements() {
-    let statements = template_statements("template { if x { let a = 1 const B = 2 } }");
+    let statements =
+        template_statements("template { if x { let a = 1 const B = 2 } }");
     assert_eq!(statements.len(), 1);
 
     match &statements[0].node {
@@ -145,7 +158,9 @@ fn test_parse_if_statement_with_multiple_body_statements() {
 
 #[test]
 fn test_parse_mixed_statements() {
-    let statements = template_statements("template { let x = 10 const MAX = 100 width = 50 }");
+    let statements = template_statements(
+        "template { let x = 10 const MAX = 100 width = 50 }",
+    );
     assert_eq!(statements.len(), 3);
 
     assert!(matches!(statements[0].node, StmtKind::VarAssign(_)));

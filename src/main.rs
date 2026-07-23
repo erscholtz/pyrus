@@ -31,7 +31,8 @@ fn main() {
     } else {
         "resume.ink"
     };
-    let data = fs::read_to_string(filename).expect("Should be able to read test file");
+    let data =
+        fs::read_to_string(filename).expect("Should be able to read test file");
 
     let mut dm = DiagnosticManager::default();
     let mut lexer = Lexer::new(filename.to_string(), data);

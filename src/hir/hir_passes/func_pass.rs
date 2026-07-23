@@ -9,7 +9,11 @@ use crate::util::Spanned;
 pub struct FuncPass;
 
 impl HIRPass for FuncPass {
-    fn run(&mut self, hir: &mut HIRModule, ast: &Ast) -> Result<(), Vec<SemanticError>> {
+    fn run(
+        &mut self,
+        hir: &mut HIRModule,
+        ast: &Ast,
+    ) -> Result<(), Vec<SemanticError>> {
         let mut errors = Vec::new();
         if let Some(template) = &ast.template {
             for stmt in &template.statements {

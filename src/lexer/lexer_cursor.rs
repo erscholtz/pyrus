@@ -74,7 +74,7 @@ impl Cursor {
             file: self.file.clone(),
         }
     }
-    
+
     /// creates a mark for a location, this is useful for marking the start of
     /// a token
     pub fn mark(&self) -> Mark {

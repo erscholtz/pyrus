@@ -7,7 +7,8 @@ fn kind(tokens: &lexer::TokenStream, idx: usize) -> TokenKind {
 
 #[test]
 fn lexes_text_body_as_single_string_literal() {
-    let tokens = lexer::lex_all("@text[${price} * quantity]", "text_body").unwrap();
+    let tokens =
+        lexer::lex_all("@text[${price} * quantity]", "text_body").unwrap();
 
     assert_eq!(kind(&tokens, 0), TokenKind::At);
     assert_eq!(kind(&tokens, 1), TokenKind::Text);
@@ -24,7 +25,8 @@ fn lexes_text_body_as_single_string_literal() {
 
 #[test]
 fn lexes_text_body_after_attributes_without_space() {
-    let tokens = lexer::lex_all(r#"@text(class="hero")[Hello]"#, "attrs").unwrap();
+    let tokens =
+        lexer::lex_all(r#"@text(class="hero")[Hello]"#, "attrs").unwrap();
     let body_idx = match kind(&tokens, 8) {
         TokenKind::StringLiteral(idx) => idx,
         ref other => panic!("Expected text body string, got {other:?}"),
@@ -37,7 +39,8 @@ fn lexes_text_body_after_attributes_without_space() {
 
 #[test]
 fn lexes_text_body_after_attributes_with_space() {
-    let tokens = lexer::lex_all(r#"@text(class="hero") [ text ]"#, "attrs").unwrap();
+    let tokens =
+        lexer::lex_all(r#"@text(class="hero") [ text ]"#, "attrs").unwrap();
     let body_idx = match kind(&tokens, 8) {
         TokenKind::StringLiteral(idx) => idx,
         ref other => panic!("Expected text body string, got {other:?}"),

@@ -3,7 +3,9 @@ use pyrus::hir::{hir_types::HIRModule, lower};
 use pyrus::lexer::{TokenStream, lex_all};
 use pyrus::parser::Parser;
 
-fn parse(tokens: TokenStream) -> Result<Ast, Vec<pyrus::diagnostic::SyntaxError>> {
+fn parse(
+    tokens: TokenStream,
+) -> Result<Ast, Vec<pyrus::diagnostic::SyntaxError>> {
     Parser::new(tokens).parse::<Ast>()
 }
 
@@ -25,7 +27,8 @@ style {
     }
 }
 "#;
-    let tokens = lex_all(source, "test_typed_margin_property").expect("Lexing failed");
+    let tokens =
+        lex_all(source, "test_typed_margin_property").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower_ast(&ast);
 
@@ -48,7 +51,8 @@ style {
     }
 }
 "#;
-    let tokens = lex_all(source, "test_typed_padding_property").expect("Lexing failed");
+    let tokens =
+        lex_all(source, "test_typed_padding_property").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower_ast(&ast);
 
@@ -74,7 +78,8 @@ style {
     }
 }
 "#;
-    let tokens = lex_all(source, "test_no_matching_rules").expect("Lexing failed");
+    let tokens =
+        lex_all(source, "test_no_matching_rules").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower_ast(&ast);
 
@@ -95,7 +100,8 @@ document {
 style {
 }
 "#;
-    let tokens = lex_all(source, "test_empty_style_block").expect("Lexing failed");
+    let tokens =
+        lex_all(source, "test_empty_style_block").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower_ast(&ast);
 
@@ -162,7 +168,8 @@ style {
     }
 }
 "#;
-    let tokens = lex_all(source, "test_complex_css_scenario").expect("Lexing failed");
+    let tokens =
+        lex_all(source, "test_complex_css_scenario").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower_ast(&ast);
 
@@ -192,7 +199,8 @@ style {
         .iter()
         .find(|m| m.element_type == "section")
         .unwrap();
-    let section_node = hlir.attributes.find_node(section.attributes_ref).unwrap();
+    let section_node =
+        hlir.attributes.find_node(section.attributes_ref).unwrap();
     assert_eq!(section_node.computed.margin, Some(20.0)); // From section
     assert_eq!(section_node.computed.padding, Some(10.0)); // From section
     assert_eq!(
@@ -237,8 +245,8 @@ style {
 fn test_css_from_file() {
     use std::fs;
 
-    let data =
-        fs::read_to_string("tests/input/css_test.ink").expect("Should be able to read test file");
+    let data = fs::read_to_string("tests/input/css_test.ink")
+        .expect("Should be able to read test file");
     let tokens = lex_all(&data, "test_css_from_file").expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower_ast(&ast);
@@ -282,7 +290,8 @@ style {
 }
 "#;
     let tokens =
-        lex_all(source, "test_body_styles_are_document_styles_and_inherit").expect("Lexing failed");
+        lex_all(source, "test_body_styles_are_document_styles_and_inherit")
+            .expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower_ast(&ast);
 

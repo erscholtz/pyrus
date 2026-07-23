@@ -1,11 +1,11 @@
 use crate::{
     ast::{
-        ChildrenStmt, ConstAssignStmt, DefaultSetStmt, DocElem, Expr, FuncDeclStmt, IfStmt,
-        ReturnStmt, Stmt, StmtKind, VarAssignStmt,
+        ChildrenStmt, ConstAssignStmt, DefaultSetStmt, DocElem, Expr,
+        FuncDeclStmt, IfStmt, ReturnStmt, Stmt, StmtKind, VarAssignStmt,
     },
     diagnostic::SyntaxError,
     lexer::tokens::TokenKind,
-    parser::{parse::Parse, Parser},
+    parser::{Parser, parse::Parse},
     util::Spanned,
 };
 
@@ -20,7 +20,9 @@ impl Parse for StmtKind {
     /// Parse a statement kind.
     fn parse(p: &mut Parser) -> Result<Self, SyntaxError> {
         match p.cursor.cur_tok() {
-            TokenKind::Identifier(_) => DefaultSetStmt::parse(p).map(|s| s.into()),
+            TokenKind::Identifier(_) => {
+                DefaultSetStmt::parse(p).map(|s| s.into())
+            }
             TokenKind::Const => ConstAssignStmt::parse(p).map(|s| s.into()),
             TokenKind::Let => VarAssignStmt::parse(p).map(|s| s.into()),
             TokenKind::Return => ReturnStmt::parse(p).map(|s| s.into()),
@@ -133,7 +135,9 @@ fn parse_stmt_block(p: &mut Parser) -> Result<Vec<Stmt>, SyntaxError> {
     p.cursor.expect(TokenKind::LeftBrace)?;
 
     let mut statements = Vec::new();
-    while p.cursor.cur_tok() != &TokenKind::RightBrace && p.cursor.cur_tok() != &TokenKind::Eof {
+    while p.cursor.cur_tok() != &TokenKind::RightBrace
+        && p.cursor.cur_tok() != &TokenKind::Eof
+    {
         statements.push(Stmt::parse(p)?);
     }
 

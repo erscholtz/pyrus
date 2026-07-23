@@ -101,7 +101,8 @@ pub fn format_diagnostic<D: Diagnostic>(diag: &D) -> String {
     };
 
     let location = diag.location();
-    let mut result = format!("{} at {}: {}", severity_str, location, diag.message());
+    let mut result =
+        format!("{} at {}: {}", severity_str, location, diag.message());
 
     if let Some(help) = diag.help() {
         result.push_str(&format!("\n  help: {}", help));

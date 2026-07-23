@@ -11,7 +11,12 @@ pub fn assign_global(name: &str, value: &Expr, mutable: bool) -> Global {
     }
 }
 
-pub fn assign_local(name: String, value: &Expr, id: ValueId, mutable: bool) -> Op {
+pub fn assign_local(
+    name: String,
+    value: &Expr,
+    id: ValueId,
+    mutable: bool,
+) -> Op {
     let (literal, ty) = expr_to_literal(value);
     if mutable {
         Op::Var {
@@ -32,10 +37,14 @@ pub fn assign_local(name: String, value: &Expr, id: ValueId, mutable: bool) -> O
 
 fn expr_to_literal(expr: &Expr) -> (Literal, Type) {
     match &expr.node {
-        ExprKind::StringLiteral(value) => (Literal::String(value.clone()), Type::String),
+        ExprKind::StringLiteral(value) => {
+            (Literal::String(value.clone()), Type::String)
+        }
         ExprKind::Int(value) => (Literal::Int(*value), Type::Int),
         ExprKind::Float(value) => (Literal::Float(*value), Type::Float),
-        ExprKind::Identifier(value) => (Literal::String(value.clone()), Type::String),
+        ExprKind::Identifier(value) => {
+            (Literal::String(value.clone()), Type::String)
+        }
         ExprKind::InterpolatedString(InterpolatedStringExpr { parts }) => {
             let value = eval_interpolated_string(parts);
             (Literal::String(value), Type::String)

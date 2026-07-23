@@ -7,7 +7,9 @@ use pyrus::layout::setup_layout;
 use pyrus::lexer::{TokenStream, lex_all};
 use pyrus::parser::Parser;
 
-fn parse(tokens: TokenStream) -> Result<Ast, Vec<pyrus::diagnostic::SyntaxError>> {
+fn parse(
+    tokens: TokenStream,
+) -> Result<Ast, Vec<pyrus::diagnostic::SyntaxError>> {
     Parser::new(tokens).parse::<Ast>()
 }
 
@@ -74,7 +76,10 @@ style {
     assert!((side_layout.x - (title_layout.x + title_layout.width)) >= 19.9);
     assert!((side_layout.box_x + side_layout.box_width - 595.0).abs() < 0.001);
     assert!(side_layout.x > side_layout.box_x);
-    assert!(side_layout.x + side_layout.width <= side_layout.box_x + side_layout.box_width);
+    assert!(
+        side_layout.x + side_layout.width
+            <= side_layout.box_x + side_layout.box_width
+    );
 }
 
 #[test]

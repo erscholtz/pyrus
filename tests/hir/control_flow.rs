@@ -6,7 +6,9 @@ use pyrus::hir::{
 use pyrus::lexer::{TokenStream, lex_all};
 use pyrus::parser::Parser;
 
-fn parse(tokens: TokenStream) -> Result<Ast, Vec<pyrus::diagnostic::SyntaxError>> {
+fn parse(
+    tokens: TokenStream,
+) -> Result<Ast, Vec<pyrus::diagnostic::SyntaxError>> {
     Parser::new(tokens).parse::<Ast>()
 }
 
@@ -39,7 +41,8 @@ template {
 document {
 }
 "#;
-    let tokens = lex_all(source, "test_lower_if_statement_emits_if_op").expect("Lexing failed");
+    let tokens = lex_all(source, "test_lower_if_statement_emits_if_op")
+        .expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower_ast(&ast);
     let ops = function_ops(&hlir, "choose");
@@ -81,7 +84,8 @@ document {
 }
 "#;
     let tokens =
-        lex_all(source, "test_lower_if_else_statement_emits_else_block").expect("Lexing failed");
+        lex_all(source, "test_lower_if_else_statement_emits_else_block")
+            .expect("Lexing failed");
     let ast = parse(tokens).expect("Parsing failed");
     let hlir = lower_ast(&ast);
     let ops = function_ops(&hlir, "choose");

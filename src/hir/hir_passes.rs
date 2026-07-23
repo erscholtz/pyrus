@@ -10,12 +10,17 @@ use crate::hir::HIRModule;
 
 /// Represents a pass to be executed on an HIR module.
 pub trait HIRPass {
-    fn run(&mut self, hir: &mut HIRModule, ast: &Ast) -> Result<(), Vec<SemanticError>>;
+    fn run(
+        &mut self,
+        hir: &mut HIRModule,
+        ast: &Ast,
+    ) -> Result<(), Vec<SemanticError>>;
     fn name(&self) -> &'static str;
 }
 
 /// Type alias for pass functions (used in run_pipeline)
-type PassFn = fn(&mut HIRModule, &mut PassManager) -> Result<(), Vec<SemanticError>>;
+type PassFn =
+    fn(&mut HIRModule, &mut PassManager) -> Result<(), Vec<SemanticError>>;
 
 /// Manages a pipeline of HIR passes to be executed on a module.
 pub struct PassManager {
@@ -41,7 +46,11 @@ impl PassManager {
         self
     }
 
-    pub fn run<P: HIRPass + Default>(&mut self, hir: &mut HIRModule, ast: &Ast) -> &mut Self {
+    pub fn run<P: HIRPass + Default>(
+        &mut self,
+        hir: &mut HIRModule,
+        ast: &Ast,
+    ) -> &mut Self {
         let mut pass = P::default();
         match pass.run(hir, ast) {
             Ok(()) => {}

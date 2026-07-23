@@ -1,8 +1,11 @@
 use crate::{
-    ast::{ArgType, ExprKind, FuncDeclStmt, FuncParam, ReturnStmt, Stmt, StmtKind, Type},
+    ast::{
+        ArgType, ExprKind, FuncDeclStmt, FuncParam, ReturnStmt, Stmt, StmtKind,
+        Type,
+    },
     diagnostic::SyntaxError,
     lexer::tokens::TokenKind,
-    parser::{parse::Parse, Parser},
+    parser::{Parser, parse::Parse},
     util::Spanned,
 };
 
@@ -36,7 +39,8 @@ impl Parse for FuncParam {
         }
 
         // Create a placeholder expression for the parameter name
-        let value = Spanned::new(ExprKind::Identifier(name), p.cursor.location());
+        let value =
+            Spanned::new(ExprKind::Identifier(name), p.cursor.location());
         Ok(Self { ty, value })
     }
 }
@@ -70,14 +74,13 @@ impl Parse for ArgType {
             }
             TokenKind::StringLiteral(idx) => {
                 let name = {
-                    let entry =
-                        p.cursor
-                            .get_string(*idx)
-                            .ok_or_else(|| SyntaxError::InvalidConstruct {
-                                location: p.cursor.location(),
-                                construct: "func param".to_string(),
-                                reason: "Expected string literal".to_string(),
-                            })?;
+                    let entry = p.cursor.get_string(*idx).ok_or_else(|| {
+                        SyntaxError::InvalidConstruct {
+                            location: p.cursor.location(),
+                            construct: "func param".to_string(),
+                            reason: "Expected string literal".to_string(),
+                        }
+                    })?;
                     entry.content.clone()
                 };
                 p.cursor.advance();

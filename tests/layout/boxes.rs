@@ -4,7 +4,9 @@ use pyrus::layout::setup_layout;
 use pyrus::lexer::{TokenStream, lex_all};
 use pyrus::parser::Parser;
 
-fn parse(tokens: TokenStream) -> Result<Ast, Vec<pyrus::diagnostic::SyntaxError>> {
+fn parse(
+    tokens: TokenStream,
+) -> Result<Ast, Vec<pyrus::diagnostic::SyntaxError>> {
     Parser::new(tokens).parse::<Ast>()
 }
 
@@ -54,6 +56,10 @@ style {
     assert!(badge_layout.nowrap);
     assert!((badge_layout.x - 3.0).abs() < 0.001);
     assert!((badge_layout.box_x - 0.0).abs() < 0.001);
-    assert!((badge_layout.box_width - (badge_layout.width + 6.0)).abs() < 0.001);
-    assert!((badge_layout.box_height - (badge_layout.height + 2.0)).abs() < 0.001);
+    assert!(
+        (badge_layout.box_width - (badge_layout.width + 6.0)).abs() < 0.001
+    );
+    assert!(
+        (badge_layout.box_height - (badge_layout.height + 2.0)).abs() < 0.001
+    );
 }

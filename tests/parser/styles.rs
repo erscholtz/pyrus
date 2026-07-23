@@ -14,11 +14,18 @@ fn rules(source: &str) -> Vec<pyrus::ast::StyleRule> {
 
 #[test]
 fn parses_type_class_and_id_selectors() {
-    let rules =
-        rules("style { body { color: red; } .hero { color: blue; } #title { color: gold; } }");
-    assert!(matches!(&rules[0].selector_list[0], Selector::Type(name) if name == "body"));
-    assert!(matches!(&rules[1].selector_list[0], Selector::Class(name) if name == "hero"));
-    assert!(matches!(&rules[2].selector_list[0], Selector::Id(name) if name == "title"));
+    let rules = rules(
+        "style { body { color: red; } .hero { color: blue; } #title { color: gold; } }",
+    );
+    assert!(
+        matches!(&rules[0].selector_list[0], Selector::Type(name) if name == "body")
+    );
+    assert!(
+        matches!(&rules[1].selector_list[0], Selector::Class(name) if name == "hero")
+    );
+    assert!(
+        matches!(&rules[2].selector_list[0], Selector::Id(name) if name == "title")
+    );
 }
 
 #[test]

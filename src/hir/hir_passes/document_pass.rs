@@ -10,12 +10,21 @@ use crate::hir::{
 pub struct DocumentPass;
 
 impl HIRPass for DocumentPass {
-    fn run(&mut self, hir: &mut HIRModule, ast: &Ast) -> Result<(), Vec<SemanticError>> {
+    fn run(
+        &mut self,
+        hir: &mut HIRModule,
+        ast: &Ast,
+    ) -> Result<(), Vec<SemanticError>> {
         let mut errors = Vec::new();
         let mut document_body = Block { items: Vec::new() };
         if let Some(document) = &ast.document {
             for element in &document.elements {
-                match lower_document_element(element, hir, &mut document_body, None) {
+                match lower_document_element(
+                    element,
+                    hir,
+                    &mut document_body,
+                    None,
+                ) {
                     Ok(index) => {
                         document_body.items.push(Op::HirElementEmit { index });
                     }

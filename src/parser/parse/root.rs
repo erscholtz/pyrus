@@ -1,5 +1,7 @@
 use crate::{
-    ast::{Ast, DocElem, DocumentBlock, Stmt, StyleBlock, StyleRule, TemplateBlock},
+    ast::{
+        Ast, DocElem, DocumentBlock, Stmt, StyleBlock, StyleRule, TemplateBlock,
+    },
     diagnostic::SyntaxError,
     lexer::tokens::TokenKind,
     parser::{Parser, parse::Parse},

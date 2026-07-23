@@ -4,7 +4,9 @@ use pyrus::layout::setup_layout;
 use pyrus::lexer::{TokenStream, lex_all};
 use pyrus::parser::Parser;
 
-fn parse(tokens: TokenStream) -> Result<Ast, Vec<pyrus::diagnostic::SyntaxError>> {
+fn parse(
+    tokens: TokenStream,
+) -> Result<Ast, Vec<pyrus::diagnostic::SyntaxError>> {
     Parser::new(tokens).parse::<Ast>()
 }
 
@@ -43,7 +45,9 @@ style {
 
     let text_layout = computed
         .iter()
-        .find(|layout| hlir.element_metadata[layout.element_index].element_type == "text")
+        .find(|layout| {
+            hlir.element_metadata[layout.element_index].element_type == "text"
+        })
         .expect("Text should have a computed layout");
 
     assert!((text_layout.x - 36.0).abs() < 0.001);

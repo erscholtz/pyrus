@@ -110,7 +110,9 @@ impl ExprKind {
                 format!("{} {} {}", left.to_string(), op, right.to_string())
             }
             ExprKind::Identifier(name) => name.clone(),
-            ExprKind::StructDefault(StructDefaultExpr { name }) => format!("default({})", name),
+            ExprKind::StructDefault(StructDefaultExpr { name }) => {
+                format!("default({})", name)
+            }
             ExprKind::Int(value) => format!("{}", value),
             ExprKind::Float(value) => format!("{}", value),
         }

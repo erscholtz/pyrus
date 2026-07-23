@@ -104,7 +104,10 @@ impl Parser {
     ///
     /// NOTE: usually used for parsing blocks where we know it should end with
     /// a right bracket
-    pub fn parse_until<T: Parse>(&mut self, end: TokenKind) -> Result<Vec<T>, Vec<SyntaxError>> {
+    pub fn parse_until<T: Parse>(
+        &mut self,
+        end: TokenKind,
+    ) -> Result<Vec<T>, Vec<SyntaxError>> {
         if self.trace_enabled {
             eprintln!(
                 "[parser:{}:parse_until:start] end={end:?}",
@@ -150,7 +153,10 @@ impl Parser {
     /// Parses all items until the given condition is no longer true.
     ///
     /// NOTE: this function takes in a closure for should_continue
-    pub fn parse_all<T: Parse, F>(&mut self, should_continue: F) -> Result<Vec<T>, Vec<SyntaxError>>
+    pub fn parse_all<T: Parse, F>(
+        &mut self,
+        should_continue: F,
+    ) -> Result<Vec<T>, Vec<SyntaxError>>
     where
         F: Fn(&mut Self) -> bool,
     {

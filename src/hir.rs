@@ -9,8 +9,9 @@ use crate::ast::Ast;
 use crate::diagnostic::CompilerDiagnostic;
 use crate::hir::{
     hir_passes::{
-        PassManager, document_pass::DocumentPass, func_pass::FuncPass, global_pass::GlobalPass,
-        style_pass::StylePass, validation_pass::ValidationPass,
+        PassManager, document_pass::DocumentPass, func_pass::FuncPass,
+        global_pass::GlobalPass, style_pass::StylePass,
+        validation_pass::ValidationPass,
     },
     hir_types::AttributeTree,
     hir_types::HIRModule,

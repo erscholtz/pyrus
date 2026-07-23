@@ -53,7 +53,9 @@ fn test_duplicate_template_block_reports_error() {
             assert_eq!(construct, "template");
             assert_eq!(reason, "duplicate template block");
         }
-        other => panic!("Expected duplicate template construct error, got {other:?}"),
+        other => {
+            panic!("Expected duplicate template construct error, got {other:?}")
+        }
     }
 }
 
