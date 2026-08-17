@@ -1,9 +1,8 @@
 mod lexer_cursor;
 pub mod tokens;
 
-use std::fmt::Write as _;
-
 use tokens::{StringEntry, TokenKind};
+pub use tokens::{Token, TokenStream};
 
 use crate::{
     diagnostic::{CompilerDiagnostic, SourceLocation, SyntaxError},
@@ -65,100 +64,10 @@ static SYMBOL_LOOKUP_TABLE: [Option<TokenKind>; 256] = {
     t
 };
 
-/// token representing a specific or group of keywords. holds the kind of token
-/// it is and position data.
-///
-/// NOTE: this is currently in AOS format instead of previous SOA format due to
-/// wanting a pull configuration for the lexer simplifying logic
-#[derive(Debug)]
-pub struct Token {
-    pub kind: TokenKind,
-    pub range: std::ops::Range<usize>,
-    pub line: usize,
-    pub col: usize,
-}
-
-/// token stream of the current source file.
-#[derive(Debug)]
-pub struct TokenStream {
-    pub file: String,
-    pub source: String,
-    pub tokens: Vec<Token>,
-    pub identifier_table: Vec<String>,
-    pub string_table: Vec<StringEntry>,
-}
-
-impl TokenStream {
-    pub fn new(file: String) -> Self {
-        Self {
-            file,
-            source: String::new(),
-            tokens: Vec::new(),
-            identifier_table: Vec::new(),
-            string_table: Vec::new(),
-        }
-    }
-
-    pub fn debug_tokens(&self) -> String {
-        let mut out = String::new();
-
-        writeln!(&mut out, "tokens for {}", self.file).unwrap();
-        writeln!(
-            &mut out,
-            "{:>4}  {:<24} {:>9}  {:<12} text",
-            "idx", "kind", "line:col", "range"
-        )
-        .unwrap();
-
-        for (idx, token) in self.tokens.iter().enumerate() {
-            let kind = format!("{:?}", token.kind);
-            let location = format!("{}:{}", token.line, token.col);
-            let range = format!("{}..{}", token.range.start, token.range.end);
-
-            writeln!(
-                &mut out,
-                "{idx:>4}  {kind:<24} {location:>9}  {range:<12} {}",
-                self.debug_text(token)
-            )
-            .unwrap();
-        }
-
-        out
-    }
-
-    fn debug_text(&self, token: &Token) -> String {
-        let text = match token.kind {
-            TokenKind::Identifier(idx) => self
-                .identifier_table
-                .get(idx)
-                .map(String::as_str)
-                .unwrap_or("<missing identifier>"),
-            TokenKind::StringLiteral(idx) => self
-                .string_table
-                .get(idx)
-                .map(|entry| entry.content.as_str())
-                .unwrap_or("<missing string>"),
-            _ => self.source.get(token.range.clone()).unwrap_or(""),
-        };
-
-        let mut text = format!("{text:?}");
-        if let TokenKind::StringLiteral(idx) = token.kind {
-            if self
-                .string_table
-                .get(idx)
-                .is_some_and(|entry| entry.has_interpolation)
-            {
-                text.push_str(" (interpolated)");
-            }
-        }
-
-        text
-    }
-}
-
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 enum LexerMode {
     Normal,
+    ElementInvokation, // @
     AwaitTextBodyOrAttrs,
     TextAttributes(usize),
     TextBody,
@@ -175,7 +84,6 @@ pub struct Lexer {
     identifier_table: Vec<String>,  // variable names
     string_table: Vec<StringEntry>, // strings deduplication table
     queued_tokens: Vec<Token>,      // any trailing tokens like ], }, "
-    last_significant: Option<TokenKind>, //
     pub debug: bool,
 }
 
@@ -187,7 +95,6 @@ impl Lexer {
             identifier_table: Vec::new(),
             string_table: Vec::new(),
             queued_tokens: Vec::new(),
-            last_significant: None,
             debug: false,
         };
         lexer
@@ -250,23 +157,22 @@ impl Lexer {
     /// state machine based pull request for the cursor to make the next token
     fn pull(&mut self) -> Result<Token, CompilerDiagnostic> {
         if let Some(token) = self.queued_tokens.pop() {
-            self.record_significant(token.kind);
             return Ok(token);
         }
 
-        if self.current_mode() != LexerMode::TextBody {
-            self.skip_trivia()?;
-        }
-
         let token = match self.current_mode() {
-            LexerMode::Normal => self.lex_normal_token(),
+            LexerMode::Normal => {
+                self.skip_trivia()?;
+                self.lex_normal_token()
+            }
+            LexerMode::ElementInvokation => self.lex_element_invokation_token(),
             LexerMode::AwaitTextBodyOrAttrs | LexerMode::TextAttributes(_) => {
+                self.skip_trivia()?;
                 self.lex_text_transition_token()
             }
             LexerMode::TextBody => self.lex_text_body_token(),
         }?;
 
-        self.record_significant(token.kind);
         Ok(token)
     }
 
@@ -298,6 +204,9 @@ impl Lexer {
 
         if let Some(kind) = SYMBOL_LOOKUP_TABLE[byte as usize] {
             self.cursor.advance()?;
+            if kind == TokenKind::At {
+                self.mode.push(LexerMode::ElementInvokation);
+            }
             return Ok(self.token(kind, start));
         }
 
@@ -305,6 +214,38 @@ impl Lexer {
         Err(SyntaxError::invalid_construct(
             "character",
             format!("unknown character: '{}'", byte as char),
+            SourceLocation::new(
+                start.line,
+                start.col,
+                self.cursor.file.clone(),
+            ),
+        )
+        .into())
+    }
+
+    fn lex_element_invokation_token(
+        &mut self,
+    ) -> Result<Token, CompilerDiagnostic> {
+        debug_assert_eq!(self.current_mode(), LexerMode::ElementInvokation);
+        let start = self.cursor.mark();
+
+        if self
+            .cursor
+            .peek()
+            .is_some_and(|byte| byte.is_ascii_alphabetic() || byte == b'_')
+        {
+            let token = self.lex_identifier_or_keyword(start)?;
+            self.mode.pop();
+            if token.kind == TokenKind::Text {
+                self.mode.push(LexerMode::AwaitTextBodyOrAttrs);
+            }
+            return Ok(token);
+        }
+
+        self.mode.pop();
+        Err(SyntaxError::invalid_construct(
+            "element invocation",
+            "expected an element name immediately after `@`",
             SourceLocation::new(
                 start.line,
                 start.col,
@@ -349,11 +290,17 @@ impl Lexer {
             (LexerMode::TextAttributes(1), TokenKind::RightParen) => {
                 self.mode.pop();
             }
-            (mode, TokenKind::Eof) => {
-                // TODO
-                todo!(
-                    "decide on decide whether an unfinished text element is an error"
-                );
+            (_, TokenKind::Eof) => {
+                self.reset_mode();
+                return Err(SyntaxError::unexpected_eof(
+                    "a text body",
+                    SourceLocation::new(
+                        start.line,
+                        start.col,
+                        self.cursor.file.clone(),
+                    ),
+                )
+                .into());
             }
             (_, _) => {} // TODO
         };
@@ -398,6 +345,7 @@ impl Lexer {
             self.cursor.advance()?;
         }
 
+        self.reset_mode();
         Err(SyntaxError::unterminated_delimiter(
             "]",
             SourceLocation::new(
@@ -427,12 +375,6 @@ impl Lexer {
                 TokenKind::Identifier(self.push_identifier(text.to_string()))
             }
         };
-
-        if kind == TokenKind::Text
-            && self.last_significant == Some(TokenKind::At)
-        {
-            self.mode.push(LexerMode::AwaitTextBodyOrAttrs);
-        }
 
         Ok(self.token(kind, start))
     }
@@ -532,10 +474,9 @@ impl Lexer {
         *self.mode.last().expect("lexer mode must not be empty")
     }
 
-    fn record_significant(&mut self, kind: TokenKind) {
-        if kind != TokenKind::Whitespace {
-            self.last_significant = Some(kind);
-        }
+    fn reset_mode(&mut self) {
+        self.mode.truncate(1);
+        debug_assert_eq!(self.current_mode(), LexerMode::Normal);
     }
 
     // TODO can be squashed

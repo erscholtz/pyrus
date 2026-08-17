@@ -3,7 +3,7 @@ mod parser_cursor;
 
 use crate::{
     diagnostic::{DiagnosticManager, SyntaxError},
-    lexer::{TokenStream, tokens::TokenKind},
+    lexer::{tokens::TokenKind, tokens::TokenStream},
     parser::{parse::Parse, parser_cursor::Cursor},
 };
 

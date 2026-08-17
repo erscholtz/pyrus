@@ -2,10 +2,7 @@
 
 use crate::{
     diagnostic::{SourceLocation, SyntaxError},
-    lexer::{
-        Token, TokenStream,
-        tokens::{StringEntry, TokenKind},
-    },
+    lexer::tokens::{StringEntry, Token, TokenKind, TokenStream},
 };
 
 pub struct Cursor {
