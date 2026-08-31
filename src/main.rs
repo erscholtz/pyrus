@@ -45,75 +45,26 @@ fn main() {
             return;
         }
     };
-    println!("{}", tokens.debug_tokens());
 
-    // let mut parser = Parser::new(tokens);
-    // parser.enable_tracing();
-    // let ast = parser.parse::<Ast>().unwrap();
-    // parser.gather_errors(&mut dm);
-    // println!("{:#?}", ast);
+    let mut parser = Parser::new(tokens);
+    let ast = parser.parse::<Ast>().unwrap();
+    parser.gather_errors(&mut dm);
 
-    // let hir_module = hir::lower(&ast).expect("Should be able to lower AST to HIR");
-    // println!("{}", hir_module.hir_display());
+    let hir_module =
+        hir::lower(&ast).expect("Should be able to lower AST to HIR");
 
-    // println!("HLIR before style resolution:");
-    // println!("  Elements: {}", hlir_module.elements.len());
-    // println!("  CSS Rules: {}", hlir_module.css_rules.len());
-    // println!("  Element Metadata: {}", hlir_module.element_metadata.len());
-
-    // Run CSS style resolution
-
-    // println!("\n=== Computed Styles ===");
-    // for (idx, metadata) in hir_module.element_metadata.iter().enumerate() {
-    //     if let Some(node) = hir_module.attributes.find_node(metadata.attributes_ref) {
-    //         println!(
-    //             "\nElement {} (type: {:?}, id: {:?}, classes: {:?}):",
-    //             idx, metadata.element_type, metadata.id, metadata.classes
-    //         );
-    //         println!(
-    //             "  Inline: margin={:?}, padding={:?}, align={:?}",
-    //             node.inline.margin, node.inline.padding, node.inline.align
-    //         );
-    //         println!(
-    //             "  Computed: margin={:?}, padding={:?}, align={:?}, hidden={}",
-    //             node.computed.margin,
-    //             node.computed.padding,
-    //             node.computed.align,
-    //             node.computed.hidden
-    //         );
-    //         println!("  Style map: {:?}", node.computed.style);
-    //     }
-    // }
-
-    // let layout = setup_layout(&hir_module);
+    let layout = setup_layout(&hir_module);
 
     // Compute document flow layout (simple vertical stacking)
-    // let computed_layouts = layout.compute_document_flow(&hir_module);
-
-    // Print computed layouts for each element
-    // println!("\n=== Computed Layouts ===");
-    // for computed in &computed_layouts {
-    //     if let Some(metadata) = hir_module.element_metadata.get(computed.element_index) {
-    //         println!(
-    //             "Element {} (type: {:?}, id: {:?}): x={:.1}, y={:.1}, w={:.1}, h={:.1}",
-    //             computed.element_index,
-    //             metadata.element_type,
-    //             metadata.id,
-    //             computed.x,
-    //             computed.y,
-    //             computed.width,
-    //             computed.height
-    //         );
-    //     }
-    // }
+    let computed_layouts = layout.compute_document_flow(&hir_module);
 
     // Render to PDF using backend
-    // let backend = backend::Backend::new(backend::Renderer::Pdf);
-    // if let Err(e) = backend.render(hir_module, &layout, &computed_layouts) {
-    //     eprintln!("Failed to render PDF: {}", e);
-    // } else {
-    //     println!("\nPDF rendered successfully to generated/output.pdf");
-    // }
+    let backend = backend::Backend::new(backend::Renderer::Pdf);
+    if let Err(e) = backend.render(hir_module, &layout, &computed_layouts) {
+        eprintln!("Failed to render PDF: {}", e);
+    } else {
+        println!("\nPDF rendered successfully to generated/output.pdf");
+    }
 
     let now = Instant::now();
     let time = now - last;
