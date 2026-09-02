@@ -1,4 +1,4 @@
-use crate::lexer::tokens::TokenKind;
+use crate::tokens::TokenKind;
 
 use super::{
     Diagnostic, SemanticError, Severity, SourceLocation, Span, SyntaxError,
