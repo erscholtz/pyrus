@@ -67,11 +67,10 @@ impl Cursor {
             TokenKind::Identifier(idx) => {
                 self.get_identifier(*idx).unwrap_or("")
             }
-            TokenKind::Int | TokenKind::Float => self
+            _ => self
                 .cur_range()
                 .and_then(|range| self.tokens.source.get(range))
                 .unwrap_or(""),
-            _ => "",
         }
     }
 

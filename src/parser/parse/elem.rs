@@ -63,7 +63,15 @@ impl DocElemKind {
         p.cursor.expect(TokenKind::LeftParen).ok()?;
         let mut attributes = HashMap::new();
         while !p.cursor.check(TokenKind::RightParen) {
-            let name = p.cursor.expect_identifier().ok()?;
+            let name = if p.cursor.check_identifier() {
+                p.cursor.expect_identifier().ok()?
+            } else if p.cursor.peek_tok() == Some(&TokenKind::Assign) {
+                let name = p.cursor.cur_text().to_string();
+                p.cursor.advance();
+                name
+            } else {
+                return None;
+            };
 
             p.cursor.expect(TokenKind::Assign).ok()?;
             let value = Expr::parse(p).ok()?;
