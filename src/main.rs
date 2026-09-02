@@ -3,11 +3,15 @@ use std::ffi::OsString;
 use std::fs;
 use std::time::Instant;
 
-use pyrus::backend;
-use pyrus::hir;
-use pyrus::hir::hir_debug::HirDisplayExt;
-use pyrus::layout::setup_layout;
-use pyrus::{ast::Ast, diagnostic::DiagnosticManager, lexer, parser::Parser};
+use pyrus::{
+    ast::Ast,
+    backend,
+    diagnostic::DiagnosticManager,
+    hir::{self, hir_debug::HirDisplayExt},
+    layout::setup_layout,
+    lexer::{self, Lexer},
+    parser::Parser,
+};
 
 fn main() {
     let last = Instant::now();
@@ -27,11 +31,12 @@ fn main() {
     } else {
         "resume.ink"
     };
-    let data = fs::read_to_string(filename).expect("Should be able to read test file");
+    let data =
+        fs::read_to_string(filename).expect("Should be able to read test file");
 
     let mut dm = DiagnosticManager::default();
-
-    let tokens = match lexer::lex(&data, filename) {
+    let mut lexer = Lexer::new(filename.to_string(), data);
+    let tokens = match lexer.lex_all() {
         Ok(tokens) => tokens,
         Err(errors) => {
             for error in errors {
@@ -40,67 +45,18 @@ fn main() {
             return;
         }
     };
-    println!("{:?}", &tokens);
 
     let mut parser = Parser::new(tokens);
-    // parser.enable_tracing();
     let ast = parser.parse::<Ast>().unwrap();
     parser.gather_errors(&mut dm);
-    // println!("{:#?}", ast);
 
-    let hir_module = hir::lower(&ast).expect("Should be able to lower AST to HIR");
-    println!("{}", hir_module.hir_display());
-
-    // println!("HLIR before style resolution:");
-    // println!("  Elements: {}", hlir_module.elements.len());
-    // println!("  CSS Rules: {}", hlir_module.css_rules.len());
-    // println!("  Element Metadata: {}", hlir_module.element_metadata.len());
-
-    // Run CSS style resolution
-
-    // println!("\n=== Computed Styles ===");
-    // for (idx, metadata) in hir_module.element_metadata.iter().enumerate() {
-    //     if let Some(node) = hir_module.attributes.find_node(metadata.attributes_ref) {
-    //         println!(
-    //             "\nElement {} (type: {:?}, id: {:?}, classes: {:?}):",
-    //             idx, metadata.element_type, metadata.id, metadata.classes
-    //         );
-    //         println!(
-    //             "  Inline: margin={:?}, padding={:?}, align={:?}",
-    //             node.inline.margin, node.inline.padding, node.inline.align
-    //         );
-    //         println!(
-    //             "  Computed: margin={:?}, padding={:?}, align={:?}, hidden={}",
-    //             node.computed.margin,
-    //             node.computed.padding,
-    //             node.computed.align,
-    //             node.computed.hidden
-    //         );
-    //         println!("  Style map: {:?}", node.computed.style);
-    //     }
-    // }
+    let hir_module =
+        hir::lower(&ast).expect("Should be able to lower AST to HIR");
 
     let layout = setup_layout(&hir_module);
 
     // Compute document flow layout (simple vertical stacking)
     let computed_layouts = layout.compute_document_flow(&hir_module);
-
-    // Print computed layouts for each element
-    // println!("\n=== Computed Layouts ===");
-    // for computed in &computed_layouts {
-    //     if let Some(metadata) = hir_module.element_metadata.get(computed.element_index) {
-    //         println!(
-    //             "Element {} (type: {:?}, id: {:?}): x={:.1}, y={:.1}, w={:.1}, h={:.1}",
-    //             computed.element_index,
-    //             metadata.element_type,
-    //             metadata.id,
-    //             computed.x,
-    //             computed.y,
-    //             computed.width,
-    //             computed.height
-    //         );
-    //     }
-    // }
 
     // Render to PDF using backend
     let backend = backend::Backend::new(backend::Renderer::Pdf);

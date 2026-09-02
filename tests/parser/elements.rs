@@ -1,6 +1,4 @@
-mod common;
-
-use common::{document_elements, parse_errors};
+use crate::support::{document_elements, parse_errors};
 use pyrus::{
     ast::{DocElemKind, ExprKind, Type},
     diagnostic::SyntaxError,
@@ -13,8 +11,12 @@ fn test_parse_text_element() {
 
     match &elements[0].node {
         DocElemKind::Text(text) => match &text.content.node {
-            ExprKind::StringLiteral(value) => assert_eq!(value, "Hello, World!"),
-            other => panic!("Expected StringLiteral text content, got {other:?}"),
+            ExprKind::StringLiteral(value) => {
+                assert_eq!(value, "Hello, World!")
+            }
+            other => {
+                panic!("Expected StringLiteral text content, got {other:?}")
+            }
         },
         other => panic!("Expected text element, got {other:?}"),
     }
@@ -22,12 +24,15 @@ fn test_parse_text_element() {
 
 #[test]
 fn test_parse_text_element_with_attributes() {
-    let elements = document_elements(r#"document { @text(class="hero", size=24)[Hello] }"#);
+    let elements = document_elements(
+        r#"document { @text(class="hero", size=24)[Hello] }"#,
+    );
     assert_eq!(elements.len(), 1);
 
     match &elements[0].node {
         DocElemKind::Text(text) => {
-            let attrs = text.attributes.as_ref().expect("Expected text attributes");
+            let attrs =
+                text.attributes.as_ref().expect("Expected text attributes");
             assert!(
                 matches!(attrs.get("class").map(|expr| &expr.node), Some(ExprKind::StringLiteral(value)) if value == "hero")
             );
@@ -42,7 +47,8 @@ fn test_parse_text_element_with_attributes() {
 
 #[test]
 fn test_parse_image_element() {
-    let elements = document_elements(r#"document { @image(width=320)["cover.png"] }"#);
+    let elements =
+        document_elements(r#"document { @image(width=320)["cover.png"] }"#);
     assert_eq!(elements.len(), 1);
 
     match &elements[0].node {
@@ -106,15 +112,17 @@ fn test_parse_table_rejects_mismatched_columns() {
 
 #[test]
 fn test_parse_list_element() {
-    let elements =
-        document_elements("document { @list(class=\"bullets\")[- @text[First] - @text[Second]] }");
+    let elements = document_elements(
+        "document { @list(class=\"bullets\")[- @text[First] - @text[Second]] }",
+    );
     assert_eq!(elements.len(), 1);
 
     match &elements[0].node {
         DocElemKind::List(list) => {
             assert_eq!(list.items.len(), 2);
             assert!(!list.numbered);
-            let attrs = list.attributes.as_ref().expect("Expected list attributes");
+            let attrs =
+                list.attributes.as_ref().expect("Expected list attributes");
             assert!(
                 matches!(attrs.get("class").map(|expr| &expr.node), Some(ExprKind::StringLiteral(value)) if value == "bullets")
             );
@@ -142,7 +150,8 @@ fn test_parse_function_call_no_args() {
 
 #[test]
 fn test_parse_function_call_with_args() {
-    let elements = document_elements(r#"document { @print("hello", name, 3) }"#);
+    let elements =
+        document_elements(r#"document { @print("hello", name, 3) }"#);
     assert_eq!(elements.len(), 1);
 
     match &elements[0].node {
@@ -162,7 +171,8 @@ fn test_parse_function_call_with_args() {
 
 #[test]
 fn test_parse_function_call_with_children() {
-    let elements = document_elements("document { @card(title)[@text[One], @text[Two]] }");
+    let elements =
+        document_elements("document { @card(title)[@text[One], @text[Two]] }");
     assert_eq!(elements.len(), 1);
 
     match &elements[0].node {
@@ -171,7 +181,8 @@ fn test_parse_function_call_with_children() {
             assert_eq!(call.args.len(), 1);
             assert!(matches!(call.args[0].ty, Type::Var));
             assert_eq!(call.args[0].name, "title");
-            let children = call.children.as_ref().expect("Expected child elements");
+            let children =
+                call.children.as_ref().expect("Expected child elements");
             assert_eq!(children.len(), 2);
             assert!(matches!(children[0].node, DocElemKind::Text(_)));
             assert!(matches!(children[1].node, DocElemKind::Text(_)));
@@ -191,7 +202,8 @@ fn test_parse_link_element() {
         DocElemKind::Link(link) => {
             assert_eq!(link.href, "https://example.com");
             assert_eq!(link.content, "Example");
-            let attrs = link.attributes.as_ref().expect("Expected link attributes");
+            let attrs =
+                link.attributes.as_ref().expect("Expected link attributes");
             assert!(
                 matches!(attrs.get("kind").map(|expr| &expr.node), Some(ExprKind::StringLiteral(value)) if value == "external")
             );
@@ -202,7 +214,8 @@ fn test_parse_link_element() {
 
 #[test]
 fn test_parse_section_element() {
-    let elements = document_elements(r#"document { @section(id="main")[@text[Inner]] }"#);
+    let elements =
+        document_elements(r#"document { @section(id="main")[@text[Inner]] }"#);
     assert_eq!(elements.len(), 1);
 
     match &elements[0].node {
@@ -227,14 +240,17 @@ fn test_parse_separator_element() {
     assert_eq!(elements.len(), 1);
 
     match &elements[0].node {
-        DocElemKind::Separator(separator) => assert!(separator.attributes.is_none()),
+        DocElemKind::Separator(separator) => {
+            assert!(separator.attributes.is_none())
+        }
         other => panic!("Expected separator element, got {other:?}"),
     }
 }
 
 #[test]
 fn test_parse_separator_element_with_attributes() {
-    let elements = document_elements(r#"document { @separator(class="rule") }"#);
+    let elements =
+        document_elements(r#"document { @separator(class="rule") }"#);
     assert_eq!(elements.len(), 1);
 
     match &elements[0].node {

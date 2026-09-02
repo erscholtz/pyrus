@@ -1,7 +1,10 @@
 use crate::{
-    ast::{ArgType, ExprKind, FuncDeclStmt, FuncParam, ReturnStmt, Stmt, StmtKind, Type},
+    ast::{
+        ArgType, ExprKind, FuncDeclStmt, FuncParam, ReturnStmt, Stmt, StmtKind,
+        Type,
+    },
     diagnostic::SyntaxError,
-    lexer::TokenKind,
+    lexer::tokens::TokenKind,
     parser::{Parser, parse::Parse},
     util::Spanned,
 };
@@ -12,12 +15,11 @@ impl Parse for FuncParam {
     /// Returns a `FuncParam` if successful, or a `ParseError` if the name is invalid.
     fn parse(p: &mut Parser) -> Result<Self, SyntaxError> {
         // Parse parameter name (identifier)
-        let name = p.cursor.cur_text().to_owned();
-        p.cursor.advance();
+        let name = p.cursor.expect_identifier()?;
         p.cursor.expect(TokenKind::Colon)?;
 
         // Parse type
-        let ty = match *p.cursor.cur_tok() {
+        let ty = match p.cursor.cur_tok() {
             TokenKind::String => Type::String,
             TokenKind::Int => Type::Int,
             TokenKind::Float => Type::Float,
@@ -37,7 +39,8 @@ impl Parse for FuncParam {
         }
 
         // Create a placeholder expression for the parameter name
-        let value = Spanned::new(ExprKind::Identifier(name), p.cursor.location());
+        let value =
+            Spanned::new(ExprKind::Identifier(name), p.cursor.location());
         Ok(Self { ty, value })
     }
 }
@@ -47,11 +50,10 @@ impl Parse for ArgType {
     ///
     /// Returns an `ArgType` if successful, or a `ParseError` if the name is invalid.
     fn parse(p: &mut Parser) -> Result<Self, SyntaxError> {
-        match *p.cursor.cur_tok() {
-            TokenKind::Identifier => {
-                let name = p.cursor.cur_text().to_string();
+        match p.cursor.cur_tok() {
+            TokenKind::Identifier(_) => {
+                let name = p.cursor.expect_identifier()?;
                 let ty = Type::Var;
-                p.cursor.advance();
                 Ok(Self { name, ty })
             }
             TokenKind::Int => {
@@ -72,14 +74,13 @@ impl Parse for ArgType {
             }
             TokenKind::StringLiteral(idx) => {
                 let name = {
-                    let entry =
-                        p.cursor
-                            .get_string(idx)
-                            .ok_or_else(|| SyntaxError::InvalidConstruct {
-                                location: p.cursor.location(),
-                                construct: "func param".to_string(),
-                                reason: "Expected string literal".to_string(),
-                            })?;
+                    let entry = p.cursor.get_string(*idx).ok_or_else(|| {
+                        SyntaxError::InvalidConstruct {
+                            location: p.cursor.location(),
+                            construct: "func param".to_string(),
+                            reason: "Expected string literal".to_string(),
+                        }
+                    })?;
                     entry.content.clone()
                 };
                 p.cursor.advance();
@@ -89,7 +90,7 @@ impl Parse for ArgType {
             }
             _ => Err(SyntaxError::UnexpectedToken {
                 location: p.cursor.location(),
-                expected: vec![TokenKind::Identifier],
+                expected: vec![TokenKind::Identifier(0)],
                 found: p.cursor.cur_tok().clone(),
             }),
         }
@@ -102,8 +103,7 @@ impl Parse for FuncDeclStmt {
     /// Returns a `FuncDeclStmt` if successful, or a `ParseError` if the name is invalid.
     fn parse(p: &mut Parser) -> Result<Self, SyntaxError> {
         p.cursor.expect(TokenKind::Func)?;
-        let name = p.cursor.cur_text().to_owned();
-        p.cursor.advance(); // consume the function name
+        let name = p.cursor.expect_identifier()?;
         p.cursor.expect(TokenKind::LeftParen)?;
         let args = match p.parse_until::<FuncParam>(TokenKind::RightParen) {
             Ok(args) => args,

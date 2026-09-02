@@ -1,6 +1,4 @@
-mod common;
-
-use common::template_statements;
+use crate::support::template_statements;
 use pyrus::ast::{ExprKind, StmtKind};
 
 fn assigned_expr(source: &str) -> ExprKind {
@@ -19,8 +17,12 @@ fn test_parse_string_interpolation_simple() {
             assert!(
                 matches!(expr.parts[0], ExprKind::StringLiteral(ref text) if text == "Hello, ")
             );
-            assert!(matches!(expr.parts[1], ExprKind::Identifier(ref name) if name == "name"));
-            assert!(matches!(expr.parts[2], ExprKind::StringLiteral(ref text) if text == "!"));
+            assert!(
+                matches!(expr.parts[1], ExprKind::Identifier(ref name) if name == "name")
+            );
+            assert!(
+                matches!(expr.parts[2], ExprKind::StringLiteral(ref text) if text == "!")
+            );
         }
         other => panic!("Expected InterpolatedString expr, got {other:?}"),
     }
@@ -31,10 +33,18 @@ fn test_parse_string_interpolation_multiple() {
     match assigned_expr(r#"template { let msg = "${greeting}, ${name}!" }"#) {
         ExprKind::InterpolatedString(expr) => {
             assert_eq!(expr.parts.len(), 4);
-            assert!(matches!(expr.parts[0], ExprKind::Identifier(ref name) if name == "greeting"));
-            assert!(matches!(expr.parts[1], ExprKind::StringLiteral(ref text) if text == ", "));
-            assert!(matches!(expr.parts[2], ExprKind::Identifier(ref name) if name == "name"));
-            assert!(matches!(expr.parts[3], ExprKind::StringLiteral(ref text) if text == "!"));
+            assert!(
+                matches!(expr.parts[0], ExprKind::Identifier(ref name) if name == "greeting")
+            );
+            assert!(
+                matches!(expr.parts[1], ExprKind::StringLiteral(ref text) if text == ", ")
+            );
+            assert!(
+                matches!(expr.parts[2], ExprKind::Identifier(ref name) if name == "name")
+            );
+            assert!(
+                matches!(expr.parts[3], ExprKind::StringLiteral(ref text) if text == "!")
+            );
         }
         other => panic!("Expected InterpolatedString expr, got {other:?}"),
     }
@@ -48,7 +58,9 @@ fn test_parse_string_interpolation_with_number() {
             assert!(
                 matches!(expr.parts[0], ExprKind::StringLiteral(ref text) if text == "Count: ")
             );
-            assert!(matches!(expr.parts[1], ExprKind::Identifier(ref name) if name == "count"));
+            assert!(
+                matches!(expr.parts[1], ExprKind::Identifier(ref name) if name == "count")
+            );
         }
         other => panic!("Expected InterpolatedString expr, got {other:?}"),
     }
@@ -65,7 +77,9 @@ fn test_parse_string_without_interpolation() {
 #[test]
 fn test_parse_string_with_literal_braces() {
     match assigned_expr(r#"template { let msg = "Use {brackets} freely" }"#) {
-        ExprKind::StringLiteral(value) => assert_eq!(value, "Use {brackets} freely"),
+        ExprKind::StringLiteral(value) => {
+            assert_eq!(value, "Use {brackets} freely")
+        }
         other => panic!("Expected StringLiteral expr, got {other:?}"),
     }
 }

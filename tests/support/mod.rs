@@ -1,18 +1,21 @@
+#![allow(dead_code)]
+
 use pyrus::{
     ast::{Ast, DocElem, Stmt},
     diagnostic::SyntaxError,
-    lexer::lex,
+    hir::{hir_types::HIRModule, lower},
+    lexer::lex_all,
     parser::Parser,
 };
 
 pub fn parse_ast(source: &str) -> Ast {
-    let tokens = lex(source, "test.ink").expect("Lexing failed");
+    let tokens = lex_all(source, "test.ink").expect("Lexing failed");
     let mut parser = Parser::new(tokens);
     parser.parse::<Ast>().expect("Parsing failed")
 }
 
 pub fn parse_errors(source: &str) -> Vec<SyntaxError> {
-    let tokens = lex(source, "test.ink").expect("Lexing failed");
+    let tokens = lex_all(source, "test.ink").expect("Lexing failed");
     let mut parser = Parser::new(tokens);
     parser.parse::<Ast>().expect_err("Parsing should fail")
 }
@@ -29,4 +32,9 @@ pub fn document_elements(source: &str) -> Vec<DocElem> {
         .document
         .expect("Expected document block")
         .elements
+}
+
+pub fn lower_source(source: &str) -> HIRModule {
+    let ast = parse_ast(source);
+    lower(&ast).unwrap_or_else(|errors| panic!("Lowering failed: {errors:?}"))
 }

@@ -2,11 +2,11 @@ use std::collections::HashMap;
 
 use crate::{
     ast::{
-        ArgType, CallElem, ChildrenElem, DocElem, DocElemKind, Expr, ImageElem, LinkElem, ListElem,
-        SectionElem, SeparatorElem, TableElem, TextElem,
+        ArgType, CallElem, ChildrenElem, DocElem, DocElemKind, Expr, ImageElem,
+        LinkElem, ListElem, SectionElem, SeparatorElem, TableElem, TextElem,
     },
     diagnostic::SyntaxError,
-    lexer::TokenKind,
+    lexer::tokens::TokenKind,
     parser::{Parser, parse::Parse},
 };
 
@@ -28,7 +28,7 @@ impl Parse for DocElemKind {
             TokenKind::Image => ImageElem::parse(p).map(|s| s.into()),
             TokenKind::Table => TableElem::parse(p).map(|s| s.into()),
             TokenKind::List => ListElem::parse(p).map(|s| s.into()),
-            TokenKind::Identifier => CallElem::parse(p).map(|s| s.into()),
+            TokenKind::Identifier(_) => CallElem::parse(p).map(|s| s.into()),
             TokenKind::Link => LinkElem::parse(p).map(|s| s.into()),
             TokenKind::Section => SectionElem::parse(p).map(|s| s.into()),
             TokenKind::Separator => SeparatorElem::parse(p).map(|s| s.into()),
@@ -41,7 +41,7 @@ impl Parse for DocElemKind {
                         TokenKind::Image,
                         TokenKind::Table,
                         TokenKind::List,
-                        TokenKind::Identifier,
+                        TokenKind::Identifier(0),
                         TokenKind::Link,
                         TokenKind::Section,
                         TokenKind::Separator,
@@ -63,10 +63,17 @@ impl DocElemKind {
         p.cursor.expect(TokenKind::LeftParen).ok()?;
         let mut attributes = HashMap::new();
         while !p.cursor.check(TokenKind::RightParen) {
-            let name = p.cursor.cur_text().to_owned();
-            p.cursor.advance(); // consume identifier
+            let name = if p.cursor.check_identifier() {
+                p.cursor.expect_identifier().ok()?
+            } else if p.cursor.peek_tok() == Some(&TokenKind::Assign) {
+                let name = p.cursor.cur_text().to_string();
+                p.cursor.advance();
+                name
+            } else {
+                return None;
+            };
 
-            p.cursor.expect(TokenKind::Equals).ok()?;
+            p.cursor.expect(TokenKind::Assign).ok()?;
             let value = Expr::parse(p).ok()?;
             attributes.insert(name, value);
 
@@ -166,7 +173,8 @@ impl TableElem {
                     (p.cursor.cur_tok() == &TokenKind::Pipe
                         && p.cursor.peek_tok() == Some(&TokenKind::Pipe))
                         || (p.cursor.cur_tok() == &TokenKind::Pipe
-                            && p.cursor.peek_tok() == Some(&TokenKind::RightBracket))
+                            && p.cursor.peek_tok()
+                                == Some(&TokenKind::RightBracket))
                 },
                 |p: &mut Parser| p.cursor.cur_tok() == &TokenKind::Pipe,
                 Some(TokenKind::Pipe),
@@ -180,7 +188,11 @@ impl TableElem {
                 return Err(SyntaxError::InvalidConstruct {
                     location: p.cursor.location(),
                     construct: "table row".to_string(),
-                    reason: format!("Expected {} columns, got {}", colum_count, row.len()),
+                    reason: format!(
+                        "Expected {} columns, got {}",
+                        colum_count,
+                        row.len()
+                    ),
                 });
             }
         }
@@ -194,7 +206,10 @@ impl TableElem {
         Ok(table)
     }
 
-    fn parse_divider_row(p: &mut Parser, column_count: usize) -> Result<(), SyntaxError> {
+    fn parse_divider_row(
+        p: &mut Parser,
+        column_count: usize,
+    ) -> Result<(), SyntaxError> {
         p.cursor.expect(TokenKind::Pipe)?;
         p.cursor.expect(TokenKind::Pipe)?;
 
@@ -256,10 +271,9 @@ impl Parse for ListElem {
 impl Parse for CallElem {
     /// Parses a call element, e.g.
     ///
-    /// `@Call("func", [arg1, arg2])` -> `CallElem { name: "func", args: [arg1, arg2], children: [] }`.
+    /// `func([arg1, arg2])` -> `CallElem { name: "func", args: [arg1, arg2], children: [] }`.
     fn parse(p: &mut Parser) -> Result<Self, SyntaxError> {
-        let name = p.cursor.cur_text().to_owned();
-        p.cursor.expect(TokenKind::Identifier)?;
+        let name = p.cursor.expect_identifier()?;
 
         p.cursor.expect(TokenKind::LeftParen)?;
         let args = match p.parse_split_on::<ArgType, _, _>(

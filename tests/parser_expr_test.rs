@@ -1,8 +1,12 @@
-mod common;
+#[path = "support/mod.rs"]
+mod support;
 
-use common::template_statements;
 use pyrus::ast::{BinOp, ExprKind, StmtKind, UnaryOp};
-use pyrus::lexer::lex;
+use pyrus::{
+    diagnostic::{CompilerDiagnostic, SyntaxError},
+    lexer::lex_all,
+};
+use support::template_statements;
 
 fn assigned_expr(source: &str) -> ExprKind {
     let statements = template_statements(source);
@@ -28,8 +32,12 @@ fn test_parse_binary_addition() {
     match assigned_expr("template { let sum = x + y }") {
         ExprKind::Binary(expr) => {
             assert!(matches!(expr.op, BinOp::Add));
-            assert!(matches!(expr.left.as_ref(), ExprKind::Identifier(name) if name == "x"));
-            assert!(matches!(expr.right.as_ref(), ExprKind::Identifier(name) if name == "y"));
+            assert!(
+                matches!(expr.left.as_ref(), ExprKind::Identifier(name) if name == "x")
+            );
+            assert!(
+                matches!(expr.right.as_ref(), ExprKind::Identifier(name) if name == "y")
+            );
         }
         other => panic!("Expected Binary expr, got {other:?}"),
     }
@@ -85,12 +93,16 @@ fn test_parse_string_with_escaped_quote() {
 
 #[test]
 fn test_lex_unterminated_string() {
-    let tokens = lex(r#"template { let msg = "unterminated }"#, "test.ink").expect("Lexing failed");
-    assert!(
-        !tokens.errors.is_empty(),
-        "Should report an unterminated string"
-    );
-    assert_eq!(tokens.errors[0].message, "Unterminated string literal");
+    let errors = lex_all(r#"template { let msg = "unterminated }"#, "test.ink")
+        .unwrap_err();
+    assert!(!errors.is_empty(), "Should report an unterminated string");
+    assert!(matches!(
+        errors.first(),
+        Some(CompilerDiagnostic::Syntax(SyntaxError::UnterminatedDelimiter {
+            delimiter,
+            ..
+        })) if delimiter == "\""
+    ));
 }
 
 #[test]

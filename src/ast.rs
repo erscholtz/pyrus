@@ -10,17 +10,17 @@ mod stmt;
 mod style;
 
 pub use elem::{
-    CallElem, ChildrenElem, CodeElem, DocElem, DocElemKind, ImageElem, LinkElem, ListElem,
-    SectionElem, SeparatorElem, TableElem, TextElem,
+    CallElem, ChildrenElem, CodeElem, DocElem, DocElemKind, ImageElem,
+    LinkElem, ListElem, SectionElem, SeparatorElem, TableElem, TextElem,
 };
 pub use expr::{
-    BinOp, BinaryExpr, Expr, ExprKind, InterpolatedStringExpr, StructDefaultExpr, UnaryExpr,
-    UnaryOp,
+    BinOp, BinaryExpr, Expr, ExprKind, InterpolatedStringExpr,
+    StructDefaultExpr, UnaryExpr, UnaryOp,
 };
 pub use func::{ArgType, FuncDeclStmt, FuncParam};
 pub use root::{Ast, DocumentBlock, StyleBlock, TemplateBlock, Type};
 pub use stmt::{
-    ChildrenStmt, ConstAssignStmt, DefaultSetStmt, ForStmt, IfStmt, ReturnStmt, Stmt, StmtKind,
-    VarAssignStmt, WhileStmt,
+    ChildrenStmt, ConstAssignStmt, DefaultSetStmt, ForStmt, IfStmt, ReturnStmt,
+    Stmt, StmtKind, VarAssignStmt, WhileStmt,
 };
 pub use style::{KeyValue, Selector, StyleRule, StyleValue};

@@ -1,4 +1,4 @@
-use crate::lexer::TokenKind;
+use crate::lexer::tokens::TokenKind;
 
 use super::{Diagnostic, Severity, SourceLocation};
 
@@ -51,14 +51,20 @@ impl SyntaxError {
         }
     }
 
-    pub fn unexpected_eof(expected: impl Into<String>, location: SourceLocation) -> Self {
+    pub fn unexpected_eof(
+        expected: impl Into<String>,
+        location: SourceLocation,
+    ) -> Self {
         Self::UnexpectedEof {
             location,
             expected: expected.into(),
         }
     }
 
-    pub fn missing_token(expected: TokenKind, location: SourceLocation) -> Self {
+    pub fn missing_token(
+        expected: TokenKind,
+        location: SourceLocation,
+    ) -> Self {
         Self::MissingToken { location, expected }
     }
 
@@ -74,7 +80,10 @@ impl SyntaxError {
         }
     }
 
-    pub fn unterminated_delimiter(delimiter: impl Into<String>, location: SourceLocation) -> Self {
+    pub fn unterminated_delimiter(
+        delimiter: impl Into<String>,
+        location: SourceLocation,
+    ) -> Self {
         Self::UnterminatedDelimiter {
             location,
             delimiter: delimiter.into(),
@@ -123,7 +132,9 @@ impl Diagnostic for SyntaxError {
             SyntaxError::UnexpectedEof { .. } => "unexpected end of file",
             SyntaxError::MissingToken { .. } => "missing token",
             SyntaxError::InvalidConstruct { .. } => "invalid syntax construct",
-            SyntaxError::UnterminatedDelimiter { .. } => "unterminated delimiter",
+            SyntaxError::UnterminatedDelimiter { .. } => {
+                "unterminated delimiter"
+            }
         }
     }
 
@@ -133,7 +144,9 @@ impl Diagnostic for SyntaxError {
             SyntaxError::UnexpectedEof { location, .. } => location.clone(),
             SyntaxError::MissingToken { location, .. } => location.clone(),
             SyntaxError::InvalidConstruct { location, .. } => location.clone(),
-            SyntaxError::UnterminatedDelimiter { location, .. } => location.clone(),
+            SyntaxError::UnterminatedDelimiter { location, .. } => {
+                location.clone()
+            }
         }
     }
 

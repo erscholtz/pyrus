@@ -71,7 +71,12 @@ impl HirDebug for HIRModule {
                 writeln!(
                     f,
                     "  [{:2}] type={:?} id={:?} classes={:?} parent={:?} attrs=#{}",
-                    i, meta.element_type, meta.id, meta.classes, meta.parent, meta.attributes_ref
+                    i,
+                    meta.element_type,
+                    meta.id,
+                    meta.classes,
+                    meta.parent,
+                    meta.attributes_ref
                 )?;
             }
         }
@@ -82,7 +87,8 @@ impl HirDebug for HIRModule {
 
 impl HirDebug for FuncDecl {
     fn hir_fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let args: Vec<String> = self.args.iter().map(|t| format!("{:?}", t)).collect();
+        let args: Vec<String> =
+            self.args.iter().map(|t| format!("{:?}", t)).collect();
         let ret = match &self.return_type {
             Some(t) => format!("{:?}", t),
             None => "void".to_string(),
@@ -106,7 +112,8 @@ impl HirDebug for FuncDecl {
 
 impl HirDebug for HirElemDecl {
     fn hir_fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let args: Vec<String> = self.args.iter().map(|t| format!("{:?}", t)).collect();
+        let args: Vec<String> =
+            self.args.iter().map(|t| format!("{:?}", t)).collect();
         writeln!(f, "{}({})", self.name, args.join(", "))?;
         writeln!(f, "    body ops: {}", self.body.items.len())?;
         for (i, op) in self.body.items.iter().enumerate() {
@@ -170,7 +177,8 @@ impl HirDebug for Op {
                 )
             }
             Op::FuncCall { result, func, args } => {
-                let args_str: Vec<String> = args.iter().map(|a| a.hir_string()).collect();
+                let args_str: Vec<String> =
+                    args.iter().map(|a| a.hir_string()).collect();
                 match result {
                     Some(r) => write!(
                         f,
@@ -179,7 +187,12 @@ impl HirDebug for Op {
                         func.hir_string(),
                         args_str.join(", ")
                     ),
-                    None => write!(f, "call {}({})", func.hir_string(), args_str.join(", ")),
+                    None => write!(
+                        f,
+                        "call {}({})",
+                        func.hir_string(),
+                        args_str.join(", ")
+                    ),
                 }
             }
             Op::ElementCall {
@@ -188,7 +201,8 @@ impl HirDebug for Op {
                 element,
                 args,
             } => {
-                let args_str: Vec<String> = args.iter().map(|a| a.hir_string()).collect();
+                let args_str: Vec<String> =
+                    args.iter().map(|a| a.hir_string()).collect();
                 let element_str = element
                     .map(|element| element.hir_string())
                     .unwrap_or_else(|| "None".to_string());
@@ -208,7 +222,8 @@ impl HirDebug for Op {
                 write!(f, "emit elem#{}", index)
             }
             Op::StringConcat { result, parts } => {
-                let parts_str: Vec<String> = parts.iter().map(|p| p.hir_string()).collect();
+                let parts_str: Vec<String> =
+                    parts.iter().map(|p| p.hir_string()).collect();
                 write!(
                     f,
                     "{} = concat [{}]",
@@ -248,7 +263,11 @@ impl HirDebug for HirElementOp {
                 children,
                 attributes,
             } => {
-                write!(f, "section children={:?} attrs=#{}", children, attributes)
+                write!(
+                    f,
+                    "section children={:?} attrs=#{}",
+                    children, attributes
+                )
             }
             HirElementOp::List {
                 children,

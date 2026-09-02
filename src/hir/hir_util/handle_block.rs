@@ -2,10 +2,15 @@ use crate::ast::{IfStmt, ReturnStmt, Stmt, StmtKind};
 use crate::diagnostic::SemanticError;
 use crate::hir::{
     hir_types::{Block, HIRModule, LoweredBlock, Op, ReturnSummary, ValueId},
-    hir_util::{handle_elem::lower_document_element, handle_expr::assign_local},
+    hir_util::{
+        handle_elem::lower_document_element, handle_expr::assign_local,
+    },
 };
 
-pub fn lower_block(body: &[Stmt], hir: &mut HIRModule) -> Result<LoweredBlock, Vec<SemanticError>> {
+pub fn lower_block(
+    body: &[Stmt],
+    hir: &mut HIRModule,
+) -> Result<LoweredBlock, Vec<SemanticError>> {
     let mut ir_body = LoweredBlock {
         block: Block { items: Vec::new() },
         return_summary: ReturnSummary::None,
@@ -16,11 +21,14 @@ pub fn lower_block(body: &[Stmt], hir: &mut HIRModule) -> Result<LoweredBlock, V
         match &stmt.node {
             StmtKind::DefaultSet(_) => {
                 // NOTE default sets are only allowed at the top level
-                errors.push(SemanticError::DefaultSetAtInvalidLocation { location: loc });
+                errors.push(SemanticError::DefaultSetAtInvalidLocation {
+                    location: loc,
+                });
             }
             StmtKind::ConstAssign(stmt) => {
                 let id = ValueId(ir_body.block.items.len());
-                let op = assign_local(stmt.name.clone(), &stmt.value, id, false);
+                let op =
+                    assign_local(stmt.name.clone(), &stmt.value, id, false);
                 ir_body.block.items.push(op);
             }
             StmtKind::VarAssign(stmt) => {
@@ -29,14 +37,18 @@ pub fn lower_block(body: &[Stmt], hir: &mut HIRModule) -> Result<LoweredBlock, V
                 ir_body.block.items.push(op);
             }
             StmtKind::Return(ReturnStmt::DocElem(doc_element)) => {
-                let element_id =
-                    match lower_document_element(doc_element, hir, &mut ir_body.block, None) {
-                        Ok(id) => id,
-                        Err(err) => {
-                            errors.extend(err);
-                            continue;
-                        }
-                    };
+                let element_id = match lower_document_element(
+                    doc_element,
+                    hir,
+                    &mut ir_body.block,
+                    None,
+                ) {
+                    Ok(id) => id,
+                    Err(err) => {
+                        errors.extend(err);
+                        continue;
+                    }
+                };
                 ir_body.block.items.push(Op::Return {
                     doc_element_ref: element_id,
                 });
@@ -48,7 +60,8 @@ pub fn lower_block(body: &[Stmt], hir: &mut HIRModule) -> Result<LoweredBlock, V
                 let id = ValueId(ir_body.block.items.len());
                 let op = assign_local("__return".to_string(), expr, id, false);
                 ir_body.block.items.push(op);
-                ir_body.return_summary = ir_body.return_summary.combine(ReturnSummary::Expr);
+                ir_body.return_summary =
+                    ir_body.return_summary.combine(ReturnSummary::Expr);
             }
             StmtKind::If(IfStmt {
                 condition,
@@ -56,7 +69,12 @@ pub fn lower_block(body: &[Stmt], hir: &mut HIRModule) -> Result<LoweredBlock, V
                 else_body,
             }) => {
                 let cond_id = ValueId(ir_body.block.items.len());
-                let op = assign_local("__cond".to_string(), condition, cond_id, false);
+                let op = assign_local(
+                    "__cond".to_string(),
+                    condition,
+                    cond_id,
+                    false,
+                );
                 ir_body.block.items.push(op);
                 let then_block = match lower_block(body, hir) {
                     Ok(ops) => ops,
@@ -85,7 +103,8 @@ pub fn lower_block(body: &[Stmt], hir: &mut HIRModule) -> Result<LoweredBlock, V
                         .as_ref()
                         .map(|lowered| lowered.return_summary.clone()),
                 );
-                ir_body.return_summary = ir_body.return_summary.combine(if_summary);
+                ir_body.return_summary =
+                    ir_body.return_summary.combine(if_summary);
 
                 ir_body.block.items.push(Op::If {
                     cond: cond_id,

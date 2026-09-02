@@ -157,7 +157,9 @@ impl ReturnSummary {
     pub fn combine(self, other: Self) -> Self {
         match (self, other) {
             (Self::None, summary) | (summary, Self::None) => summary,
-            (Self::SingleElem(left), Self::SingleElem(right)) if left == right => {
+            (Self::SingleElem(left), Self::SingleElem(right))
+                if left == right =>
+            {
                 Self::SingleElem(left)
             }
             (Self::Expr, Self::Expr) => Self::Expr,
@@ -287,7 +289,9 @@ impl AttributeNode {
         }
     }
 
-    pub fn new_with_attributes(attributes: Option<&HashMap<String, Expr>>) -> Self {
+    pub fn new_with_attributes(
+        attributes: Option<&HashMap<String, Expr>>,
+    ) -> Self {
         Self {
             parent: None,
             id: 0,
@@ -309,7 +313,10 @@ impl AttributeNode {
         None
     }
 
-    fn find_node_mut_recursive(&mut self, target_id: usize) -> Option<&mut AttributeNode> {
+    fn find_node_mut_recursive(
+        &mut self,
+        target_id: usize,
+    ) -> Option<&mut AttributeNode> {
         if self.id == target_id {
             return Some(self);
         }
@@ -335,7 +342,11 @@ impl AttributeNode {
         )
     }
 
-    pub fn get_effective_value(&self, property: &str, tree: &AttributeTree) -> Option<String> {
+    pub fn get_effective_value(
+        &self,
+        property: &str,
+        tree: &AttributeTree,
+    ) -> Option<String> {
         if let Some(val) = self.computed.get(property) {
             return Some(val);
         }
@@ -369,7 +380,9 @@ impl HirElementOp {
 
     pub fn child_elements(&self) -> Option<&[usize]> {
         match self {
-            Self::Section { children, .. } | Self::List { children, .. } => Some(children),
+            Self::Section { children, .. } | Self::List { children, .. } => {
+                Some(children)
+            }
             Self::Text { .. }
             | Self::Link { .. }
             | Self::Image { .. }
@@ -470,7 +483,9 @@ impl StyleAttributes {
             "padding" => self.padding.map(|v| v.to_string()),
             "align" => self.align.as_ref().map(|v| format!("{:?}", v)),
             "hidden" => Some(self.hidden.to_string()),
-            "page_break" => Some(format!("{:?}", self.page_break).to_lowercase()),
+            "page_break" => {
+                Some(format!("{:?}", self.page_break).to_lowercase())
+            }
             "role" => self.role.clone(),
             _ => None,
         }
@@ -608,7 +623,9 @@ const INHERITED_STYLE_PROPERTIES: &[&str] = &[
 ];
 
 impl StyleAttributes {
-    pub fn new_with_attributes(attributes: Option<&HashMap<String, Expr>>) -> Self {
+    pub fn new_with_attributes(
+        attributes: Option<&HashMap<String, Expr>>,
+    ) -> Self {
         let mut result = Self::default();
         let Some(attributes) = attributes else {
             return result;
@@ -626,7 +643,8 @@ impl StyleAttributes {
 
         match property {
             "class" => {
-                self.class = value.split_whitespace().map(String::from).collect();
+                self.class =
+                    value.split_whitespace().map(String::from).collect();
             }
             "style" => {
                 self.style = Self::parse_style(&value);

@@ -2,7 +2,7 @@
 use crate::{
     ast::{Expr, KeyValue, Selector, StyleRule, StyleValue},
     diagnostic::SyntaxError,
-    lexer::TokenKind,
+    lexer::tokens::TokenKind,
     parser::{Parser, parse::Parse},
 };
 
@@ -32,9 +32,8 @@ impl Parse for StyleRule {
 
 impl Parse for Selector {
     fn parse(p: &mut Parser) -> Result<Self, SyntaxError> {
-        if p.cursor.cur_tok() == &TokenKind::Identifier {
-            let name = p.cursor.cur_text().to_owned();
-            p.cursor.advance();
+        if p.cursor.check_identifier() {
+            let name = p.cursor.expect_identifier()?;
             Ok(Selector::Type(name))
         } else if p.cursor.cur_tok() == &TokenKind::Dot {
             p.cursor.advance();
@@ -49,7 +48,11 @@ impl Parse for Selector {
         } else {
             Err(SyntaxError::UnexpectedToken {
                 location: p.cursor.location(),
-                expected: vec![TokenKind::Identifier, TokenKind::Dot, TokenKind::Hash],
+                expected: vec![
+                    TokenKind::Identifier(0),
+                    TokenKind::Dot,
+                    TokenKind::Hash,
+                ],
                 found: p.cursor.cur_tok().clone(),
             })
         }
@@ -60,11 +63,14 @@ impl Parse for KeyValue {
     fn parse(p: &mut Parser) -> Result<Self, SyntaxError> {
         if matches!(
             p.cursor.cur_tok(),
-            TokenKind::Colon | TokenKind::Equals | TokenKind::Semicolon | TokenKind::RightBrace
+            TokenKind::Colon
+                | TokenKind::Assign
+                | TokenKind::Semicolon
+                | TokenKind::RightBrace
         ) {
             return Err(SyntaxError::UnexpectedToken {
                 location: p.cursor.location(),
-                expected: vec![TokenKind::Identifier],
+                expected: vec![TokenKind::Identifier(0)],
                 found: p.cursor.cur_tok().clone(),
             });
         }
@@ -72,13 +78,13 @@ impl Parse for KeyValue {
         let key = KeyValue::parse_key(p)?;
 
         match p.cursor.cur_tok() {
-            TokenKind::Colon | TokenKind::Equals => {
+            TokenKind::Colon | TokenKind::Assign => {
                 p.cursor.advance();
             }
             _ => {
                 return Err(SyntaxError::UnexpectedToken {
                     location: p.cursor.location(),
-                    expected: vec![TokenKind::Equals, TokenKind::Colon],
+                    expected: vec![TokenKind::Assign, TokenKind::Colon],
                     found: p.cursor.cur_tok().clone(),
                 });
             }
@@ -94,7 +100,9 @@ impl Parse for KeyValue {
 impl KeyValue {
     fn parse_key(p: &mut Parser) -> Result<String, SyntaxError> {
         let mut key = String::new();
-        while p.cursor.cur_tok() != &TokenKind::Colon && p.cursor.cur_tok() != &TokenKind::Equals {
+        while p.cursor.cur_tok() != &TokenKind::Colon
+            && p.cursor.cur_tok() != &TokenKind::Assign
+        {
             key.push_str(p.cursor.cur_text());
             p.cursor.advance();
         }
@@ -105,7 +113,7 @@ impl KeyValue {
     fn parse_value(p: &mut Parser) -> Result<StyleValue, SyntaxError> {
         let expr = Expr::parse(p)?;
         let unit = match p.cursor.cur_tok() {
-            TokenKind::Identifier => Some(p.cursor.cur_text().to_string()),
+            TokenKind::Identifier(_) => Some(p.cursor.cur_text().to_string()),
             _ => None,
         };
         if let Some(_) = unit.clone() {

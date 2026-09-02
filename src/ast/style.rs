@@ -14,7 +14,10 @@ pub struct StyleRule {
 }
 
 impl StyleRule {
-    pub fn new(selector_list: Vec<Selector>, declaration_block: Vec<KeyValue>) -> Self {
+    pub fn new(
+        selector_list: Vec<Selector>,
+        declaration_block: Vec<KeyValue>,
+    ) -> Self {
         let specificity = Self::compute_specificity(&selector_list);
         Self {
             selector_list,

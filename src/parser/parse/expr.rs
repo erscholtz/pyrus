@@ -1,7 +1,13 @@
 use crate::{
-    ast::{BinOp, BinaryExpr, Expr, ExprKind, InterpolatedStringExpr, UnaryExpr, UnaryOp},
-    diagnostic::{SourceLocation, SyntaxError},
-    lexer::{TokenKind, lex, tokens::StringEntry},
+    ast::{
+        BinOp, BinaryExpr, Expr, ExprKind, InterpolatedStringExpr, UnaryExpr,
+        UnaryOp,
+    },
+    diagnostic::{CompilerDiagnostic, SourceLocation, SyntaxError},
+    lexer::{
+        Lexer,
+        tokens::{StringEntry, TokenKind},
+    },
     parser::{Parser, parse::Parse},
     util::Spanned,
 };
@@ -28,7 +34,7 @@ impl ExprKind {
             TokenKind::Int => ExprKind::parse_int(p)?,
             TokenKind::Float => ExprKind::parse_float(p)?,
             TokenKind::StringLiteral(idx) => ExprKind::parse_string(p, *idx)?,
-            TokenKind::Identifier => ExprKind::parse_identifier(p)?,
+            TokenKind::Identifier(_) => ExprKind::parse_identifier(p)?,
             TokenKind::Minus | TokenKind::Bang => ExprKind::parse_prefix(p)?,
             TokenKind::LeftParen => ExprKind::parse_grouped(p)?,
             _ => {
@@ -38,7 +44,7 @@ impl ExprKind {
                         TokenKind::Int,
                         TokenKind::Float,
                         TokenKind::StringLiteral(0),
-                        TokenKind::Identifier,
+                        TokenKind::Identifier(0),
                         TokenKind::Minus,
                         TokenKind::Bang,
                         TokenKind::LeftParen,
@@ -50,28 +56,30 @@ impl ExprKind {
 
         // Infix
         loop {
-            let (l_bp, r_bp) = match ExprKind::infix_binding_power(p.cursor.cur_tok()) {
-                Some(bp) => bp,
-                None => break,
-            };
+            let (l_bp, r_bp) =
+                match ExprKind::infix_binding_power(p.cursor.cur_tok()) {
+                    Some(bp) => bp,
+                    None => break,
+                };
 
             if l_bp < min_bp {
                 break;
             }
 
-            let op = ExprKind::binary_op(p.cursor.cur_tok()).ok_or_else(|| {
-                SyntaxError::UnexpectedToken {
-                    location: p.cursor.location(),
-                    expected: vec![
-                        TokenKind::Plus,
-                        TokenKind::Minus,
-                        TokenKind::Star,
-                        TokenKind::Slash,
-                        TokenKind::Equals,
-                    ],
-                    found: p.cursor.cur_tok().clone(),
-                }
-            })?;
+            let op =
+                ExprKind::binary_op(p.cursor.cur_tok()).ok_or_else(|| {
+                    SyntaxError::UnexpectedToken {
+                        location: p.cursor.location(),
+                        expected: vec![
+                            TokenKind::Plus,
+                            TokenKind::Minus,
+                            TokenKind::Star,
+                            TokenKind::Slash,
+                            TokenKind::Assign,
+                        ],
+                        found: p.cursor.cur_tok().clone(),
+                    }
+                })?;
 
             p.cursor.advance(); // consume operator
             let rhs = ExprKind::parse_expr(p, r_bp)?;
@@ -91,7 +99,7 @@ impl ExprKind {
         match tok {
             TokenKind::Plus | TokenKind::Minus => Some((1, 2)),
             TokenKind::Star | TokenKind::Slash => Some((3, 4)),
-            TokenKind::Equals => Some((5, 6)),
+            TokenKind::Assign => Some((5, 6)),
             _ => None,
         }
     }
@@ -129,20 +137,24 @@ impl ExprKind {
     }
 
     /// Parse a string literal.
-    fn parse_string(p: &mut Parser, idx: usize) -> Result<ExprKind, SyntaxError> {
-        let value =
-            p.cursor
-                .get_string(idx)
-                .cloned()
-                .ok_or_else(|| SyntaxError::UnexpectedToken {
-                    location: p.cursor.location(),
-                    expected: vec![TokenKind::String],
-                    found: p.cursor.cur_tok().clone(),
-                })?;
+    fn parse_string(
+        p: &mut Parser,
+        idx: usize,
+    ) -> Result<ExprKind, SyntaxError> {
+        let value = p.cursor.get_string(idx).cloned().ok_or_else(|| {
+            SyntaxError::UnexpectedToken {
+                location: p.cursor.location(),
+                expected: vec![TokenKind::String],
+                found: p.cursor.cur_tok().clone(),
+            }
+        })?;
         p.cursor.advance();
         if value.has_interpolation {
             Ok(ExprKind::InterpolatedString(
-                InterpolatedStringExpr::from_string_entry(&value, p.cursor.location())?,
+                InterpolatedStringExpr::from_string_entry(
+                    &value,
+                    p.cursor.location(),
+                )?,
             ))
         } else {
             Ok(ExprKind::StringLiteral(value.content))
@@ -151,8 +163,7 @@ impl ExprKind {
 
     /// Parse an identifier.
     fn parse_identifier(p: &mut Parser) -> Result<ExprKind, SyntaxError> {
-        let name = p.cursor.cur_text().to_owned();
-        p.cursor.advance();
+        let name = p.cursor.expect_identifier()?;
         Ok(ExprKind::Identifier(name))
     }
 
@@ -201,7 +212,7 @@ impl ExprKind {
             TokenKind::Minus => Some(BinOp::Subtract),
             TokenKind::Star => Some(BinOp::Multiply),
             TokenKind::Slash => Some(BinOp::Divide),
-            TokenKind::Equals => Some(BinOp::Equals),
+            TokenKind::Assign => Some(BinOp::Equals),
             TokenKind::Percent => Some(BinOp::Mod),
             _ => None,
         }
@@ -225,7 +236,10 @@ impl Parse for InterpolatedStringExpr {
         };
 
         p.cursor.advance();
-        InterpolatedStringExpr::from_string_entry(&raw_string, p.cursor.location())
+        InterpolatedStringExpr::from_string_entry(
+            &raw_string,
+            p.cursor.location(),
+        )
     }
 }
 
@@ -308,7 +322,10 @@ impl InterpolatedStringExpr {
         Ok(parts)
     }
 
-    fn parse_embedded_expr(expr: &str, location: &SourceLocation) -> Result<ExprKind, SyntaxError> {
+    fn parse_embedded_expr(
+        expr: &str,
+        location: &SourceLocation,
+    ) -> Result<ExprKind, SyntaxError> {
         let expr = expr.trim();
         if expr.is_empty() {
             return Err(SyntaxError::UnexpectedEof {
@@ -317,15 +334,34 @@ impl InterpolatedStringExpr {
             });
         }
 
-        let tokens = match lex(expr, &location.file) {
+        let tokens = match Lexer::new(location.file.clone(), expr.to_string())
+            .lex_all()
+        {
             Ok(tokens) => tokens,
             Err(errors) => {
-                return Err(errors.into_iter().next().unwrap());
+                return Err(compiler_diagnostic_to_syntax(
+                    errors.into_iter().next().unwrap(),
+                    location,
+                ));
             }
         };
 
         let mut parser = Parser::new(tokens);
         parser.cursor.set_trace_context("embedded-expr");
         ExprKind::parse(&mut parser)
+    }
+}
+
+fn compiler_diagnostic_to_syntax(
+    diagnostic: CompilerDiagnostic,
+    fallback_location: &SourceLocation,
+) -> SyntaxError {
+    match diagnostic {
+        CompilerDiagnostic::Syntax(error) => error,
+        CompilerDiagnostic::Semantic(error) => SyntaxError::invalid_construct(
+            "embedded expression",
+            error.to_string(),
+            fallback_location.clone(),
+        ),
     }
 }
