@@ -1,11 +1,6 @@
 pub mod ast;
-pub mod backend;
-// pub mod ffi; // still TODO
-pub mod hir;
-pub mod layout;
+pub mod diagnostic;
 pub mod lexer;
 pub mod parser;
-
-pub mod diagnostic;
-pub mod util;
 pub mod tokens;
+pub mod util;

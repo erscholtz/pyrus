@@ -1,0 +1,62 @@
+document {
+    type: A4
+    margin: 4
+}
+
+elem header {
+    name,
+    contact,
+}
+
+elem separator {
+    title,
+}
+
+elem entry {
+    company,
+    role,
+    date,
+    content,
+}
+
+layout header {
+    name < | > contact
+
+    name: xl
+    contact: sm
+}
+
+layout separator {
+    title
+
+    title: lg
+}
+
+layout entry {
+    company < | > date
+    role
+    content
+
+    company: md
+    date: sm
+    role: sm
+    content: sm
+}
+
+@header {
+    name: Erik Example
+    contact: `github` · `email`
+}
+
+@separator {
+    title: Experience
+}
+
+@entry {
+    company: ACME
+    role: Software Engineer
+    date: 2025–2026
+
+    - Built **Pyrus**, a tiny resume compiler in `Rust`
+    - Worked on low-level document layout and PDF generation
+}

@@ -1,252 +1,142 @@
 mod parse;
-mod parser_cursor;
+
+pub use parse::Parse;
 
 use crate::{
-    diagnostic::{DiagnosticManager, SyntaxError},
-    lexer::{tokens::TokenKind, tokens::TokenStream},
-    parser::{parse::Parse, parser_cursor::Cursor},
+    diagnostic::{CompilerDiagnostic, SourceLocation, Span, SyntaxError},
+    lexer::Lexer,
+    tokens::{Token, TokenKind},
 };
 
-/// parser type
+/// Parser state shared by the grammar-specific parse modules.
 pub struct Parser {
-    pub file: String, // FIX this might be duplicate info, cursor has this
-    pub cursor: Cursor,
-    pub errors: Vec<SyntaxError>, // FIX also duplicate maybe? main parser var
-    // shoud handle this instead
-    pub trace_enabled: bool,
+    file: String,
+    lexer: Lexer,
+    current: Token,
 }
 
 impl Parser {
-    /// ebables or disables tracing/debug printing for the parser
-    pub fn enable_tracing(mut self) -> Self {
-        self.trace_enabled = true;
-        self.cursor.enable_tracing();
-        self
+    pub fn new(
+        file: String,
+        mut lexer: Lexer,
+    ) -> Result<Self, CompilerDiagnostic> {
+        let current = lexer.pull()?;
+        Ok(Self {
+            file,
+            lexer,
+            current,
+        })
     }
 
-    /// trace printing
-    fn trace(&self, event: &str) {
-        if !self.trace_enabled {
-            return;
-        }
-
-        eprintln!(
-            "[parser:{}:{event}] tok={:?} text={:?} line={} col={}",
-            self.cursor.trace_context(),
-            self.cursor.cur_tok(),
-            self.cursor.cur_text(),
-            self.cursor.cur_line(),
-            self.cursor.cur_col(),
-        );
+    pub fn parse<T: Parse>(&mut self) -> Result<T, CompilerDiagnostic> {
+        T::parse(self)
     }
 
-    pub fn new(toks: TokenStream) -> Self {
-        Self {
-            file: toks.file.clone(),
-            errors: Vec::new(),
-            cursor: Cursor::new(toks),
-            trace_enabled: false,
-        }
+    /// Returns the current token kind.
+    pub(crate) fn current_kind(&self) -> TokenKind {
+        self.current.kind
     }
 
-    /// gathers errors in builder pattern
-    pub fn gather_errors(mut self, dm: &mut DiagnosticManager) -> Self {
-        for error in self.errors.drain(..) {
-            dm.push(error);
-        }
-        self
+    /// Returns the text of the current token.
+    pub(crate) fn current_text(&self) -> &str {
+        self.lexer.text(&self.current).unwrap_or("")
     }
 
-    /// Entry: parse any T that implements Parse
-    ///
-    /// TODO: revisit this and change it to take diagnostics wrapper instead of
-    /// syntax error
-    pub fn parse<T: Parse>(&mut self) -> Result<T, Vec<SyntaxError>> {
-        self.trace("parse:start");
-        let result = match T::parse(self) {
-            Ok(result) => result,
-            Err(err) => {
-                self.errors.push(err);
-                self.trace("parse:error");
-                // FIX this is wrong I think
-                return Err(std::mem::take(&mut self.errors));
-            }
-        };
-
-        if self.errors.is_empty() {
-            self.trace("parse:ok");
-            Ok(result)
-        } else {
-            self.trace("parse:errors");
-            Err(std::mem::take(&mut self.errors))
-        }
+    /// Returns the location of the current token.
+    pub(crate) fn location(&self) -> SourceLocation {
+        SourceLocation::new(
+            self.current.line,
+            self.current.col,
+            self.file.clone(),
+        )
+    }
+    /// Returns `true` if the current token is of the given kind.
+    pub(crate) fn at(&self, kind: TokenKind) -> bool {
+        self.current_kind() == kind
     }
 
-    /// Error recovery helper
-    pub fn synchronize(&mut self, delimiters: &[TokenKind]) {
-        if self.trace_enabled {
-            eprintln!(
-                "[parser:{}:sync:start] delimiters={delimiters:?}",
-                self.cursor.trace_context()
-            );
-        }
-        // Skip until we hit a delimiter, add to errors
-        while !self.cursor.check(TokenKind::Eof) {
-            let token = self.cursor.advance();
-            if delimiters.contains(&token) {
-                self.trace("sync:hit-delimiter");
-                break;
-            }
-        }
+    /// Returns `true` if the current token is an identifier with the given text.
+    pub(crate) fn at_keyword(&self, keyword: &str) -> bool {
+        self.at(TokenKind::Identifier) && self.current_text() == keyword
     }
 
-    /// parse until a specific token is met
-    ///
-    /// NOTE: usually used for parsing blocks where we know it should end with
-    /// a right bracket
-    pub fn parse_until<T: Parse>(
+    /// Moves to the next token and returns it.
+    pub(crate) fn next(&mut self) -> Result<Token, CompilerDiagnostic> {
+        let next = self.lexer.pull()?;
+        Ok(std::mem::replace(&mut self.current, next))
+    }
+
+    /// Consumes the current token if it is of the given kind, returning it.
+    pub(crate) fn consume(
         &mut self,
-        end: TokenKind,
-    ) -> Result<Vec<T>, Vec<SyntaxError>> {
-        if self.trace_enabled {
-            eprintln!(
-                "[parser:{}:parse_until:start] end={end:?}",
-                self.cursor.trace_context()
-            );
+        kind: TokenKind,
+    ) -> Result<Token, CompilerDiagnostic> {
+        if self.at(kind) {
+            return self.next();
         }
-        let mut result = Vec::new();
-        // NOTE: Caller is responsible for positioning cursor at first token
-        while !self.cursor.check(end) && !self.cursor.check(TokenKind::Eof) {
-            self.trace("parse_until:item");
-            let parsed = match T::parse(self) {
-                Ok(parsed) => parsed,
-                Err(err) => {
-                    self.errors.push(err);
-                    self.trace("parse_until:error-skip");
-                    self.cursor.advance(); // Skip the problematic token
-                    continue;
-                }
-            };
-            result.push(parsed);
-        }
-        if self.cursor.check(end) {
-            if self.trace_enabled {
-                eprintln!(
-                    "[parser:{}:parse_until:consume_end] end={end:?} tok={:?} text={:?} at line={} col={}",
-                    self.cursor.trace_context(),
-                    self.cursor.cur_tok(),
-                    self.cursor.cur_text(),
-                    self.cursor.cur_line(),
-                    self.cursor.cur_col(),
-                );
-            }
-        }
-        if self.errors.is_empty() {
-            self.trace("parse_until:ok");
-            Ok(result)
-        } else {
-            self.trace("parse_until:errors");
-            Err(std::mem::take(&mut self.errors))
-        }
+
+        Err(SyntaxError::unexpected_token(
+            vec![kind],
+            self.current_kind(),
+            self.location(),
+        )
+        .into())
     }
 
-    /// Parses all items until the given condition is no longer true.
-    ///
-    /// NOTE: this function takes in a closure for should_continue
-    pub fn parse_all<T: Parse, F>(
+    pub(crate) fn expect_lexeme(
         &mut self,
-        should_continue: F,
-    ) -> Result<Vec<T>, Vec<SyntaxError>>
-    where
-        F: Fn(&mut Self) -> bool,
-    {
-        self.trace("parse_all:start");
-        let mut items = Vec::new();
-        while should_continue(self) {
-            self.trace("parse_all:item");
-            let result = match T::parse(self) {
-                Ok(parsed) => parsed,
-                Err(err) => {
-                    self.errors.push(err);
-                    self.trace("parse_all:error-sync");
-                    self.synchronize(&[
-                        TokenKind::Comma,
-                        TokenKind::RightBrace,
-                        TokenKind::RightParen,
-                    ]);
-                    continue;
-                }
-            };
-
-            items.push(result);
+        kind: TokenKind,
+    ) -> Result<String, CompilerDiagnostic> {
+        if !self.at(kind) {
+            return Err(SyntaxError::unexpected_token(
+                vec![kind],
+                self.current_kind(),
+                self.location(),
+            )
+            .into());
         }
-
-        if self.errors.is_empty() {
-            self.trace("parse_all:ok");
-            Ok(items)
-        } else {
-            self.trace("parse_all:errors");
-            Err(std::mem::take(&mut self.errors)) // Why?
-        }
+        let text = self.consume_lexeme()?;
+        Ok(text)
     }
 
-    /// Parses all items until the given condition is no longer true, and then
-    /// splits the result on the given delimiter.
-    ///
-    /// NOTE: this function takes in two closures, one for the splitting case
-    /// and one for the ending case
-    pub fn parse_split_on<T: Parse, FEnd, FDelim>(
+    /// Consumes the current token if it is of the given kind, returning its
+    /// text.
+    pub(crate) fn consume_lexeme(
         &mut self,
-        end: FEnd,
-        deliminer: FDelim,
-        starts_with_delimiter: Option<TokenKind>,
-    ) -> Result<Vec<T>, Vec<SyntaxError>>
-    where
-        FEnd: Fn(&mut Self) -> bool,
-        FDelim: Fn(&mut Self) -> bool,
-    {
-        self.trace("parse_split_on:start");
-        if let Some(delim) = starts_with_delimiter {
-            self.trace("parse_split_on:delimiter");
-            match self.cursor.expect(delim) {
-                Ok(_) => {}
-                Err(err) => {
-                    return Err(vec![err]);
-                }
-            }
+    ) -> Result<String, CompilerDiagnostic> {
+        let text = self.current_text().to_owned();
+        self.next()?;
+        Ok(text)
+    }
+
+    /// Consumes the current token if it is a keyword, returning it.
+    pub(crate) fn consume_keyword(
+        &mut self,
+        keyword: &str,
+    ) -> Result<Token, CompilerDiagnostic> {
+        if self.at_keyword(keyword) {
+            return self.next();
         }
 
-        let mut items = Vec::new();
-        while !end(self) && !self.cursor.check(TokenKind::Eof) {
-            self.trace("parse_split_on:item");
-            if deliminer(self) {
-                self.trace("parse_split_on:delimiter");
-                self.cursor.advance();
-                continue;
-            }
-            let result = match T::parse(self) {
-                Ok(parsed) => parsed,
-                Err(err) => {
-                    self.errors.push(err);
-                    self.trace("parse_split_on:error-sync");
-                    self.synchronize(&[
-                        TokenKind::Comma,
-                        TokenKind::RightBrace,
-                        TokenKind::RightParen,
-                    ]);
-                    continue;
-                }
-            };
-            items.push(result);
-        }
+        Err(SyntaxError::invalid_construct(
+            keyword,
+            format!(
+                "expected keyword `{keyword}`, found `{}`",
+                self.current_text()
+            ),
+            self.location(),
+        )
+        .into())
+    }
 
-        if self.errors.is_empty() {
-            self.trace("parse_split_on:ok");
-            Ok(items)
-        } else {
-            self.trace("parse_split_on:errors");
-            Err(std::mem::take(&mut self.errors)) // FIX Why is this done like
-            // this?
+    /// Skips over any trivia tokens (whitespace, comments) and returns `Ok(())`.
+    pub(crate) fn skip_trivia(&mut self) -> Result<(), CompilerDiagnostic> {
+        while matches!(
+            self.current_kind(),
+            TokenKind::Whitespace | TokenKind::Newline | TokenKind::LineComment
+        ) {
+            self.next()?;
         }
+        Ok(())
     }
 }

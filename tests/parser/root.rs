@@ -1,86 +1,59 @@
-use crate::support::{parse_ast, parse_errors};
-use pyrus::diagnostic::SyntaxError;
+use pyrus::{
+    ast::{Ast, DocumentConfig, Item},
+    lexer::Lexer,
+    parser::{Parse, Parser},
+};
 
 #[test]
-fn test_parse_empty_document() {
-    let ast = parse_ast("document { }");
-    assert!(ast.document.is_some());
-    assert!(ast.template.is_none());
-    assert!(ast.style.is_none());
+fn parses_top_level_items_in_source_order() {
+    let source = r#"
+document {}
 
-    let doc = ast.document.expect("Expected document block");
-    assert_eq!(doc.elements.len(), 0);
+elem marker {}
+
+layout marker {}
+
+@marker {}
+"#;
+    let file = "top-level.pyr".to_string();
+    let lexer = Lexer::new(file.clone(), source.to_string());
+    let mut parser =
+        Parser::new(file, lexer).expect("parser should read its first token");
+
+    let ast = Ast::parse(&mut parser).expect("top-level items should parse");
+
+    assert_eq!(ast.items.len(), 4);
+    assert!(matches!(&ast.items[0].node, Item::Document(_)));
+    assert!(matches!(&ast.items[1].node, Item::ElemDecl(_)));
+    assert!(matches!(&ast.items[2].node, Item::LayoutDecl(_)));
+    assert!(matches!(&ast.items[3].node, Item::ElemInvoke(_)));
 }
 
 #[test]
-fn test_parse_empty_template() {
-    let ast = parse_ast("template { }");
-    assert!(ast.template.is_some());
-    assert!(ast.document.is_none());
-    assert!(ast.style.is_none());
-
-    let template = ast.template.expect("Expected template block");
-    assert_eq!(template.statements.len(), 0);
+fn parses_document_config() {
+    let source = r#"
+document {
+    type: A4
+    margin: 4
 }
+"#;
+    let file = "document-config.pyr".to_string();
+    let lexer = Lexer::new(file.clone(), source.to_string());
+    let mut parser =
+        Parser::new(file, lexer).expect("parser should read its first token");
 
-#[test]
-fn test_parse_empty_style() {
-    let ast = parse_ast("style { }");
-    assert!(ast.style.is_some());
-    assert!(ast.template.is_none());
-    assert!(ast.document.is_none());
+    let ast = Ast::parse(&mut parser).expect("document config should parse");
 
-    let style = ast.style.expect("Expected style block");
-    assert_eq!(style.statements.len(), 0);
-}
+    assert_eq!(ast.items.len(), 1);
+    assert!(matches!(&ast.items[0].node, Item::Document(_)));
 
-#[test]
-fn test_parse_all_blocks() {
-    let ast = parse_ast("template { } document { } style { }");
-    assert!(ast.template.is_some());
-    assert!(ast.document.is_some());
-    assert!(ast.style.is_some());
-}
+    let Item::Document(document) = &ast.items[0].node else {
+        panic!("expected document configuration");
+    };
 
-#[test]
-fn test_duplicate_template_block_reports_error() {
-    let errors = parse_errors("template { } template { }");
-    assert_eq!(errors.len(), 1);
-    match &errors[0] {
-        SyntaxError::InvalidConstruct {
-            construct, reason, ..
-        } => {
-            assert_eq!(construct, "template");
-            assert_eq!(reason, "duplicate template block");
-        }
-        other => {
-            panic!("Expected duplicate template construct error, got {other:?}")
-        }
-    }
-}
-
-#[test]
-fn duplicate_document_block_reports_error() {
-    let errors = parse_errors("document { } document { }");
-    assert!(matches!(
-        &errors[0],
-        SyntaxError::InvalidConstruct {
-            construct,
-            reason,
-            ..
-        } if construct == "document" && reason == "duplicate document block"
-    ));
-}
-
-#[test]
-fn duplicate_style_block_reports_error() {
-    let errors = parse_errors("style { } style { }");
-    assert!(matches!(
-        &errors[0],
-        SyntaxError::InvalidConstruct {
-            construct,
-            reason,
-            ..
-        } if construct == "style" && reason == "duplicate style block"
-    ));
+    assert_eq!(document.entries.len(), 2);
+    assert_eq!(document.entries[0].name.text, "type");
+    assert_eq!(document.entries[0].value.node, "A4");
+    assert_eq!(document.entries[1].name.text, "margin");
+    assert_eq!(document.entries[1].value.node, "4");
 }

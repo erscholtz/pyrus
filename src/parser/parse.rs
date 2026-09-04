@@ -1,13 +1,12 @@
+mod content;
+mod document;
 mod elem;
-mod expr;
-mod func;
+mod layout;
 mod root;
-mod stmt;
-mod style;
 
-use crate::{diagnostic::SyntaxError, parser::Parser};
+use crate::{diagnostic::CompilerDiagnostic, parser::Parser};
 
-/// A trait for parsing a value from a token
+/// Parses one syntax construct from the parser's current token.
 pub trait Parse: Sized {
-    fn parse(p: &mut Parser) -> Result<Self, SyntaxError>;
+    fn parse(parser: &mut Parser) -> Result<Self, CompilerDiagnostic>;
 }
