@@ -38,6 +38,13 @@ impl Cursor {
         self.src.as_bytes().get(self.offset + 1).copied()
     }
 
+    /// Returns the byte immediately before the current position.
+    pub(super) fn peek_previous(&self) -> Option<u8> {
+        self.offset
+            .checked_sub(1)
+            .and_then(|offset| self.src.as_bytes().get(offset).copied())
+    }
+
     pub(super) fn peek_char(&self) -> Option<char> {
         self.src.get(self.offset..)?.chars().next()
     }

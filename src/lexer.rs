@@ -81,7 +81,12 @@ impl Lexer {
                 self.cursor.advance()?;
                 Ok(self.token(TokenKind::Newline, start))
             }
-            b'/' if self.cursor.peek_next() == Some(b'/') => {
+            b'/' if self.cursor.peek_next() == Some(b'/')
+                && self
+                    .cursor
+                    .peek_previous()
+                    .is_none_or(|byte| byte.is_ascii_whitespace()) =>
+            {
                 self.lex_comment(start)
             }
             _ => {

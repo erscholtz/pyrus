@@ -135,6 +135,27 @@ fn preserves_unicode_resume_content() {
 }
 
 #[test]
+fn distinguishes_urls_from_line_comments() {
+    let source = "https://example.com // comment";
+    let tokens = lex(source);
+
+    assert_eq!(
+        tokens
+            .iter()
+            .filter(|token| token.kind == TokenKind::Slash)
+            .count(),
+        2
+    );
+    assert_eq!(
+        tokens
+            .iter()
+            .filter(|token| token.kind == TokenKind::LineComment)
+            .count(),
+        1
+    );
+}
+
+#[test]
 fn lexes_inline_formatting_and_escapes() {
     let source = r"**Pyrus** `Rust` \` \\ \{ \}";
     let tokens = lex(source);
