@@ -58,6 +58,7 @@ impl Parse for InlineText {
     }
 }
 
+// TODO want to fix this at some point, 150 lines of straight hatred below
 impl Parse for Inline {
     fn parse(parser: &mut Parser) -> Result<Self, CompilerDiagnostic> {
         let mut opener = String::new();
