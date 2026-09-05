@@ -16,6 +16,8 @@ impl Parse for ElemDecl {
         let fields = ElemDecl::comsume_fields(parser)?;
         let mut content = false;
         if parser.at_keyword("content") {
+            parser.consume_keyword("content")?;
+            parser.skip_trivia()?;
             content = true;
         }
         parser.consume(TokenKind::RightBrace)?;
