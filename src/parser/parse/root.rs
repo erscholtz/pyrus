@@ -43,12 +43,12 @@ impl Parse for Ast {
 
 impl Parse for Ident {
     fn parse(parser: &mut Parser) -> Result<Self, CompilerDiagnostic> {
-        let text = parser.consume_lexeme()?;
         let span = Span::new(
             parser.current.range.start,
             parser.current.range.end,
             parser.file.clone(),
         );
+        let text = parser.expect_lexeme(TokenKind::Identifier)?;
         Ok(Ident { text, span })
     }
 }
