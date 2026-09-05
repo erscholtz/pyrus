@@ -3,7 +3,7 @@ mod parse;
 pub use parse::Parse;
 
 use crate::{
-    diagnostic::{CompilerDiagnostic, SourceLocation, Span, SyntaxError},
+    diagnostic::{CompilerDiagnostic, SourceLocation, SyntaxError},
     lexer::Lexer,
     tokens::{Token, TokenKind},
 };
@@ -134,6 +134,20 @@ impl Parser {
         while matches!(
             self.current_kind(),
             TokenKind::Whitespace | TokenKind::Newline | TokenKind::LineComment
+        ) {
+            self.next()?;
+        }
+        Ok(())
+    }
+
+    /// Skips over any inline trivia tokens (whitespace, comments) and returns
+    /// `Ok(())`.
+    pub(crate) fn skip_inline_trivia(
+        &mut self,
+    ) -> Result<(), CompilerDiagnostic> {
+        while matches!(
+            self.current_kind(),
+            TokenKind::Whitespace | TokenKind::LineComment
         ) {
             self.next()?;
         }

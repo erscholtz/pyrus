@@ -20,7 +20,7 @@ elem entry {
 }
 
 layout header {
-    name < | > contact
+    < name | > contact
 
     name: xl
     contact: sm
@@ -33,7 +33,7 @@ layout separator {
 }
 
 layout entry {
-    company < | > date
+    < company  | > date
     role
     content
 

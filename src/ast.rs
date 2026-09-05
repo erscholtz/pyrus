@@ -11,5 +11,5 @@ mod root;
 pub use content::{Content, ContentBlock, Inline, InlineText};
 pub use document::{DocumentConfig, DocumentEntry};
 pub use elem::{ElemDecl, ElemInvoke, FieldValue};
-pub use layout::{LayoutDecl, LayoutItem, LayoutProperty, LayoutRow};
+pub use layout::{LayoutAlignment, LayoutDecl, LayoutProperty, LayoutRow};
 pub use root::{Ast, Ident, Item};

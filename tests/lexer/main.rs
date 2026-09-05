@@ -198,7 +198,7 @@ elem entry {
 }
 
 layout entry {
-    company < | > date
+    < company | > date
     role
     content
 
