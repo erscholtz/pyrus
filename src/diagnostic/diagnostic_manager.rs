@@ -1,16 +1,17 @@
 use crate::tokens::TokenKind;
 
 use super::{
-    Diagnostic, SemanticError, Severity, SourceLocation, Span, SyntaxError,
+    Diagnostic, FatalError, Note, SemanticError, Severity, SourceLocation,
+    Span, SyntaxError, Warning,
 };
 
 #[derive(Debug, Clone)]
 pub enum CompilerDiagnostic {
     Syntax(SyntaxError),
-    // Warning(Warning),
+    Warning(Warning),
     Semantic(SemanticError),
-    // Fatal(FatalError),
-    // Note(Note),
+    Fatal(FatalError),
+    Note(Note),
 }
 
 impl From<SyntaxError> for CompilerDiagnostic {
@@ -30,6 +31,9 @@ impl Diagnostic for CompilerDiagnostic {
         match self {
             CompilerDiagnostic::Syntax(diagnostic) => diagnostic.message(),
             CompilerDiagnostic::Semantic(diagnostic) => diagnostic.message(),
+            CompilerDiagnostic::Fatal(diagnostic) => diagnostic.message(),
+            CompilerDiagnostic::Warning(diagnostic) => diagnostic.message(),
+            CompilerDiagnostic::Note(diagnostic) => diagnostic.message(),
         }
     }
 
@@ -37,6 +41,9 @@ impl Diagnostic for CompilerDiagnostic {
         match self {
             CompilerDiagnostic::Syntax(diagnostic) => diagnostic.location(),
             CompilerDiagnostic::Semantic(diagnostic) => diagnostic.location(),
+            CompilerDiagnostic::Fatal(diagnostic) => diagnostic.location(),
+            CompilerDiagnostic::Warning(diagnostic) => diagnostic.location(),
+            CompilerDiagnostic::Note(diagnostic) => diagnostic.location(),
         }
     }
 
@@ -44,6 +51,9 @@ impl Diagnostic for CompilerDiagnostic {
         match self {
             CompilerDiagnostic::Syntax(diagnostic) => diagnostic.severity(),
             CompilerDiagnostic::Semantic(diagnostic) => diagnostic.severity(),
+            CompilerDiagnostic::Fatal(diagnostic) => diagnostic.severity(),
+            CompilerDiagnostic::Warning(diagnostic) => diagnostic.severity(),
+            CompilerDiagnostic::Note(diagnostic) => diagnostic.severity(),
         }
     }
 
@@ -53,6 +63,9 @@ impl Diagnostic for CompilerDiagnostic {
             CompilerDiagnostic::Semantic(diagnostic) => {
                 diagnostic.recoverable()
             }
+            CompilerDiagnostic::Fatal(_) => false,
+            CompilerDiagnostic::Warning(_) => true,
+            CompilerDiagnostic::Note(_) => true,
         }
     }
 
@@ -60,6 +73,9 @@ impl Diagnostic for CompilerDiagnostic {
         match self {
             CompilerDiagnostic::Syntax(diagnostic) => diagnostic.span(),
             CompilerDiagnostic::Semantic(diagnostic) => diagnostic.span(),
+            CompilerDiagnostic::Fatal(_) => None,
+            CompilerDiagnostic::Warning(_) => None,
+            CompilerDiagnostic::Note(_) => None,
         }
     }
 
@@ -67,6 +83,9 @@ impl Diagnostic for CompilerDiagnostic {
         match self {
             CompilerDiagnostic::Syntax(diagnostic) => diagnostic.help(),
             CompilerDiagnostic::Semantic(diagnostic) => diagnostic.help(),
+            CompilerDiagnostic::Fatal(_) => None,
+            CompilerDiagnostic::Warning(_) => None,
+            CompilerDiagnostic::Note(_) => None,
         }
     }
 }
@@ -76,6 +95,9 @@ impl std::fmt::Display for CompilerDiagnostic {
         match self {
             CompilerDiagnostic::Syntax(diagnostic) => diagnostic.fmt(f),
             CompilerDiagnostic::Semantic(diagnostic) => diagnostic.fmt(f),
+            CompilerDiagnostic::Fatal(diagnostic) => diagnostic.fmt(f),
+            CompilerDiagnostic::Warning(diagnostic) => diagnostic.fmt(f),
+            CompilerDiagnostic::Note(diagnostic) => diagnostic.fmt(f),
         }
     }
 }

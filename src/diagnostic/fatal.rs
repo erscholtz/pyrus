@@ -31,7 +31,10 @@ pub enum FatalError {
 }
 
 impl FatalError {
-    pub fn general(location: SourceLocation, message: impl Into<String>) -> Self {
+    pub fn general(
+        location: SourceLocation,
+        message: impl Into<String>,
+    ) -> Self {
         Self::General {
             location,
             message: message.into(),
@@ -101,7 +104,9 @@ impl Diagnostic for FatalError {
     fn message(&self) -> &str {
         match self {
             FatalError::General { message, .. } => message,
-            FatalError::InternalCompilerError { .. } => "internal compiler error",
+            FatalError::InternalCompilerError { .. } => {
+                "internal compiler error"
+            }
             FatalError::IoError { .. } => "I/O failure",
             FatalError::InvalidCompilerState { .. } => "invalid compiler state",
         }
@@ -110,9 +115,13 @@ impl Diagnostic for FatalError {
     fn location(&self) -> SourceLocation {
         match self {
             FatalError::General { location, .. } => location.clone(),
-            FatalError::InternalCompilerError { location, .. } => location.clone(),
+            FatalError::InternalCompilerError { location, .. } => {
+                location.clone()
+            }
             FatalError::IoError { location, .. } => location.clone(),
-            FatalError::InvalidCompilerState { location, .. } => location.clone(),
+            FatalError::InvalidCompilerState { location, .. } => {
+                location.clone()
+            }
         }
     }
 
