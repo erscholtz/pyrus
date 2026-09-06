@@ -13,7 +13,7 @@ impl Parse for DocumentConfig {
         parser.consume(TokenKind::LeftBrace)?;
         parser.skip_trivia()?;
         let mut entries = Vec::new();
-        while !parser.at(TokenKind::RightBrace) {
+        while !parser.at(TokenKind::RightBrace)? {
             entries.push(DocumentEntry::parse(parser)?);
             parser.skip_trivia()?;
         }
@@ -30,7 +30,7 @@ impl Parse for DocumentEntry {
         parser.consume(TokenKind::Colon)?;
         parser.skip_trivia()?;
         let node = parser.consume_lexeme()?;
-        let value = Spanned::new(node.to_owned(), parser.location());
+        let value = Spanned::new(node.to_owned(), parser.location()?);
 
         Ok(Self { name, value })
     }

@@ -15,7 +15,7 @@ impl Parse for ElemDecl {
         parser.skip_trivia()?;
         let fields = ElemDecl::comsume_fields(parser)?;
         let mut content = false;
-        if parser.at_keyword("content") {
+        if parser.at_keyword("content")? {
             parser.consume_keyword("content")?;
             parser.skip_trivia()?;
             content = true;
@@ -35,11 +35,12 @@ impl ElemDecl {
         parser: &mut Parser,
     ) -> Result<Vec<Ident>, CompilerDiagnostic> {
         let mut fields = Vec::new();
-        while !parser.at_keyword("content") && !parser.at(TokenKind::RightBrace)
+        while !parser.at_keyword("content")?
+            && !parser.at(TokenKind::RightBrace)?
         {
             fields.push(Ident::parse(parser)?);
             parser.skip_trivia()?;
-            if parser.at(TokenKind::Comma) {
+            if parser.at(TokenKind::Comma)? {
                 parser.consume(TokenKind::Comma)?;
                 parser.skip_trivia()?;
             } else {
@@ -78,13 +79,13 @@ impl ElemInvoke {
         parser: &mut Parser,
     ) -> Result<Vec<FieldValue>, CompilerDiagnostic> {
         let mut field_values = Vec::new();
-        while !parser.at(TokenKind::RightBrace) {
+        while !parser.at(TokenKind::RightBrace)? {
             let field = Ident::parse(parser)?;
             parser.consume(TokenKind::Colon)?;
             let value = InlineText::parse(parser)?;
             field_values.push(FieldValue { name: field, value });
             parser.skip_trivia()?;
-            if parser.at(TokenKind::Comma) {
+            if parser.at(TokenKind::Comma)? {
                 parser.consume(TokenKind::Comma)?;
                 parser.skip_trivia()?;
             } else {

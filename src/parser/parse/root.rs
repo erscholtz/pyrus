@@ -11,21 +11,21 @@ impl Parse for Ast {
         let mut items = Vec::new();
         parser.skip_trivia()?;
 
-        while !parser.at(TokenKind::Eof) {
-            let location = parser.location();
-            let item = if parser.at_keyword("document") {
+        while !parser.at(TokenKind::Eof)? {
+            let location = parser.location()?;
+            let item = if parser.at_keyword("document")? {
                 Item::Document(DocumentConfig::parse(parser)?)
-            } else if parser.at_keyword("elem") {
+            } else if parser.at_keyword("elem")? {
                 Item::ElemDecl(ElemDecl::parse(parser)?)
-            } else if parser.at_keyword("layout") {
+            } else if parser.at_keyword("layout")? {
                 Item::LayoutDecl(LayoutDecl::parse(parser)?)
-            } else if parser.at(TokenKind::At) {
+            } else if parser.at(TokenKind::At)? {
                 Item::ElemInvoke(ElemInvoke::parse(parser)?)
             } else {
                 return Err(SyntaxError::invalid_construct(
                     "top-level item",
-                    format!("unexpected token `{}`", parser.current_text()),
-                    parser.location(),
+                    format!("unexpected token `{}`", parser.current_text()?),
+                    location,
                 )
                 .into());
             };
@@ -35,7 +35,7 @@ impl Parse for Ast {
         }
 
         Ok(Ast {
-            file: parser.location().file,
+            file: parser.location()?.file,
             items,
         })
     }
@@ -44,8 +44,8 @@ impl Parse for Ast {
 impl Parse for Ident {
     fn parse(parser: &mut Parser) -> Result<Self, CompilerDiagnostic> {
         let span = Span::new(
-            parser.current.range.start,
-            parser.current.range.end,
+            parser.peek()?.range.start,
+            parser.peek()?.range.end,
             parser.file.clone(),
         );
         let text = parser.expect_lexeme(TokenKind::Identifier)?;

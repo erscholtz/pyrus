@@ -3,7 +3,7 @@ mod parse;
 pub use parse::Parse;
 
 use crate::{
-    diagnostic::{CompilerDiagnostic, SourceLocation, SyntaxError},
+    diagnostic::{CompilerDiagnostic, FatalError, SourceLocation, SyntaxError},
     lexer::Lexer,
     tokens::{Token, TokenKind},
 };
@@ -12,58 +12,84 @@ use crate::{
 pub struct Parser {
     file: String,
     lexer: Lexer,
-    current: Token,
 }
 
 impl Parser {
-    pub fn new(
-        file: String,
-        mut lexer: Lexer,
-    ) -> Result<Self, CompilerDiagnostic> {
-        let current = lexer.pull()?;
-        Ok(Self {
-            file,
-            lexer,
-            current,
-        })
+    pub fn new(file: String, lexer: Lexer) -> Result<Self, CompilerDiagnostic> {
+        Ok(Self { file, lexer })
     }
 
     pub fn parse<T: Parse>(&mut self) -> Result<T, CompilerDiagnostic> {
         T::parse(self)
     }
 
-    /// Returns the current token kind.
-    pub(crate) fn current_kind(&self) -> TokenKind {
-        self.current.kind
-    }
-
     /// Returns the text of the current token.
-    pub(crate) fn current_text(&self) -> &str {
-        self.lexer.text(&self.current).unwrap_or("")
+    pub(crate) fn current_text(&mut self) -> Result<&str, CompilerDiagnostic> {
+        let tok = self.lexer.peek()?;
+        match self.lexer.text(&tok) {
+            Some(text) => Ok(text),
+            None => Err(CompilerDiagnostic::Fatal(
+                FatalError::InternalCompilerError {
+                    location: self.location_of(&tok),
+                    phase: "parsing".to_string(),
+                    details: format!(
+                        "invalid token source range {:?} [parser::current_text()]",
+                        tok.range
+                    ),
+                },
+            )),
+        }
     }
 
     /// Returns the location of the current token.
-    pub(crate) fn location(&self) -> SourceLocation {
-        SourceLocation::new(
-            self.current.line,
-            self.current.col,
-            self.file.clone(),
-        )
+    pub(crate) fn location(
+        &mut self,
+    ) -> Result<SourceLocation, CompilerDiagnostic> {
+        let tok = self.peek()?;
+        Ok(SourceLocation::new(tok.line, tok.col, self.file.clone()))
     }
+
+    fn location_of(&self, tok: &Token) -> SourceLocation {
+        SourceLocation::new(tok.line, tok.col, self.file.clone())
+    }
+
     /// Returns `true` if the current token is of the given kind.
-    pub(crate) fn at(&self, kind: TokenKind) -> bool {
-        self.current_kind() == kind
+    pub(crate) fn at(
+        &mut self,
+        kind: TokenKind,
+    ) -> Result<bool, CompilerDiagnostic> {
+        Ok(self.peek()?.kind == kind)
     }
 
     /// Returns `true` if the current token is an identifier with the given text.
-    pub(crate) fn at_keyword(&self, keyword: &str) -> bool {
-        self.at(TokenKind::Identifier) && self.current_text() == keyword
+    pub(crate) fn at_keyword(
+        &mut self,
+        keyword: &str,
+    ) -> Result<bool, CompilerDiagnostic> {
+        Ok(self.at(TokenKind::Identifier)? && self.current_text()? == keyword)
+    }
+
+    /// Returns the kind of the current token without consuming it.
+    pub(crate) fn peek(&mut self) -> Result<Token, CompilerDiagnostic> {
+        self.lexer.peek()
+    }
+
+    /// Returns the kind of the next token without consuming it.
+    pub(crate) fn peek_next(&mut self) -> Result<Token, CompilerDiagnostic> {
+        self.lexer.peek_next()
+    }
+
+    /// wrapper over `Lexer::peek_next_significant`, peeks ahead to next non
+    /// whitespace token
+    pub(crate) fn peek_next_significant(
+        &mut self,
+    ) -> Result<Token, CompilerDiagnostic> {
+        self.lexer.peek_next_significant()
     }
 
     /// Moves to the next token and returns it.
     pub(crate) fn next(&mut self) -> Result<Token, CompilerDiagnostic> {
-        let next = self.lexer.pull()?;
-        Ok(std::mem::replace(&mut self.current, next))
+        self.lexer.pull()
     }
 
     /// Consumes the current token if it is of the given kind, returning it.
@@ -71,27 +97,26 @@ impl Parser {
         &mut self,
         kind: TokenKind,
     ) -> Result<Token, CompilerDiagnostic> {
-        if self.at(kind) {
-            return self.next();
+        if !self.at(kind)? {
+            return Err(SyntaxError::unexpected_token(
+                vec![kind],
+                self.peek()?.kind,
+                self.location()?,
+            )
+            .into());
         }
-
-        Err(SyntaxError::unexpected_token(
-            vec![kind],
-            self.current_kind(),
-            self.location(),
-        )
-        .into())
+        self.next()
     }
 
     pub(crate) fn expect_lexeme(
         &mut self,
         kind: TokenKind,
     ) -> Result<String, CompilerDiagnostic> {
-        if !self.at(kind) {
+        if !self.at(kind)? {
             return Err(SyntaxError::unexpected_token(
                 vec![kind],
-                self.current_kind(),
-                self.location(),
+                self.peek()?.kind,
+                self.location()?,
             )
             .into());
         }
@@ -104,7 +129,7 @@ impl Parser {
     pub(crate) fn consume_lexeme(
         &mut self,
     ) -> Result<String, CompilerDiagnostic> {
-        let text = self.current_text().to_owned();
+        let text = self.current_text()?.to_owned();
         self.next()?;
         Ok(text)
     }
@@ -114,7 +139,7 @@ impl Parser {
         &mut self,
         keyword: &str,
     ) -> Result<Token, CompilerDiagnostic> {
-        if self.at_keyword(keyword) {
+        if self.at_keyword(keyword)? {
             return self.next();
         }
 
@@ -122,9 +147,9 @@ impl Parser {
             keyword,
             format!(
                 "expected keyword `{keyword}`, found `{}`",
-                self.current_text()
+                self.current_text()?
             ),
-            self.location(),
+            self.location()?,
         )
         .into())
     }
@@ -132,7 +157,7 @@ impl Parser {
     /// Skips over any trivia tokens (whitespace, comments) and returns `Ok(())`.
     pub(crate) fn skip_trivia(&mut self) -> Result<(), CompilerDiagnostic> {
         while matches!(
-            self.current_kind(),
+            self.peek()?.kind,
             TokenKind::Whitespace | TokenKind::Newline | TokenKind::LineComment
         ) {
             self.next()?;
@@ -146,7 +171,7 @@ impl Parser {
         &mut self,
     ) -> Result<(), CompilerDiagnostic> {
         while matches!(
-            self.current_kind(),
+            self.peek()?.kind,
             TokenKind::Whitespace | TokenKind::LineComment
         ) {
             self.next()?;

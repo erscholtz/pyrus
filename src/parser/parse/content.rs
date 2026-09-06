@@ -10,7 +10,7 @@ use crate::tokens::TokenKind;
 impl Parse for Content {
     fn parse(parser: &mut Parser) -> Result<Self, CompilerDiagnostic> {
         let mut blocks = Vec::new();
-        while !parser.at(TokenKind::RightBrace) {
+        while !parser.at(TokenKind::RightBrace)? {
             blocks.push(ContentBlock::parse(parser)?);
         }
         Ok(Content { blocks })
@@ -19,7 +19,7 @@ impl Parse for Content {
 
 impl Parse for ContentBlock {
     fn parse(parser: &mut Parser) -> Result<Self, CompilerDiagnostic> {
-        match parser.current.kind {
+        match parser.peek()?.kind {
             TokenKind::Dash => {
                 let list = ContentBlock::consume_list(parser)?;
                 Ok(ContentBlock::BulletList(list))
@@ -38,7 +38,7 @@ impl ContentBlock {
         parser: &mut Parser,
     ) -> Result<Vec<InlineText>, CompilerDiagnostic> {
         let mut list = Vec::new();
-        while parser.at(TokenKind::Newline) {
+        while parser.at(TokenKind::Newline)? {
             list.push(InlineText::parse(parser)?);
         }
         Ok(list)
@@ -49,7 +49,7 @@ impl Parse for InlineText {
     fn parse(parser: &mut Parser) -> Result<Self, CompilerDiagnostic> {
         let mut parts = Vec::new();
         while !matches!(
-            parser.current_kind(),
+            parser.peek()?.kind,
             TokenKind::Newline | TokenKind::RightBrace | TokenKind::Eof
         ) {
             parts.push(Inline::parse(parser)?);
@@ -62,7 +62,7 @@ impl Parse for InlineText {
 impl Parse for Inline {
     fn parse(parser: &mut Parser) -> Result<Self, CompilerDiagnostic> {
         let mut opener = String::new();
-        match parser.current_kind() {
+        match parser.peek()?.kind {
             TokenKind::Backtick => {
                 opener.push_str(&parser.expect_lexeme(TokenKind::Backtick)?);
                 let text = Inline::concat_text(parser, TokenKind::Backtick)?;
@@ -79,7 +79,7 @@ impl Parse for Inline {
             }
             TokenKind::Star => {
                 opener.push_str(&parser.expect_lexeme(TokenKind::Star)?);
-                if parser.at(TokenKind::Star) {
+                if parser.at(TokenKind::Star)? {
                     opener.push_str(&parser.expect_lexeme(TokenKind::Star)?);
                     let text = Inline::concat_bold_text(parser)?;
                     match text {
@@ -122,7 +122,7 @@ impl Parse for Inline {
                 };
                 opener
                     .push_str(&parser.expect_lexeme(TokenKind::RightBracket)?);
-                if !parser.at(TokenKind::LeftParen) {
+                if !parser.at(TokenKind::LeftParen)? {
                     return Ok(Inline::Text(opener));
                 }
                 opener.push_str(&parser.expect_lexeme(TokenKind::LeftParen)?);
@@ -144,7 +144,7 @@ impl Parse for Inline {
             _ => {
                 let mut text = String::new();
                 while !matches!(
-                    parser.current_kind(),
+                    parser.peek()?.kind,
                     TokenKind::Star
                         | TokenKind::Backtick
                         | TokenKind::LeftBracket
@@ -171,10 +171,10 @@ impl Inline {
     ) -> Result<InlineParseResult, CompilerDiagnostic> {
         let mut text = String::new();
 
-        while !parser.at(TokenKind::Eof) && !parser.at(TokenKind::Newline) {
-            if parser.at(TokenKind::Star) {
+        while !parser.at(TokenKind::Eof)? && !parser.at(TokenKind::Newline)? {
+            if parser.at(TokenKind::Star)? {
                 let star = parser.expect_lexeme(TokenKind::Star)?;
-                if parser.at(TokenKind::Star) {
+                if parser.at(TokenKind::Star)? {
                     parser.consume(TokenKind::Star)?;
                     return Ok(InlineParseResult::Closed(text));
                 }
@@ -192,13 +192,13 @@ impl Inline {
         delimiter: TokenKind,
     ) -> Result<InlineParseResult, CompilerDiagnostic> {
         let mut text = String::new();
-        while !parser.at(delimiter)
-            && !parser.at(TokenKind::Eof)
-            && !parser.at(TokenKind::Newline)
+        while !parser.at(delimiter)?
+            && !parser.at(TokenKind::Eof)?
+            && !parser.at(TokenKind::Newline)?
         {
             text.push_str(&parser.consume_lexeme()?);
         }
-        if parser.at(delimiter) {
+        if parser.at(delimiter)? {
             Ok(InlineParseResult::Closed(text))
         } else {
             Ok(InlineParseResult::Open(text))

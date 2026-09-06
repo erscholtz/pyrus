@@ -45,6 +45,9 @@ static SYMBOL_LOOKUP_TABLE: [Option<TokenKind>; 256] = {
 /// contains a cursor holding the current position in the
 pub struct Lexer {
     cursor: Cursor,
+    lookahead: Vec<Token>, // NOTE currently this is only used for
+                           // peek_next_significant() but think it could have
+                           // other uses
 }
 
 impl Lexer {
@@ -52,12 +55,68 @@ impl Lexer {
     pub fn new(file: String, src: String) -> Self {
         Self {
             cursor: Cursor::new(file, src),
+            lookahead: Vec::new(),
         }
     }
 
-    /// Pulls the next token from the lexer
+    /// Peeks at current token (token pull() would return)
+    pub fn peek(&mut self) -> Result<Token, CompilerDiagnostic> {
+        if self.lookahead.is_empty() {
+            let tok = self.lex_token()?;
+            self.lookahead.push(tok);
+        }
+
+        Ok(self.lookahead.first().unwrap().to_owned())
+    }
+
+    /// Peeks at the next token without advancing the cursor
+    pub fn peek_next(&mut self) -> Result<Token, CompilerDiagnostic> {
+        if self.lookahead.is_empty() {
+            let first = self.lex_token()?;
+            self.lookahead.push(first);
+            let second = self.lex_token()?;
+            self.lookahead.push(second);
+        } else if self.lookahead.len() < 2 {
+            let tok = self.lex_token()?;
+            self.lookahead.push(tok);
+        }
+
+        Ok(self.lookahead.get(1).unwrap().to_owned())
+    }
+
+    /// Peeks at next non whitespace token
+    pub fn peek_next_significant(
+        &mut self,
+    ) -> Result<Token, CompilerDiagnostic> {
+        if self.lookahead.len() < 2 {
+            self.peek_next()?; // buffering side-effect
+        }
+        for i in 1..self.lookahead.len() {
+            let tok = &self.lookahead[i];
+            if tok.kind != TokenKind::Whitespace {
+                return Ok(tok.to_owned());
+            }
+        }
+        loop {
+            let tok = self.lex_token()?;
+            self.lookahead.push(tok.clone());
+            if tok.kind == TokenKind::Eof {
+                return Ok(tok);
+            }
+            if tok.kind != TokenKind::Whitespace {
+                return Ok(tok);
+            }
+        }
+    }
+
+    /// Pulls the next token from the lexer, if there is something in the
+    /// lookahead buffer it pulls from there first
     pub fn pull(&mut self) -> Result<Token, CompilerDiagnostic> {
-        self.lex_token()
+        if self.lookahead.is_empty() {
+            self.lex_token()
+        } else {
+            Ok(self.lookahead.remove(0))
+        }
     }
 
     /// Returns the exact source covered by a token.

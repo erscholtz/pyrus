@@ -11,7 +11,7 @@ pub struct LayoutDecl {
 pub enum LayoutAlignment {
     Left,
     Right,
-    Center,
+    Centre,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

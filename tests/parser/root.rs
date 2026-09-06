@@ -1,5 +1,5 @@
 use pyrus::{
-    ast::{Ast, DocumentConfig, Item},
+    ast::{Ast, Item},
     lexer::Lexer,
     parser::{Parse, Parser},
 };
