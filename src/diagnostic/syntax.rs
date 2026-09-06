@@ -36,6 +36,9 @@ pub enum SyntaxError {
         location: SourceLocation,
         delimiter: String,
     },
+
+    /// Unrecognized source byte
+    UnrecognizedSourceByte { location: SourceLocation, byte: u8 },
 }
 
 impl SyntaxError {
@@ -97,6 +100,7 @@ impl SyntaxError {
             SyntaxError::MissingToken { .. } => "S0003",
             SyntaxError::InvalidConstruct { .. } => "S0004",
             SyntaxError::UnterminatedDelimiter { .. } => "S0005",
+            SyntaxError::UnrecognizedSourceByte { .. } => "S0006",
         }
     }
 
@@ -121,6 +125,9 @@ impl SyntaxError {
             SyntaxError::UnterminatedDelimiter { delimiter, .. } => {
                 format!("unterminated delimiter `{delimiter}`")
             }
+            SyntaxError::UnrecognizedSourceByte { byte, .. } => {
+                format!("unrecognized source byte `{byte}`")
+            }
         }
     }
 }
@@ -135,6 +142,9 @@ impl Diagnostic for SyntaxError {
             SyntaxError::UnterminatedDelimiter { .. } => {
                 "unterminated delimiter"
             }
+            SyntaxError::UnrecognizedSourceByte { .. } => {
+                "unrecognized source byte"
+            }
         }
     }
 
@@ -145,6 +155,9 @@ impl Diagnostic for SyntaxError {
             SyntaxError::MissingToken { location, .. } => location.clone(),
             SyntaxError::InvalidConstruct { location, .. } => location.clone(),
             SyntaxError::UnterminatedDelimiter { location, .. } => {
+                location.clone()
+            }
+            SyntaxError::UnrecognizedSourceByte { location, .. } => {
                 location.clone()
             }
         }
