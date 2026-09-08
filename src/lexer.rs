@@ -1,5 +1,7 @@
 mod cursor;
 
+use std::collections::VecDeque;
+
 use crate::{
     diagnostic::CompilerDiagnostic,
     tokens::{Token, TokenKind},
@@ -45,9 +47,9 @@ static SYMBOL_LOOKUP_TABLE: [Option<TokenKind>; 256] = {
 /// contains a cursor holding the current position in the
 pub struct Lexer {
     cursor: Cursor,
-    lookahead: Vec<Token>, // NOTE currently this is only used for
-                           // peek_next_significant() but think it could have
-                           // other uses
+    lookahead: VecDeque<Token>, // NOTE currently this is only used for
+                                // peek_next_significant() but think it could have
+                                // other uses
 }
 
 impl Lexer {
@@ -55,7 +57,7 @@ impl Lexer {
     pub fn new(file: String, src: String) -> Self {
         Self {
             cursor: Cursor::new(file, src),
-            lookahead: Vec::new(),
+            lookahead: VecDeque::new(),
         }
     }
 
@@ -63,22 +65,22 @@ impl Lexer {
     pub fn peek(&mut self) -> Result<Token, CompilerDiagnostic> {
         if self.lookahead.is_empty() {
             let tok = self.lex_token()?;
-            self.lookahead.push(tok);
+            self.lookahead.push_back(tok);
         }
 
-        Ok(self.lookahead.first().unwrap().to_owned())
+        Ok(self.lookahead.front().unwrap().to_owned())
     }
 
     /// Peeks at the next token without advancing the cursor
     pub fn peek_next(&mut self) -> Result<Token, CompilerDiagnostic> {
         if self.lookahead.is_empty() {
             let first = self.lex_token()?;
-            self.lookahead.push(first);
+            self.lookahead.push_back(first);
             let second = self.lex_token()?;
-            self.lookahead.push(second);
+            self.lookahead.push_back(second);
         } else if self.lookahead.len() < 2 {
             let tok = self.lex_token()?;
-            self.lookahead.push(tok);
+            self.lookahead.push_back(tok);
         }
 
         Ok(self.lookahead.get(1).unwrap().to_owned())
@@ -99,7 +101,7 @@ impl Lexer {
         }
         loop {
             let tok = self.lex_token()?;
-            self.lookahead.push(tok.clone());
+            self.lookahead.push_back(tok.clone());
             if tok.kind == TokenKind::Eof {
                 return Ok(tok);
             }
@@ -115,7 +117,7 @@ impl Lexer {
         if self.lookahead.is_empty() {
             self.lex_token()
         } else {
-            Ok(self.lookahead.remove(0))
+            Ok(self.lookahead.pop_front().unwrap())
         }
     }
 

@@ -29,7 +29,7 @@ impl Parse for DocumentEntry {
         parser.skip_trivia()?;
         parser.consume(TokenKind::Colon)?;
         parser.skip_trivia()?;
-        let node = parser.consume_lexeme()?;
+        let node = parser.consume_lexeme()?; // NOTE see if you need number support here
         let value = Spanned::new(node.to_owned(), parser.location()?);
 
         Ok(Self { name, value })
