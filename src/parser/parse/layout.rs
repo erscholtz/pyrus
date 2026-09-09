@@ -188,6 +188,9 @@ mod tests {
         assert_eq!(layout.element.text, "card");
         assert!(layout.rows.is_empty());
         assert_eq!(layout.props.len(), 1);
+        let prop = layout.props[0].clone();
+        assert_eq!(prop.field.text, "item");
+        assert_eq!(prop.value.text, "xl");
     }
 
     #[test]
@@ -199,22 +202,18 @@ mod tests {
         assert_eq!(layout.rows.len(), 2);
         assert!(layout.props.is_empty());
 
-        let row1 = layout.rows[0].clone();
-        assert!(matches!(
-            row1,
-            LayoutRow::Single {
-                alignment: LayoutAlignment::Centre,
-                ..
-            }
-        ));
-        let row2 = layout.rows[1].clone();
-        assert!(matches!(
-            row2,
-            LayoutRow::Single {
-                alignment: LayoutAlignment::Right,
-                ..
-            }
-        ));
+        let row1 = match layout.rows[0].clone() {
+            LayoutRow::Single { field, alignment } => (field, alignment),
+            _ => panic!("expected single layout row"),
+        };
+        assert_eq!(row1.0.text, "text");
+        assert_eq!(row1.1, LayoutAlignment::Centre);
+        let row2 = match layout.rows[1].clone() {
+            LayoutRow::Single { field, alignment } => (field, alignment),
+            _ => panic!("expected single layout row"),
+        };
+        assert_eq!(row2.0.text, "date");
+        assert_eq!(row2.1, LayoutAlignment::Right);
     }
 
     #[test]
@@ -226,15 +225,19 @@ mod tests {
         assert_eq!(layout.rows.len(), 1);
         assert!(layout.props.is_empty());
 
-        let row = layout.rows[0].clone();
-        assert!(matches!(
-            row,
+        let row = match layout.rows[0].clone() {
             LayoutRow::Split {
-                left_alignment: LayoutAlignment::Left,
-                right_alignment: LayoutAlignment::Right,
-                ..
-            }
-        ));
+                left,
+                right,
+                left_alignment,
+                right_alignment,
+            } => (left, right, left_alignment, right_alignment),
+            _ => panic!("expected split layout row"),
+        };
+        assert_eq!(row.0.text, "text");
+        assert_eq!(row.1.text, "date");
+        assert_eq!(row.2, LayoutAlignment::Left);
+        assert_eq!(row.3, LayoutAlignment::Right);
     }
 
     #[test]
@@ -246,14 +249,17 @@ mod tests {
         assert_eq!(layout.rows.len(), 1);
         assert!(layout.props.is_empty());
 
-        let row = layout.rows[0].clone();
-        assert!(matches!(
-            row,
-            LayoutRow::Single {
-                alignment: LayoutAlignment::Left,
-                ..
-            }
-        ));
+        let row = match layout.rows[0].clone() {
+            LayoutRow::Single { field, alignment } => (field, alignment),
+            _ => panic!("expected single layout row"),
+        };
+        assert_eq!(row.0.text, "text");
+        assert_eq!(row.1, LayoutAlignment::Left);
+    }
+
+    #[test]
+    fn parses_inline_comments() {
+        assert!(parse_layout("layout cart { > first //comment \n }").is_ok());
     }
 
     #[test]
@@ -284,5 +290,12 @@ mod tests {
     #[test]
     fn rejects_layout_without_newline() {
         assert!(parse_layout("layout card { first second }").is_err());
+    }
+
+    #[test]
+    fn rejects_repeated_greater_less_symbols() {
+        assert!(parse_layout("layout card { << first }").is_err());
+        assert!(parse_layout("layout card { >> second }").is_err());
+        assert!(parse_layout("layout card { <<>> third }").is_err());
     }
 }
