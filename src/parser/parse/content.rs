@@ -62,8 +62,8 @@ impl Parse for InlineText {
 impl Parse for Inline {
     fn parse(parser: &mut Parser) -> Result<Self, CompilerDiagnostic> {
         let mut opener = String::new();
-        match parser.peek()?.kind {
-            TokenKind::Backtick => {
+        match (parser.peek()?.kind, parser.peek_next()?.kind) {
+            (TokenKind::Backtick, _) => {
                 opener.push_str(&parser.expect_lexeme(TokenKind::Backtick)?);
                 let text = Inline::concat_text(parser, TokenKind::Backtick)?;
                 match text {
@@ -77,36 +77,34 @@ impl Parse for Inline {
                     }
                 }
             }
-            TokenKind::Star => {
+            (TokenKind::Star, TokenKind::Star) => {
                 opener.push_str(&parser.expect_lexeme(TokenKind::Star)?);
-                if parser.at(TokenKind::Star)? {
-                    opener.push_str(&parser.expect_lexeme(TokenKind::Star)?);
-                    let text = Inline::concat_bold_text(parser)?;
-                    match text {
-                        InlineParseResult::Closed(text) => {
-                            Ok(Inline::Bold(text))
-                        }
-                        InlineParseResult::Open(text) => {
-                            opener.push_str(&text);
-                            Ok(Inline::Text(opener))
-                        }
-                    }
-                } else {
-                    let text = Inline::concat_text(parser, TokenKind::Star)?;
-                    match text {
-                        InlineParseResult::Closed(text) => {
-                            parser.consume(TokenKind::Star)?;
-                            Ok(Inline::Italic(text))
-                        }
-                        InlineParseResult::Open(text) => {
-                            // FIX there is still work to be done here for a single star
-                            opener.push_str(&text);
-                            Ok(Inline::Text(opener))
-                        }
+                opener.push_str(&parser.expect_lexeme(TokenKind::Star)?);
+                let text = Inline::concat_bold_text(parser)?;
+                match text {
+                    InlineParseResult::Closed(text) => Ok(Inline::Bold(text)),
+                    InlineParseResult::Open(text) => {
+                        opener.push_str(&text);
+                        Ok(Inline::Text(opener))
                     }
                 }
             }
-            TokenKind::LeftBracket => {
+            (TokenKind::Star, _) => {
+                opener.push_str(&parser.expect_lexeme(TokenKind::Star)?);
+                let text = Inline::concat_text(parser, TokenKind::Star)?;
+                match text {
+                    InlineParseResult::Closed(text) => {
+                        parser.consume(TokenKind::Star)?;
+                        Ok(Inline::Italic(text))
+                    }
+                    InlineParseResult::Open(text) => {
+                        // FIX there is still work to be done here for a single star
+                        opener.push_str(&text);
+                        Ok(Inline::Text(opener))
+                    }
+                }
+            }
+            (TokenKind::LeftBracket, _) => {
                 opener.push_str(&parser.expect_lexeme(TokenKind::LeftBracket)?);
                 let label_layer =
                     Inline::concat_text(parser, TokenKind::RightBracket)?;

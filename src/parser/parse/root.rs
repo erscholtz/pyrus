@@ -10,10 +10,12 @@ impl Parse for Ast {
     fn parse(parser: &mut Parser) -> Result<Self, CompilerDiagnostic> {
         let mut items = Vec::new();
         parser.skip_trivia()?;
+        let mut document_created = false;
 
         while !parser.at(TokenKind::Eof)? {
             let location = parser.location()?;
-            let item = if parser.at_keyword("document")? {
+            let item = if parser.at_keyword("document")? && !document_created {
+                document_created = true;
                 Item::Document(DocumentConfig::parse(parser)?)
             } else if parser.at_keyword("elem")? {
                 Item::ElemDecl(ElemDecl::parse(parser)?)
@@ -93,6 +95,11 @@ mod tests {
             .expect("adjacent items should parse");
 
         assert_eq!(ast.items.len(), 4);
+    }
+
+    #[test]
+    fn rejects_duplicate_document() {
+        assert!(parse_ast("document {} document {}").is_err());
     }
 
     #[test]

@@ -2,7 +2,7 @@ use crate::{
     ast::{Ident, LayoutAlignment, LayoutDecl, LayoutProperty, LayoutRow},
     diagnostic::{CompilerDiagnostic, SyntaxError},
     parser::{Parse, Parser},
-    tokens::TokenKind::{self, Identifier},
+    tokens::TokenKind,
 };
 
 impl Parse for LayoutDecl {
@@ -33,10 +33,6 @@ impl LayoutDecl {
         let mut props = Vec::new();
 
         while !parser.at(TokenKind::RightBrace)? {
-            parser.skip_trivia()?;
-
-            // TODO: Make property detection trivia-aware so `field : value`
-            // dispatches to `LayoutProperty` just like `field: value`.
             if parser.at(TokenKind::Greater)? || parser.at(TokenKind::Less)? {
                 let row = LayoutRow::parse(parser)?;
                 rows.push(row);
@@ -45,18 +41,33 @@ impl LayoutDecl {
                     let prop = LayoutProperty::parse(parser)?;
                     props.push(prop);
                 } else {
-                    // NOTE this case is the case of applying the default layout
                     let row = LayoutRow::parse(parser)?;
                     rows.push(row);
                 }
             } else {
                 return Err(SyntaxError::unexpected_token(
-                    vec![TokenKind::Identifier],
+                    vec![
+                        TokenKind::Identifier,
+                        TokenKind::Greater,
+                        TokenKind::Less,
+                    ],
                     parser.peek()?.kind,
                     parser.location()?,
                 )
                 .into());
             }
+            parser.skip_inline_trivia()?;
+            if !parser.at(TokenKind::Newline)?
+                && !parser.at(TokenKind::RightBrace)?
+            {
+                return Err(SyntaxError::unexpected_token(
+                    vec![TokenKind::Newline, TokenKind::RightBrace],
+                    parser.peek()?.kind,
+                    parser.location()?,
+                )
+                .into());
+            }
+            parser.skip_trivia()?;
         }
 
         Ok((rows, props))
@@ -68,23 +79,19 @@ impl LayoutDecl {
 // `< first | <> second | > third` without adding special cases here.
 impl Parse for LayoutRow {
     fn parse(parser: &mut Parser) -> Result<Self, CompilerDiagnostic> {
-        let alignment = LayoutRow::parse_alignment(parser)?;
-        parser.skip_inline_trivia()?;
-        let field = Ident::parse(parser)?;
+        let (alignment, field) = LayoutRow::parse_aligned_field(parser)?;
         parser.skip_inline_trivia()?;
 
-        // TODO: Require a newline or closing brace after the row. Without an
-        // explicit terminator, `first second` is accepted as two separate rows.
         if parser.at(TokenKind::Pipe)? {
             parser.consume(TokenKind::Pipe)?;
             parser.skip_inline_trivia()?;
-            let right_alignment = LayoutRow::parse_alignment(parser)?;
-            let right = Ident::parse(parser)?;
+            let (r_alignment, r_field) =
+                LayoutRow::parse_aligned_field(parser)?;
             return Ok(LayoutRow::Split {
                 left: field,
-                right,
+                right: r_field,
                 left_alignment: alignment,
-                right_alignment,
+                right_alignment: r_alignment,
             });
         }
 
@@ -93,67 +100,53 @@ impl Parse for LayoutRow {
 }
 
 impl LayoutRow {
-    fn parse_alignment(
+    fn parse_aligned_field(
         parser: &mut Parser,
-    ) -> Result<LayoutAlignment, CompilerDiagnostic> {
-        // TODO: Parse only the alignment forms supported by the grammar (`<`,
-        // `>`, and `<>`). The flag-based approach also accepts malformed forms
-        // such as `><` and repeated markers like `<<>>` as centred.
-        let mut just_left = false;
-        let mut just_right = false;
-
-        while !parser.at(TokenKind::RightBracket)?
-            && !parser.at(TokenKind::Eof)?
-            && !parser.at(TokenKind::Newline)?
-            && !parser.at(Identifier)?
-        {
-            match parser.peek()?.kind {
-                TokenKind::Less => {
-                    parser.consume(TokenKind::Less)?;
-                    just_left = true;
-                }
-                TokenKind::Greater => {
-                    parser.consume(TokenKind::Greater)?;
-                    just_right = true;
-                }
-                _ => {
-                    parser.skip_inline_trivia()?;
-                    if parser.peek()?.kind == TokenKind::Identifier {
-                        break;
-                    }
-                    // TODO: Report the alignment/identifier tokens that are
-                    // valid here instead of always claiming a pipe was expected.
-                    return Err(SyntaxError::unexpected_token(
-                        vec![TokenKind::Pipe],
-                        parser.peek()?.kind,
-                        parser.location()?,
-                    )
-                    .into());
-                }
+    ) -> Result<(LayoutAlignment, Ident), CompilerDiagnostic> {
+        let alignment = match (parser.peek()?.kind, parser.peek_next()?.kind) {
+            (TokenKind::Less, TokenKind::Greater) => {
+                parser.consume(TokenKind::Less)?;
+                parser.consume(TokenKind::Greater)?;
+                LayoutAlignment::Centre
             }
-            parser.skip_inline_trivia()?;
-        }
-        if just_left && just_right {
-            return Ok(LayoutAlignment::Centre);
-        } else if just_left {
-            return Ok(LayoutAlignment::Left);
-        } else if just_right {
-            return Ok(LayoutAlignment::Right);
-        } else {
-            return Ok(LayoutAlignment::Left);
-        }
+            (TokenKind::Less, _) => {
+                parser.consume(TokenKind::Less)?;
+                LayoutAlignment::Left
+            }
+            (TokenKind::Greater, _) => {
+                parser.consume(TokenKind::Greater)?;
+                LayoutAlignment::Right
+            }
+            (TokenKind::Identifier, _) => LayoutAlignment::Left,
+            _ => {
+                return Err(SyntaxError::unexpected_token(
+                    vec![
+                        TokenKind::Less,
+                        TokenKind::Greater,
+                        TokenKind::Identifier,
+                    ],
+                    parser.peek()?.kind,
+                    parser.location()?,
+                )
+                .into());
+            }
+        };
+
+        parser.skip_inline_trivia()?;
+        let field = Ident::parse(parser)?;
+
+        Ok((alignment, field))
     }
 }
 
 impl Parse for LayoutProperty {
     fn parse(parser: &mut Parser) -> Result<Self, CompilerDiagnostic> {
-        parser.skip_inline_trivia()?;
         let field = Ident::parse(parser)?;
         parser.skip_inline_trivia()?;
         parser.consume(TokenKind::Colon)?;
         parser.skip_inline_trivia()?;
+        // NOTE see if this is ident or should be something else
         let value = Ident::parse(parser)?;
-        parser.skip_trivia()?;
 
         Ok(Self { field, value })
     }
@@ -198,6 +191,72 @@ mod tests {
     }
 
     #[test]
+    fn parses_single_layout_alignment() {
+        let layout = parse_layout("layout card { <> text \n > date }")
+            .expect("single layout alignment should parse");
+
+        assert_eq!(layout.element.text, "card");
+        assert_eq!(layout.rows.len(), 2);
+        assert!(layout.props.is_empty());
+
+        let row1 = layout.rows[0].clone();
+        assert!(matches!(
+            row1,
+            LayoutRow::Single {
+                alignment: LayoutAlignment::Centre,
+                ..
+            }
+        ));
+        let row2 = layout.rows[1].clone();
+        assert!(matches!(
+            row2,
+            LayoutRow::Single {
+                alignment: LayoutAlignment::Right,
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn parses_split_layout_row() {
+        let layout = parse_layout("layout card { \n < text | > date \n }")
+            .expect("split layout row should parse");
+
+        assert_eq!(layout.element.text, "card");
+        assert_eq!(layout.rows.len(), 1);
+        assert!(layout.props.is_empty());
+
+        let row = layout.rows[0].clone();
+        assert!(matches!(
+            row,
+            LayoutRow::Split {
+                left_alignment: LayoutAlignment::Left,
+                right_alignment: LayoutAlignment::Right,
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn parses_default_alignment() {
+        let layout = parse_layout("layout card { text }")
+            .expect("default alignment should parse");
+
+        assert_eq!(layout.element.text, "card");
+        assert_eq!(layout.rows.len(), 1);
+        assert!(layout.props.is_empty());
+
+        let row = layout.rows[0].clone();
+        assert!(matches!(
+            row,
+            LayoutRow::Single {
+                alignment: LayoutAlignment::Left,
+                ..
+            }
+        ));
+    }
+
+    #[test]
     fn rejects_missing_layout_name() {
         assert!(parse_layout("layout {}").is_err());
     }
@@ -215,5 +274,15 @@ mod tests {
     #[test]
     fn rejects_unclosed_layout() {
         assert!(parse_layout("layout card {").is_err());
+    }
+
+    #[test]
+    fn rejects_bad_layout_alignment() {
+        assert!(parse_layout("layout card { >< text }").is_err());
+    }
+
+    #[test]
+    fn rejects_layout_without_newline() {
+        assert!(parse_layout("layout card { first second }").is_err());
     }
 }
