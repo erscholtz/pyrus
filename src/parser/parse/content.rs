@@ -33,13 +33,18 @@ impl Parse for ContentBlock {
 }
 
 impl ContentBlock {
-    // TODO split on newline + dash sequentially
     fn consume_list(
         parser: &mut Parser,
     ) -> Result<Vec<InlineText>, CompilerDiagnostic> {
         let mut list = Vec::new();
-        while parser.at(TokenKind::Newline)? {
+        while parser.at(TokenKind::Dash)? {
+            parser.consume(TokenKind::Dash)?;
+            parser.skip_inline_trivia()?;
             list.push(InlineText::parse(parser)?);
+            if parser.at(TokenKind::Eof)? {
+                break;
+            }
+            parser.consume(TokenKind::Newline)?;
         }
         Ok(list)
     }
@@ -213,13 +218,22 @@ impl Inline {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::parser::lexer::Lexer;
+    use crate::{ast, parser::lexer::Lexer};
 
     fn parse_inline(source: &str) -> Result<InlineText, CompilerDiagnostic> {
         let file = "inline-test.pyr".to_string();
         let lexer = Lexer::new(file.clone(), source.to_string());
         let mut parser = Parser::new(file, lexer)?;
         InlineText::parse(&mut parser)
+    }
+
+    fn parse_content_block(
+        source: &str,
+    ) -> Result<ContentBlock, CompilerDiagnostic> {
+        let file = "content-block-test.pyr".to_string();
+        let lexer = Lexer::new(file.clone(), source.to_string());
+        let mut parser = Parser::new(file, lexer)?;
+        ContentBlock::parse(&mut parser)
     }
 
     #[test]
@@ -280,6 +294,22 @@ mod tests {
                 Inline::Text(" now".to_string()),
             ]
         );
+    }
+
+    #[test]
+    fn parses_bulleted_list() {
+        let parsed = parse_content_block("- item 1\n- item 2")
+            .expect("list should parse");
+        assert!(matches!(parsed, ContentBlock::BulletList(_)));
+        let parts = match parsed {
+            ContentBlock::BulletList(parts) => parts,
+            _ => unreachable!(),
+        };
+
+        let inline1 = parts[0].parts.to_owned();
+        let inline2 = parts[1].parts.to_owned();
+        assert_eq!(inline1, vec![Inline::Text("item 1".to_string())]);
+        assert_eq!(inline2, vec![Inline::Text("item 2".to_string())]);
     }
 
     #[test]
