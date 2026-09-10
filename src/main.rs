@@ -1,6 +1,6 @@
 use std::{env, ffi::OsString, fs};
 
-use pyrus::{lexer::Lexer, tokens::TokenKind};
+use pyrus::{parser::lexer::Lexer, parser::tokens::TokenKind};
 
 fn main() {
     let args: Vec<OsString> = env::args_os().collect();

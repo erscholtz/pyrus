@@ -1,8 +1,8 @@
 use crate::{
     ast::{Ast, DocumentConfig, ElemDecl, ElemInvoke, Ident, Item, LayoutDecl},
     diagnostic::{CompilerDiagnostic, Span, SyntaxError},
+    parser::tokens::TokenKind,
     parser::{Parse, Parser},
-    tokens::TokenKind,
     util::Spanned,
 };
 
@@ -64,7 +64,7 @@ impl Parse for Ident {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lexer::Lexer;
+    use crate::parser::lexer::Lexer;
 
     fn parse_ast(source: &str) -> Result<Ast, CompilerDiagnostic> {
         let file = "root-test.pyr".to_string();

@@ -1,11 +1,14 @@
+mod cursor;
+mod lexer;
 mod parse;
+pub mod tokens;
 
 pub use parse::Parse;
 
 use crate::{
     diagnostic::{CompilerDiagnostic, FatalError, SourceLocation, SyntaxError},
-    lexer::Lexer,
-    tokens::{Token, TokenKind},
+    parser::lexer::Lexer,
+    parser::tokens::{Token, TokenKind},
 };
 
 /// Parser state shared by the grammar-specific parse modules.

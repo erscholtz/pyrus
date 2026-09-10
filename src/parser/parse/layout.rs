@@ -1,8 +1,8 @@
 use crate::{
     ast::{Ident, LayoutAlignment, LayoutDecl, LayoutProperty, LayoutRow},
     diagnostic::{CompilerDiagnostic, SyntaxError},
+    parser::tokens::TokenKind,
     parser::{Parse, Parser},
-    tokens::TokenKind,
 };
 
 impl Parse for LayoutDecl {
@@ -161,7 +161,7 @@ impl Parse for LayoutProperty {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lexer::Lexer;
+    use crate::parser::lexer::Lexer;
 
     fn parse_layout(source: &str) -> Result<LayoutDecl, CompilerDiagnostic> {
         let file = "layout-test.pyr".to_string();

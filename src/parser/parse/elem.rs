@@ -1,8 +1,8 @@
 use crate::{
     ast::{Content, ElemDecl, ElemInvoke, FieldValue, Ident, InlineText},
     diagnostic::CompilerDiagnostic,
+    parser::tokens::TokenKind,
     parser::{Parse, Parser},
-    tokens::TokenKind,
 };
 
 impl Parse for ElemDecl {
@@ -105,7 +105,7 @@ impl ElemInvoke {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lexer::Lexer;
+    use crate::parser::lexer::Lexer;
 
     fn parser(source: &str) -> Result<Parser, CompilerDiagnostic> {
         let file = "element-test.pyr".to_string();

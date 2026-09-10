@@ -1,4 +1,4 @@
-use crate::tokens::TokenKind;
+use crate::parser::tokens::TokenKind;
 
 use super::{Diagnostic, Severity, SourceLocation};
 

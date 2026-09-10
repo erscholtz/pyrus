@@ -5,7 +5,7 @@ use crate::ast::InlineText;
 use crate::diagnostic::CompilerDiagnostic;
 use crate::parser::Parse;
 use crate::parser::Parser;
-use crate::tokens::TokenKind;
+use crate::parser::tokens::TokenKind;
 
 impl Parse for Content {
     fn parse(parser: &mut Parser) -> Result<Self, CompilerDiagnostic> {
@@ -213,7 +213,7 @@ impl Inline {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lexer::Lexer;
+    use crate::parser::lexer::Lexer;
 
     fn parse_inline(source: &str) -> Result<InlineText, CompilerDiagnostic> {
         let file = "inline-test.pyr".to_string();

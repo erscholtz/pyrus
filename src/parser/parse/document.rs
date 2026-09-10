@@ -1,8 +1,8 @@
 use crate::{
     ast::{DocumentConfig, DocumentEntry, Ident},
     diagnostic::CompilerDiagnostic,
+    parser::tokens::TokenKind,
     parser::{Parse, Parser},
-    tokens::TokenKind,
     util::Spanned,
 };
 
@@ -45,7 +45,7 @@ impl Parse for DocumentEntry {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lexer::Lexer;
+    use crate::parser::lexer::Lexer;
 
     fn parse_document(
         source: &str,
