@@ -10,8 +10,11 @@ use crate::parser::tokens::TokenKind;
 impl Parse for Content {
     fn parse(parser: &mut Parser) -> Result<Self, CompilerDiagnostic> {
         let mut blocks = Vec::new();
-        while !parser.at(TokenKind::RightBrace)? {
+        while !parser.at(TokenKind::RightBrace)?
+            && !parser.at(TokenKind::Eof)?
+        {
             blocks.push(ContentBlock::parse(parser)?);
+            parser.skip_trivia()?;
         }
         Ok(Content { blocks })
     }
@@ -227,13 +230,11 @@ mod tests {
         InlineText::parse(&mut parser)
     }
 
-    fn parse_content_block(
-        source: &str,
-    ) -> Result<ContentBlock, CompilerDiagnostic> {
+    fn parse_content(source: &str) -> Result<Content, CompilerDiagnostic> {
         let file = "content-block-test.pyr".to_string();
         let lexer = Lexer::new(file.clone(), source.to_string());
         let mut parser = Parser::new(file, lexer)?;
-        ContentBlock::parse(&mut parser)
+        Content::parse(&mut parser)
     }
 
     #[test]
@@ -297,11 +298,26 @@ mod tests {
     }
 
     #[test]
+    fn parses_single_bulleted_list_item() {
+        let parsed = parse_content("- one").expect("list should parse");
+        assert_eq!(parsed.blocks.len(), 1);
+        assert!(matches!(parsed.blocks[0], ContentBlock::BulletList(_)));
+        let parts = match parsed.blocks[0].clone() {
+            ContentBlock::BulletList(parts) => parts,
+            _ => unreachable!(),
+        };
+
+        let inline1 = parts[0].parts.to_owned();
+        assert_eq!(inline1, vec![Inline::Text("one".to_string())]);
+    }
+
+    #[test]
     fn parses_bulleted_list() {
-        let parsed = parse_content_block("- item 1\n- item 2")
-            .expect("list should parse");
-        assert!(matches!(parsed, ContentBlock::BulletList(_)));
-        let parts = match parsed {
+        let parsed =
+            parse_content("- item 1\n- item 2").expect("list should parse");
+        assert_eq!(parsed.blocks.len(), 1);
+        assert!(matches!(parsed.blocks[0], ContentBlock::BulletList(_)));
+        let parts = match parsed.blocks[0].clone() {
             ContentBlock::BulletList(parts) => parts,
             _ => unreachable!(),
         };
@@ -310,6 +326,45 @@ mod tests {
         let inline2 = parts[1].parts.to_owned();
         assert_eq!(inline1, vec![Inline::Text("item 1".to_string())]);
         assert_eq!(inline2, vec![Inline::Text("item 2".to_string())]);
+    }
+
+    // - one\nparagraph
+    // - one\n\nparagraph
+
+    #[test]
+    fn parses_bulleted_list_and_text() {
+        let parsed = parse_content("- one\n- two\n\ntext after")
+            .expect("list and text should parse");
+        assert!(matches!(parsed.blocks[0], ContentBlock::BulletList(_)));
+        let parts = match parsed.blocks[0].clone() {
+            ContentBlock::BulletList(parts) => parts,
+            _ => unreachable!(),
+        };
+
+        let inline1 = parts[0].parts.to_owned();
+        let inline2 = parts[1].parts.to_owned();
+        assert_eq!(inline1, vec![Inline::Text("one".to_string())]);
+        assert_eq!(inline2, vec![Inline::Text("two".to_string())]);
+        assert_eq!(parsed.blocks.len(), 2);
+        assert!(matches!(parsed.blocks[1], ContentBlock::Paragraph(_)));
+    }
+
+    #[test]
+    fn parses_bulleted_list_and_more_text() {
+        let parsed = parse_content("- one\n- two\n\ntext after")
+            .expect("list and text should parse");
+        assert!(matches!(parsed.blocks[0], ContentBlock::BulletList(_)));
+        let parts = match parsed.blocks[0].clone() {
+            ContentBlock::BulletList(parts) => parts,
+            _ => unreachable!(),
+        };
+
+        let inline1 = parts[0].parts.to_owned();
+        let inline2 = parts[1].parts.to_owned();
+        assert_eq!(inline1, vec![Inline::Text("one".to_string())]);
+        assert_eq!(inline2, vec![Inline::Text("two".to_string())]);
+        assert_eq!(parsed.blocks.len(), 2);
+        assert!(matches!(parsed.blocks[1], ContentBlock::Paragraph(_)));
     }
 
     #[test]
