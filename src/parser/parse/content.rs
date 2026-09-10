@@ -13,6 +13,7 @@ impl Parse for Content {
         while !parser.at(TokenKind::RightBrace)?
             && !parser.at(TokenKind::Eof)?
         {
+            parser.skip_trivia()?;
             blocks.push(ContentBlock::parse(parser)?);
             parser.skip_trivia()?;
         }
@@ -221,7 +222,7 @@ impl Inline {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{ast, parser::lexer::Lexer};
+    use crate::parser::lexer::Lexer;
 
     fn parse_inline(source: &str) -> Result<InlineText, CompilerDiagnostic> {
         let file = "inline-test.pyr".to_string();
@@ -351,7 +352,7 @@ mod tests {
 
     #[test]
     fn parses_bulleted_list_and_more_text() {
-        let parsed = parse_content("- one\n- two\n\ntext after")
+        let parsed = parse_content("- one\n- two\ntext after")
             .expect("list and text should parse");
         assert!(matches!(parsed.blocks[0], ContentBlock::BulletList(_)));
         let parts = match parsed.blocks[0].clone() {
