@@ -202,8 +202,14 @@ impl Inline {
         while !parser.at(delimiter)?
             && !parser.at(TokenKind::Eof)?
             && !parser.at(TokenKind::Newline)?
+            && !parser.at(TokenKind::RightBrace)?
         {
-            text.push_str(&parser.consume_lexeme()?);
+            if parser.at(TokenKind::Backslash)? {
+                parser.consume(TokenKind::Backslash)?;
+                text.push_str(&parser.consume_lexeme()?);
+            } else {
+                text.push_str(&parser.consume_lexeme()?);
+            }
         }
         if parser.at(delimiter)? {
             Ok(InlineParseResult::Closed(text))
@@ -329,9 +335,6 @@ mod tests {
         assert_eq!(inline2, vec![Inline::Text("item 2".to_string())]);
     }
 
-    // - one\nparagraph
-    // - one\n\nparagraph
-
     #[test]
     fn parses_bulleted_list_and_text() {
         let parsed = parse_content("- one\n- two\n\ntext after")
@@ -366,6 +369,18 @@ mod tests {
         assert_eq!(inline2, vec![Inline::Text("two".to_string())]);
         assert_eq!(parsed.blocks.len(), 2);
         assert!(matches!(parsed.blocks[1], ContentBlock::Paragraph(_)));
+    }
+
+    #[test]
+    fn parses_special_rightbrace() {
+        let parsed = parse_content("some text\\}")
+            .expect("special right brace should be parsed as text");
+        assert_eq!(parsed.blocks.len(), 1);
+        let text = match parsed.blocks[0].clone() {
+            ContentBlock::Paragraph(text) => text,
+            _ => unreachable!(),
+        };
+        assert_eq!(text.parts, vec![Inline::Text("some text\\}".to_string())]);
     }
 
     #[test]
