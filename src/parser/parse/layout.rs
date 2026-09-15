@@ -32,7 +32,9 @@ impl LayoutDecl {
         let mut rows = Vec::new();
         let mut props = Vec::new();
 
-        while !parser.at(TokenKind::RightBrace)? {
+        while !parser.at(TokenKind::RightBrace)?
+            && !parser.at(TokenKind::Eof)?
+        {
             if parser.at(TokenKind::Greater)? || parser.at(TokenKind::Less)? {
                 let row = LayoutRow::parse(parser)?;
                 rows.push(row);

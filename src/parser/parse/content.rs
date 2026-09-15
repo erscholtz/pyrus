@@ -49,6 +49,7 @@ impl ContentBlock {
                 break;
             }
             parser.consume(TokenKind::Newline)?;
+            parser.skip_trivia()?;
         }
         Ok(list)
     }
@@ -155,9 +156,15 @@ impl Parse for Inline {
                     TokenKind::Star
                         | TokenKind::Backtick
                         | TokenKind::LeftBracket
+                        | TokenKind::RightBrace
                         | TokenKind::Newline
                         | TokenKind::Eof
                 ) {
+                    if parser.at(TokenKind::Backslash)? {
+                        parser.consume(TokenKind::Backslash)?;
+                        text.push_str(&parser.consume_lexeme()?);
+                        continue;
+                    }
                     text.push_str(&parser.consume_lexeme()?);
                 }
 
@@ -178,7 +185,10 @@ impl Inline {
     ) -> Result<InlineParseResult, CompilerDiagnostic> {
         let mut text = String::new();
 
-        while !parser.at(TokenKind::Eof)? && !parser.at(TokenKind::Newline)? {
+        while !parser.at(TokenKind::RightBrace)?
+            && !parser.at(TokenKind::Eof)?
+            && !parser.at(TokenKind::Newline)?
+        {
             if parser.at(TokenKind::Star)? {
                 let star = parser.expect_lexeme(TokenKind::Star)?;
                 if parser.at(TokenKind::Star)? {
@@ -377,7 +387,7 @@ mod tests {
             ContentBlock::Paragraph(text) => text,
             _ => unreachable!(),
         };
-        assert_eq!(text.parts, vec![Inline::Text("some text\\}".to_string())]);
+        assert_eq!(text.parts, vec![Inline::Text("some text}".to_string())]);
     }
 
     #[test]

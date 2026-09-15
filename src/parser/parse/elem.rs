@@ -20,6 +20,10 @@ impl Parse for ElemDecl {
             parser.skip_trivia()?;
             content = true;
         }
+        if parser.at(TokenKind::Comma)? {
+            parser.consume(TokenKind::Comma)?;
+            parser.skip_trivia()?;
+        }
         parser.consume(TokenKind::RightBrace)?;
 
         Ok(Self {
@@ -37,6 +41,7 @@ impl ElemDecl {
         let mut fields = Vec::new();
         while !parser.at_keyword("content")?
             && !parser.at(TokenKind::RightBrace)?
+            && !parser.at(TokenKind::Eof)?
         {
             fields.push(Ident::parse(parser)?);
             parser.skip_trivia()?;
@@ -59,6 +64,7 @@ impl Parse for ElemInvoke {
         parser.consume(TokenKind::LeftBrace)?;
         parser.skip_trivia()?;
         let fields = ElemInvoke::comsume_field_values(parser)?;
+        parser.skip_trivia()?;
         let content_val = Content::parse(parser)?;
         let mut content = None;
         if !content_val.blocks.is_empty() {
@@ -79,14 +85,21 @@ impl ElemInvoke {
         parser: &mut Parser,
     ) -> Result<Vec<FieldValue>, CompilerDiagnostic> {
         let mut field_values = Vec::new();
-        while !parser.at(TokenKind::RightBrace)? {
+        while !parser.at(TokenKind::RightBrace)?
+            && !parser.at(TokenKind::Eof)?
+        {
             let field = Ident::parse(parser)?;
+            parser.skip_inline_trivia()?;
             parser.consume(TokenKind::Colon)?;
+            parser.skip_inline_trivia()?;
             let value = InlineText::parse(parser)?;
             field_values.push(FieldValue { name: field, value });
-            parser.skip_trivia()?;
-            if parser.at(TokenKind::Comma)? {
-                parser.consume(TokenKind::Comma)?;
+            parser.skip_inline_trivia()?;
+            if parser.at(TokenKind::Newline)? {
+                if parser.peek_next_significant()?.kind == TokenKind::Newline {
+                    break;
+                }
+                parser.consume(TokenKind::Newline)?;
                 parser.skip_trivia()?;
             } else {
                 break;
@@ -105,6 +118,7 @@ impl ElemInvoke {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ast::ContentBlock;
 
     fn parser(source: &str) -> Result<Parser, CompilerDiagnostic> {
         let file = "element-test.pyr".to_string();
@@ -173,6 +187,44 @@ mod tests {
         assert_eq!(invocation.name.text, "card");
         assert!(invocation.fields.is_empty());
         assert!(invocation.content.is_none());
+    }
+
+    #[test]
+    fn parses_same_line_closing_brace() {
+        let invocation = parse_invoke("@card { name: hello }")
+            .expect("same line closing brace should parse");
+
+        assert_eq!(invocation.name.text, "card");
+        assert_eq!(invocation.fields.len(), 1);
+        assert!(invocation.content.is_none());
+    }
+
+    #[test]
+    fn parses_full_entry() {
+        let entry = parse_invoke( "@entry { \n title: Software Engineer \n company: ACME \n \n Built a compiler in Rust. \n }")
+            .expect("full entry should parse");
+
+        assert_eq!(entry.name.text, "entry");
+        assert_eq!(entry.fields.len(), 2);
+        assert_eq!(entry.fields[0].name.text, "title");
+        assert_eq!(
+            entry.fields[0].value.parts,
+            vec![crate::ast::Inline::Text("Software Engineer ".to_string())]
+        );
+        assert_eq!(entry.fields[1].name.text, "company");
+        assert_eq!(
+            entry.fields[1].value.parts,
+            vec![crate::ast::Inline::Text("ACME ".to_string())]
+        );
+        let content = entry.content.expect("content should be present");
+        assert_eq!(
+            content.blocks,
+            vec![ContentBlock::Paragraph(InlineText {
+                parts: vec![crate::ast::Inline::Text(
+                    "Built a compiler in Rust. ".to_string()
+                )],
+            })]
+        );
     }
 
     #[test]

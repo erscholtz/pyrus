@@ -13,7 +13,9 @@ impl Parse for DocumentConfig {
         parser.consume(TokenKind::LeftBrace)?;
         parser.skip_trivia()?;
         let mut entries = Vec::new();
-        while !parser.at(TokenKind::RightBrace)? {
+        while !parser.at(TokenKind::RightBrace)?
+            && !parser.at(TokenKind::Eof)?
+        {
             entries.push(DocumentEntry::parse(parser)?);
             parser.skip_trivia()?;
         }
