@@ -161,12 +161,10 @@ impl Parse for LayoutProperty {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::parser::lexer::Lexer;
 
     fn parse_layout(source: &str) -> Result<LayoutDecl, CompilerDiagnostic> {
         let file = "layout-test.pyr".to_string();
-        let lexer = Lexer::new(file.clone(), source.to_string());
-        let mut parser = Parser::new(file, lexer)?;
+        let mut parser = Parser::new(file, source.to_string())?;
         LayoutDecl::parse(&mut parser)
     }
 

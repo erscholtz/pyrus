@@ -1,6 +1,6 @@
 use std::{env, ffi::OsString, fs};
 
-use pyrus::{parser::lexer::Lexer, parser::tokens::TokenKind};
+use pyrus::{ast::Ast, parser::Parser};
 
 fn main() {
     let args: Vec<OsString> = env::args_os().collect();
@@ -10,24 +10,19 @@ fn main() {
         .unwrap_or("temp.pyr");
     let source = fs::read_to_string(filename)
         .expect("source file should be readable UTF-8");
-    let mut lexer = Lexer::new(filename.to_string(), source);
-
-    loop {
-        match lexer.pull() {
-            Ok(token) => {
-                let text = lexer.text(&token).unwrap_or("");
-                println!(
-                    "{:?} {}:{} {:?} {:?}",
-                    token.kind, token.line, token.col, token.range, text
-                );
-                if token.kind == TokenKind::Eof {
-                    break;
-                }
-            }
-            Err(error) => {
-                eprintln!("Lexing error: {error}");
-                break;
-            }
+    let mut parser = match Parser::new(filename.to_string(), source) {
+        Ok(parser) => parser,
+        Err(err) => {
+            eprintln!("{:?}", err);
+            return;
         }
-    }
+    };
+    let ast = match parser.parse::<Ast>() {
+        Ok(ast) => ast,
+        Err(err) => {
+            eprintln!("{:?}", err);
+            return;
+        }
+    };
+    println!("{:#?}", ast);
 }

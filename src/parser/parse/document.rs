@@ -45,14 +45,12 @@ impl Parse for DocumentEntry {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::parser::lexer::Lexer;
 
     fn parse_document(
         source: &str,
     ) -> Result<DocumentConfig, CompilerDiagnostic> {
         let file = "document-test.pyr".to_string();
-        let lexer = Lexer::new(file.clone(), source.to_string());
-        let mut parser = Parser::new(file, lexer)?;
+        let mut parser = Parser::new(file, source.to_string())?;
         DocumentConfig::parse(&mut parser)
     }
 

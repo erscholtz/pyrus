@@ -105,12 +105,10 @@ impl ElemInvoke {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::parser::lexer::Lexer;
 
     fn parser(source: &str) -> Result<Parser, CompilerDiagnostic> {
         let file = "element-test.pyr".to_string();
-        let lexer = Lexer::new(file.clone(), source.to_string());
-        Parser::new(file, lexer)
+        Parser::new(file, source.to_string())
     }
 
     fn parse_decl(source: &str) -> Result<ElemDecl, CompilerDiagnostic> {

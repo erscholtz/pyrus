@@ -18,7 +18,8 @@ pub struct Parser {
 }
 
 impl Parser {
-    pub fn new(file: String, lexer: Lexer) -> Result<Self, CompilerDiagnostic> {
+    pub fn new(file: String, src: String) -> Result<Self, CompilerDiagnostic> {
+        let lexer = Lexer::new(file.clone(), src);
         Ok(Self { file, lexer })
     }
 
