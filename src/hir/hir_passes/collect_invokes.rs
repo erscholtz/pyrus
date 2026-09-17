@@ -23,7 +23,7 @@ impl HIRPass for CollectInvokes {
                     let mut elements = HashMap::new();
                     for field in &invoke.fields {
                         let name = field.name.text.clone();
-                        let mut parts = self.lower_inlines(field.value.clone());
+                        let parts = self.lower_inlines(field.value.clone());
 
                         elements.insert(name, parts);
                     }

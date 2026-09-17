@@ -1,11 +1,8 @@
 use std::collections::HashMap;
 
-use crate::{
-    diagnostic::SemanticError,
-    hir::{
-        hir_passes::HIRPass,
-        hir_types::{Layout, Sizing},
-    },
+use crate::hir::{
+    hir_passes::HIRPass,
+    hir_types::{Layout, Sizing},
 };
 
 pub struct CollectLayouts;
@@ -16,12 +13,12 @@ impl HIRPass for CollectLayouts {
         hir: &mut crate::hir::HIR,
         ast: &crate::ast::Ast,
     ) -> Result<(), Vec<crate::diagnostic::CompilerDiagnostic>> {
+        let diagnostics = Vec::new();
         for item in &ast.items {
             match &item.node {
                 crate::ast::Item::LayoutDecl(layout) => {
                     let name = layout.element.text.clone();
                     let mut sizing = HashMap::new();
-                    let mut diagnostics = Vec::new();
 
                     for prop in &layout.props {
                         let size = match prop.value.text.as_str() {
@@ -55,6 +52,9 @@ impl HIRPass for CollectLayouts {
                 }
                 _ => {}
             }
+        }
+        if !diagnostics.is_empty() {
+            return Err(diagnostics);
         }
         Ok(())
     }

@@ -17,10 +17,6 @@ pub trait HIRPass {
     fn name(&self) -> &'static str;
 }
 
-/// Type alias for pass functions (used in run_pipeline)
-type PassFn =
-    fn(&mut HIR, &mut PassManager) -> Result<(), Vec<CompilerDiagnostic>>;
-
 /// Manages a pipeline of HIR passes to be executed on a module.
 pub struct PassManager {
     stop_on_error: bool,
