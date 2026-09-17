@@ -1,47 +1,31 @@
-pub mod hir_debug;
 pub mod hir_passes;
 pub mod hir_types;
 pub mod hir_util;
 
-use std::collections::HashMap;
-
 use crate::ast::Ast;
 use crate::diagnostic::CompilerDiagnostic;
+use crate::hir::hir_passes::collect_invokes::CollectInvokes;
+use crate::hir::hir_passes::collect_layouts::CollectLayouts;
 use crate::hir::{
-    hir_passes::{
-        PassManager, document_pass::DocumentPass, func_pass::FuncPass,
-        global_pass::GlobalPass, style_pass::StylePass,
-        validation_pass::ValidationPass,
-    },
-    hir_types::AttributeTree,
-    hir_types::HIRModule,
+    hir_passes::{PassManager, collect_decls::CollectDecls},
+    hir_types::HIR,
 };
 
-pub fn lower(ast: &Ast) -> Result<HIRModule, Vec<CompilerDiagnostic>> {
-    let mut hirmodule = HIRModule {
-        file: ast.file.clone(),
-        globals: HashMap::new(),
-        functions: HashMap::new(),
-        element_decls: HashMap::new(),
-        attributes: AttributeTree::new(),
-        css_rules: Vec::new(),
-        document_styles: Default::default(),
-        elements: Vec::new(),
-        element_metadata: Vec::new(),
-    };
+pub fn lower(ast: &Ast) -> Result<HIR, Vec<CompilerDiagnostic>> {
+    let mut hir = HIR::new(&ast.file);
 
     let result = PassManager::default()
         .continue_on_error()
-        .run::<GlobalPass>(&mut hirmodule, ast) // global variables
-        .run::<FuncPass>(&mut hirmodule, ast) // function declarations
-        .run::<DocumentPass>(&mut hirmodule, ast) // document elements
-        .run::<StylePass>(&mut hirmodule, ast) // css styling
-        .run::<ValidationPass>(&mut hirmodule, ast) // validation checks
+        .run::<CollectDecls>(&mut hir, ast) // global variables
+        .run::<CollectLayouts>(&mut hir, ast) // function declarations
+        .run::<CollectInvokes>(&mut hir, ast) // document elements
+        // .run::<ValidationPass>(&mut hir, ast) // validation checks
+        // .run::<DeadCodeElim>(&mut hir, ast) // Dead code removal
         .finished();
 
     if let Err(errors) = result {
         Err(errors.into_iter().map(|e| e.into()).collect()) // crazy conversion
     } else {
-        Ok(hirmodule)
+        Ok(hir)
     }
 }

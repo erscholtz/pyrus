@@ -1,6 +1,6 @@
 use std::{env, ffi::OsString, fs};
 
-use pyrus::{ast::Ast, parser::Parser};
+use pyrus::{ast::Ast, hir::lower, parser::Parser};
 
 fn main() {
     let args: Vec<OsString> = env::args_os().collect();
@@ -24,5 +24,13 @@ fn main() {
             return;
         }
     };
-    println!("{:#?}", ast);
+
+    let hir = match lower(&ast) {
+        Ok(hir) => hir,
+        Err(err) => {
+            eprintln!("{:?}", err);
+            return;
+        }
+    };
+    println!("{:#?}", hir);
 }
