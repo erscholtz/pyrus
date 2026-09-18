@@ -1,6 +1,6 @@
 use std::{env, ffi::OsString, fs};
 
-use pyrus::{ast::Ast, hir::lower, parser::Parser};
+use pyrus::{ast::Ast, hir::lower, layout::layout, parser::Parser};
 
 fn main() {
     let args: Vec<OsString> = env::args_os().collect();
@@ -32,5 +32,7 @@ fn main() {
             return;
         }
     };
-    println!("{:#?}", hir);
+
+    let layout = layout(&hir);
+    println!("{:#?}", layout);
 }
