@@ -4,6 +4,7 @@ pub mod hir_util;
 
 use crate::ast::Ast;
 use crate::diagnostic::CompilerDiagnostic;
+use crate::hir::hir_passes::collect_config::CollectConfig;
 use crate::hir::hir_passes::collect_invokes::CollectInvokes;
 use crate::hir::hir_passes::collect_layouts::CollectLayouts;
 use crate::hir::{
@@ -16,6 +17,7 @@ pub fn lower(ast: &Ast) -> Result<HIR, Vec<CompilerDiagnostic>> {
 
     let result = PassManager::default()
         .continue_on_error()
+        .run::<CollectConfig>(&mut hir, ast)
         .run::<CollectDecls>(&mut hir, ast) // global variables
         .run::<CollectLayouts>(&mut hir, ast) // function declarations
         .run::<CollectInvokes>(&mut hir, ast) // document elements

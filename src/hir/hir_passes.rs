@@ -1,3 +1,4 @@
+pub mod collect_config;
 pub mod collect_decls;
 pub mod collect_invokes;
 pub mod collect_layouts;
