@@ -29,8 +29,14 @@ pub enum DocType {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DocOrientation {
+    Portrait,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Config {
     pub doc_type: DocType,
+    pub orientation: DocOrientation,
     pub top_margin: usize,
     pub bottom_margin: usize,
     pub left_margin: usize,
@@ -41,6 +47,7 @@ pub struct Config {
 impl Config {
     pub fn new(
         doc_type: DocType,
+        doc_orientation: DocOrientation,
         top: usize,
         bottom: usize,
         left: usize,
@@ -49,6 +56,7 @@ impl Config {
     ) -> Self {
         Self {
             doc_type,
+            orientation: doc_orientation,
             top_margin: top,
             bottom_margin: bottom,
             left_margin: left,
@@ -62,6 +70,7 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             doc_type: DocType::A4,
+            orientation: DocOrientation::Portrait,
             top_margin: 4,
             bottom_margin: 4,
             left_margin: 4,

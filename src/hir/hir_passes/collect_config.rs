@@ -2,7 +2,7 @@ use crate::ast::{Ast, DocumentConfig, DocumentEntry, Item};
 use crate::diagnostic::{CompilerDiagnostic, SemanticError};
 use crate::hir::HIR;
 use crate::hir::hir_passes::HIRPass;
-use crate::hir::hir_types::{Config, DocType};
+use crate::hir::hir_types::{Config, DocOrientation, DocType};
 
 pub struct CollectConfig;
 
@@ -50,6 +50,7 @@ impl CollectConfig {
     ) -> Result<Config, CompilerDiagnostic> {
         // define default
         let mut doc_type = DocType::A4;
+        let mut orientation = DocOrientation::Portrait;
         let mut top_margin = 0;
         let mut bottom_margin = 0;
         let mut left_margin = 0;
@@ -61,6 +62,19 @@ impl CollectConfig {
                 "doc_type" => match entry.value.node.as_str() {
                     "A4" => {
                         doc_type = DocType::A4;
+                    }
+                    _ => {
+                        // TODO proper error handling here
+                        // return Err(CompilerDiagnostic::Semantic(
+                        //     SemanticError::InvalidDocType {
+                        //         value: entry.value.node.clone(),
+                        //     },
+                        // ));
+                    }
+                },
+                "orientation" => match entry.value.node.as_str() {
+                    "portrait" => {
+                        orientation = DocOrientation::Portrait;
                     }
                     _ => {
                         // TODO proper error handling here
@@ -93,6 +107,7 @@ impl CollectConfig {
         }
         Ok(Config {
             doc_type,
+            orientation,
             top_margin,
             bottom_margin,
             left_margin,
