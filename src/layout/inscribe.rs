@@ -1,3 +1,4 @@
+use crate::diagnostic::CompilerDiagnostic;
 use crate::hir::hir_types::Content;
 use crate::hir::hir_types::Invoke;
 use crate::hir::hir_types::Layout;
@@ -28,8 +29,9 @@ pub struct Glyph {
 
 #[derive(Debug, Clone)]
 pub struct GlyphRow {
-    glyphs: Vec<Glyph>,
-    offset: usize,
+    pub glyphs: Vec<Glyph>,
+    pub name: String,
+    pub offset: usize,
 }
 
 impl Glyph {
@@ -73,28 +75,36 @@ impl Glyph {
 }
 
 impl GlyphRow {
-    pub fn new(glyphs: Vec<Glyph>, offset: usize) -> Self {
-        Self { glyphs, offset }
+    pub fn new(glyphs: Vec<Glyph>, name: String, offset: usize) -> Self {
+        Self {
+            glyphs,
+            name,
+            offset,
+        }
     }
 }
 
-pub fn inscribe(invoke: &Invoke, layout: &Layout) -> Vec<GlyphRow> {
-    let mut glyph_rows: Vec<GlyphRow> = Vec::new();
-    for elem in &invoke.elements {
-        let size = &layout.sizing[elem.0.as_str()];
-        for content in elem.1 {
-            let glyphs = match content {
-                Content::Text(text) => Glyph::inscribe_text(text, size),
-                Content::Bold(text) => Glyph::inscribe_bold(text, size),
-                Content::Italic(text) => Glyph::inscribe_italic(text, size),
-                Content::NerdFont(text) => Glyph::inscribe_nerd(text, size),
-
-                _ => Vec::new(),
-            };
-            let len = glyphs.len();
-            let row = GlyphRow::new(glyphs, len);
-            glyph_rows.push(row);
-        }
+pub fn inscribe(
+    elem: (&String, &Vec<Content>),
+    layout: &Layout,
+) -> Result<GlyphRow, CompilerDiagnostic> {
+    let size = &layout.sizing[elem.0.as_str()];
+    let mut glyphs: Vec<Glyph> = Vec::new();
+    for content in elem.1 {
+        glyphs.extend(match content {
+            Content::Text(text) => Glyph::inscribe_text(&text, size),
+            Content::Bold(text) => Glyph::inscribe_bold(&text, size),
+            Content::Italic(text) => Glyph::inscribe_italic(&text, size),
+            Content::NerdFont(text) => Glyph::inscribe_nerd(&text, size),
+            _ => Vec::new(),
+        });
     }
-    glyph_rows
+    let len = glyphs.len();
+    if len == 0 {
+        // TODO proper error here
+        // return Err(CompilerDiagnostic::Fatal(FatalError::new(
+        //     "inscribe: no glyphs generated",
+        // )));
+    }
+    Ok(GlyphRow::new(glyphs, elem.0.clone(), len))
 }

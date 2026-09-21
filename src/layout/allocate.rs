@@ -1,0 +1,89 @@
+use std::collections::{HashMap, HashSet};
+
+use crate::{
+    ast::{LayoutAlignment, LayoutRow},
+    diagnostic::CompilerDiagnostic,
+    hir::hir_types::{Invoke, Layout},
+    layout::{GlyphRow, inscribe},
+};
+
+#[derive(Debug, Clone)]
+pub enum ContentRow {
+    Single(AllocatedField),
+    Split {
+        left: AllocatedField,
+        right: AllocatedField,
+    },
+}
+
+#[derive(Debug, Clone)]
+pub enum Alignment {
+    Left,
+    Center,
+    Right,
+}
+
+#[derive(Debug, Clone)]
+pub struct AllocatedField {
+    content: GlyphRow,
+    alignment: Alignment,
+}
+
+pub fn allocate(
+    invokes: &Vec<Invoke>,
+    layouts: &HashMap<String, Layout>,
+) -> Result<Vec<ContentRow>, CompilerDiagnostic> {
+    let mut content_rows = Vec::new();
+    for invoke in invokes {
+        let layout = layouts.get(&invoke.name.clone()).unwrap();
+        for layout_row in &layout.layouts {
+            match layout_row {
+                LayoutRow::Single { alignment, .. } => {
+                    for elem in &invoke.elements {
+                        let allocated_field = AllocatedField {
+                            content: inscribe::inscribe(elem, layout)?,
+                            alignment: convert_layout(alignment),
+                        };
+                        content_rows.push(ContentRow::Single(allocated_field));
+                    }
+                }
+                LayoutRow::Split {
+                    left,
+                    right,
+                    left_alignment,
+                    right_alignment,
+                } => {
+                    let mut left = None;
+                    for elem in &invoke.elements {
+                        left = Some(AllocatedField {
+                            content: inscribe::inscribe(elem, layout)?,
+                            alignment: convert_layout(left_alignment),
+                        });
+                    }
+                    let mut right = None;
+                    for elem in &invoke.elements {
+                        right = Some(AllocatedField {
+                            content: inscribe::inscribe(elem, layout)?,
+                            alignment: convert_layout(right_alignment),
+                        });
+                    }
+                    if let (Some(left), Some(right)) = (left, right) {
+                        content_rows.push(ContentRow::Split { left, right });
+                    } else {
+                        // TODO Err here
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(content_rows)
+}
+
+fn convert_layout(alignment: &LayoutAlignment) -> Alignment {
+    match alignment {
+        LayoutAlignment::Left => Alignment::Left,
+        LayoutAlignment::Right => Alignment::Right,
+        LayoutAlignment::Centre => Alignment::Center,
+    }
+}
