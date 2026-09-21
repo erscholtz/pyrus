@@ -24,6 +24,8 @@ impl Parse for Ast {
             } else if parser.at(TokenKind::At)? {
                 Item::ElemInvoke(ElemInvoke::parse(parser)?)
             } else {
+                // TODO just plain text on its own
+                // Item::ElemInvoke(ElemInvoke::free_content(parser)?)
                 return Err(SyntaxError::invalid_construct(
                     "top-level item",
                     format!("unexpected token `{}`", parser.current_text()?),
