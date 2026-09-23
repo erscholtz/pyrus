@@ -1,10 +1,10 @@
 use std::collections::VecDeque;
 
-use crate::{
-    diagnostic::CompilerDiagnostic,
-    parser::cursor::{Cursor, Mark},
-    parser::tokens::{Token, TokenKind},
-};
+use crate::diagnostic::CompilerDiagnostic;
+use crate::parser::cursor::Cursor;
+use crate::parser::cursor::Mark;
+use crate::parser::tokens::Token;
+use crate::parser::tokens::TokenKind;
 
 static SYMBOL_LOOKUP_TABLE: [Option<TokenKind>; 256] = {
     let mut t = [const { None }; 256];

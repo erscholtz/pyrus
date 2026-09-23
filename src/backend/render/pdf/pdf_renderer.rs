@@ -1,16 +1,33 @@
-use std::fs::{self, File};
-use std::io::{BufWriter, Write};
+use std::fs;
+use std::fs::File;
+use std::io::BufWriter;
+use std::io::Write;
 
-use printpdf::{
-    Actions, Color, Line, LinePoint, LinkAnnotation, Mm, Op, PdfDocument, PdfFontHandle, PdfPage,
-    PdfSaveOptions, Point, Pt, Rect,
-};
+use printpdf::Actions;
+use printpdf::Color;
+use printpdf::Line;
+use printpdf::LinePoint;
+use printpdf::LinkAnnotation;
+use printpdf::Mm;
+use printpdf::Op;
+use printpdf::PdfDocument;
+use printpdf::PdfFontHandle;
+use printpdf::PdfPage;
+use printpdf::PdfSaveOptions;
+use printpdf::Point;
+use printpdf::Pt;
+use printpdf::Rect;
 
 use crate::backend::render::pdf::fonts::FontRegistry;
-use crate::backend::render::pdf::layout::{PdfLayoutEngine, PdfTextMeasure};
-use crate::backend::render::pdf::style::{StyleLookup, rgb};
-use crate::backend::render::pdf::text::{self, TextRun};
-use crate::hir::hir_types::{HIRModule, HirElementOp, StyleAttributes};
+use crate::backend::render::pdf::layout::PdfLayoutEngine;
+use crate::backend::render::pdf::layout::PdfTextMeasure;
+use crate::backend::render::pdf::style::StyleLookup;
+use crate::backend::render::pdf::style::rgb;
+use crate::backend::render::pdf::text;
+use crate::backend::render::pdf::text::TextRun;
+use crate::hir::hir_types::HIRModule;
+use crate::hir::hir_types::HirElementOp;
+use crate::hir::hir_types::StyleAttributes;
 use crate::layout::ComputedLayout;
 
 const PAGE_WIDTH_MM: f32 = 210.0;

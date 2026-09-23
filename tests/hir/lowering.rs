@@ -1,9 +1,11 @@
 use pyrus::ast::Ast;
-use pyrus::hir::{
-    hir_types::{HIRModule, Literal, Op, Type},
-    lower,
-};
-use pyrus::lexer::{TokenStream, lex_all};
+use pyrus::hir::hir_types::HIRModule;
+use pyrus::hir::hir_types::Literal;
+use pyrus::hir::hir_types::Op;
+use pyrus::hir::hir_types::Type;
+use pyrus::hir::lower;
+use pyrus::lexer::TokenStream;
+use pyrus::lexer::lex_all;
 use pyrus::parser::Parser;
 
 fn parse(

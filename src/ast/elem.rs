@@ -1,4 +1,6 @@
-use crate::ast::{Content, Ident, InlineText};
+use crate::ast::Content;
+use crate::ast::Ident;
+use crate::ast::InlineText;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ElemDecl {

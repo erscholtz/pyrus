@@ -1,12 +1,11 @@
 use std::collections::HashMap;
 
-use crate::{
-    ast::{ContentBlock, Inline, InlineText},
-    hir::{
-        hir_passes::HIRPass,
-        hir_types::{Content, Invoke},
-    },
-};
+use crate::ast::ContentBlock;
+use crate::ast::Inline;
+use crate::ast::InlineText;
+use crate::hir::hir_passes::HIRPass;
+use crate::hir::hir_types::Content;
+use crate::hir::hir_types::Invoke;
 
 pub struct CollectInvokes;
 

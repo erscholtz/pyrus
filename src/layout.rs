@@ -4,11 +4,13 @@ mod inscribe; // make glyphs
 mod paginate; // add ResolvedRows to Pages
 mod wrap; // wrap rows to fit in margins
 
-use crate::{
-    diagnostic::CompilerDiagnostic,
-    hir::hir_types::{Config, DocOrientation, DocType, HIR},
-    layout::{allocate::ContentRow, inscribe::GlyphRow},
-};
+use crate::diagnostic::CompilerDiagnostic;
+use crate::hir::hir_types::Config;
+use crate::hir::hir_types::DocOrientation;
+use crate::hir::hir_types::DocType;
+use crate::hir::hir_types::HIR;
+use crate::layout::allocate::ContentRow;
+use crate::layout::inscribe::GlyphRow;
 
 // spacing out what rows we have given the top down margins and remaing rows we
 // got on a page

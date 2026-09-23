@@ -1,11 +1,11 @@
-use std::collections::{HashMap, HashSet};
-
-use crate::{
-    ast::{LayoutAlignment, LayoutRow},
-    diagnostic::CompilerDiagnostic,
-    hir::hir_types::{Invoke, Layout},
-    layout::{GlyphRow, inscribe},
-};
+use std::collections::HashMap;
+use crate::ast::LayoutAlignment;
+use crate::ast::LayoutRow;
+use crate::diagnostic::CompilerDiagnostic;
+use crate::hir::hir_types::Invoke;
+use crate::hir::hir_types::Layout;
+use crate::layout::GlyphRow;
+use crate::layout::inscribe;
 
 #[derive(Debug, Clone)]
 pub enum ContentRow {

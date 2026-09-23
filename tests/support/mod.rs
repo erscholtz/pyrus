@@ -1,12 +1,13 @@
 #![allow(dead_code)]
 
-use pyrus::{
-    ast::{Ast, DocElem, Stmt},
-    diagnostic::SyntaxError,
-    hir::{hir_types::HIRModule, lower},
-    lexer::lex_all,
-    parser::Parser,
-};
+use pyrus::ast::Ast;
+use pyrus::ast::DocElem;
+use pyrus::ast::Stmt;
+use pyrus::diagnostic::SyntaxError;
+use pyrus::hir::hir_types::HIRModule;
+use pyrus::hir::lower;
+use pyrus::lexer::lex_all;
+use pyrus::parser::Parser;
 
 pub fn parse_ast(source: &str) -> Ast {
     let tokens = lex_all(source, "test.ink").expect("Lexing failed");

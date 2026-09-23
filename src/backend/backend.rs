@@ -1,6 +1,7 @@
 use crate::backend::render::pdf::pdf_renderer::PdfRenderer;
 use crate::hir::hir_types::HIRModule;
-use crate::layout::{ComputedLayout, LayoutEngine};
+use crate::layout::ComputedLayout;
+use crate::layout::LayoutEngine;
 
 pub enum Renderer {
     Pdf,

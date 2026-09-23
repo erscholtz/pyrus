@@ -1,8 +1,11 @@
 use crate::backend::render::pdf::style::StyleLookup;
 use crate::backend::render::pdf::text;
-use crate::hir::hir_types::{
-    FuncId, HIRModule, HirElementOp, Op as HirOp, ReturnSummary, StyleAttributes,
-};
+use crate::hir::hir_types::FuncId;
+use crate::hir::hir_types::HIRModule;
+use crate::hir::hir_types::HirElementOp;
+use crate::hir::hir_types::Op as HirOp;
+use crate::hir::hir_types::ReturnSummary;
+use crate::hir::hir_types::StyleAttributes;
 use crate::layout::ComputedLayout;
 
 const PAGE_WIDTH_PT: f32 = 595.0;

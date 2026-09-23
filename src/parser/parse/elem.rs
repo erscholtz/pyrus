@@ -1,9 +1,13 @@
-use crate::{
-    ast::{Content, ElemDecl, ElemInvoke, FieldValue, Ident, InlineText},
-    diagnostic::CompilerDiagnostic,
-    parser::tokens::TokenKind,
-    parser::{Parse, Parser},
-};
+use crate::ast::Content;
+use crate::ast::ElemDecl;
+use crate::ast::ElemInvoke;
+use crate::ast::FieldValue;
+use crate::ast::Ident;
+use crate::ast::InlineText;
+use crate::diagnostic::CompilerDiagnostic;
+use crate::parser::tokens::TokenKind;
+use crate::parser::Parse;
+use crate::parser::Parser;
 
 impl Parse for ElemDecl {
     fn parse(parser: &mut Parser) -> Result<Self, CompilerDiagnostic> {

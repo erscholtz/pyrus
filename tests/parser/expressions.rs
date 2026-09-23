@@ -1,5 +1,8 @@
 use crate::support::template_statements;
-use pyrus::ast::{BinOp, ExprKind, StmtKind, UnaryOp};
+use pyrus::ast::BinOp;
+use pyrus::ast::ExprKind;
+use pyrus::ast::StmtKind;
+use pyrus::ast::UnaryOp;
 
 fn assigned_expr(source: &str) -> ExprKind {
     let statements = template_statements(source);

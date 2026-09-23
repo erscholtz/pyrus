@@ -1,6 +1,8 @@
 use crate::parser::tokens::TokenKind;
 
-use super::{Diagnostic, Severity, SourceLocation};
+use super::Diagnostic;
+use super::Severity;
+use super::SourceLocation;
 
 /// Syntax errors raised during parsing.
 #[derive(Debug, Clone)]

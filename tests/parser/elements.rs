@@ -1,8 +1,9 @@
-use crate::support::{document_elements, parse_errors};
-use pyrus::{
-    ast::{DocElemKind, ExprKind, Type},
-    diagnostic::SyntaxError,
-};
+use crate::support::document_elements;
+use crate::support::parse_errors;
+use pyrus::ast::DocElemKind;
+use pyrus::ast::ExprKind;
+use pyrus::ast::Type;
+use pyrus::diagnostic::SyntaxError;
 
 #[test]
 fn test_parse_text_element() {

@@ -1,9 +1,9 @@
-use crate::support::{parse_ast, parse_errors};
-use pyrus::{
-    ast::{ExprKind, Selector},
-    diagnostic::SyntaxError,
-    lexer::tokens::TokenKind,
-};
+use crate::support::parse_ast;
+use crate::support::parse_errors;
+use pyrus::ast::ExprKind;
+use pyrus::ast::Selector;
+use pyrus::diagnostic::SyntaxError;
+use pyrus::lexer::tokens::TokenKind;
 
 fn rules(source: &str) -> Vec<pyrus::ast::StyleRule> {
     parse_ast(source)

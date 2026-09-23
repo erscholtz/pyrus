@@ -1,8 +1,15 @@
 use std::collections::HashMap;
 use std::process::Command;
 
-use printpdf::{BuiltinFont, FontId, PdfDocument, PdfFontHandle, font::ParsedFont};
-use rust_fontconfig::{FcFontCache, FcPattern, FcWeight, PatternMatch};
+use printpdf::BuiltinFont;
+use printpdf::FontId;
+use printpdf::PdfDocument;
+use printpdf::PdfFontHandle;
+use printpdf::font::ParsedFont;
+use rust_fontconfig::FcFontCache;
+use rust_fontconfig::FcPattern;
+use rust_fontconfig::FcWeight;
+use rust_fontconfig::PatternMatch;
 
 use crate::backend::render::pdf::style::StyleLookup;
 

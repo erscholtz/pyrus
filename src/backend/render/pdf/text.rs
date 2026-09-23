@@ -1,4 +1,8 @@
-use printpdf::{Op, PdfFontHandle, Pt, TextItem, font::ParsedFont};
+use printpdf::Op;
+use printpdf::PdfFontHandle;
+use printpdf::Pt;
+use printpdf::TextItem;
+use printpdf::font::ParsedFont;
 
 use crate::layout::LayoutEngine;
 
@@ -132,9 +136,11 @@ pub fn sanitize_builtin_text(value: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use printpdf::{BuiltinFont, PdfFontHandle};
+    use printpdf::BuiltinFont;
+    use printpdf::PdfFontHandle;
 
-    use super::{TextRun, sanitize_builtin_text};
+    use super::TextRun;
+    use super::sanitize_builtin_text;
 
     #[test]
     fn sanitize_builtin_text_replaces_unicode_punctuation() {

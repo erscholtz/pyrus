@@ -1,9 +1,13 @@
-use crate::{
-    ast::{Ident, LayoutAlignment, LayoutDecl, LayoutProperty, LayoutRow},
-    diagnostic::{CompilerDiagnostic, SyntaxError},
-    parser::tokens::TokenKind,
-    parser::{Parse, Parser},
-};
+use crate::ast::Ident;
+use crate::ast::LayoutAlignment;
+use crate::ast::LayoutDecl;
+use crate::ast::LayoutProperty;
+use crate::ast::LayoutRow;
+use crate::diagnostic::CompilerDiagnostic;
+use crate::diagnostic::SyntaxError;
+use crate::parser::tokens::TokenKind;
+use crate::parser::Parse;
+use crate::parser::Parser;
 
 impl Parse for LayoutDecl {
     fn parse(parser: &mut Parser) -> Result<Self, CompilerDiagnostic> {

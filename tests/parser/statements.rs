@@ -1,5 +1,8 @@
 use crate::support::template_statements;
-use pyrus::ast::{DocElemKind, ExprKind, ReturnStmt, StmtKind};
+use pyrus::ast::DocElemKind;
+use pyrus::ast::ExprKind;
+use pyrus::ast::ReturnStmt;
+use pyrus::ast::StmtKind;
 
 #[test]
 fn test_parse_variable_assignment() {

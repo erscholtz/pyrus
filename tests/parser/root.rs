@@ -1,8 +1,8 @@
-use pyrus::{
-    ast::{Ast, Item},
-    lexer::Lexer,
-    parser::{Parse, Parser},
-};
+use pyrus::ast::Ast;
+use pyrus::ast::Item;
+use pyrus::lexer::Lexer;
+use pyrus::parser::Parse;
+use pyrus::parser::Parser;
 
 #[test]
 fn parses_top_level_items_in_source_order() {

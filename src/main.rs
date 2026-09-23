@@ -1,6 +1,11 @@
-use std::{env, ffi::OsString, fs};
+use std::env;
+use std::ffi::OsString;
+use std::fs;
 
-use pyrus::{ast::Ast, hir::lower, layout::layout, parser::Parser};
+use pyrus::ast::Ast;
+use pyrus::hir::lower;
+use pyrus::layout::layout;
+use pyrus::parser::Parser;
 
 fn main() {
     let args: Vec<OsString> = env::args_os().collect();

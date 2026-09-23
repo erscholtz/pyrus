@@ -1,9 +1,14 @@
 use crate::parser::tokens::TokenKind;
 
-use super::{
-    Diagnostic, FatalError, Note, SemanticError, Severity, SourceLocation,
-    Span, SyntaxError, Warning,
-};
+use super::Diagnostic;
+use super::FatalError;
+use super::Note;
+use super::SemanticError;
+use super::Severity;
+use super::SourceLocation;
+use super::Span;
+use super::SyntaxError;
+use super::Warning;
 
 #[derive(Debug, Clone)]
 pub enum CompilerDiagnostic {

@@ -1,4 +1,5 @@
-use crate::{ast::Ident, util::Spanned};
+use crate::ast::Ident;
+use crate::util::Spanned;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DocumentConfig {

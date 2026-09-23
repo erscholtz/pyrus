@@ -1,9 +1,8 @@
 use std::collections::HashMap;
 
-use crate::hir::{
-    hir_passes::HIRPass,
-    hir_types::{Layout, Sizing},
-};
+use crate::hir::hir_passes::HIRPass;
+use crate::hir::hir_types::Layout;
+use crate::hir::hir_types::Sizing;
 
 pub struct CollectLayouts;
 

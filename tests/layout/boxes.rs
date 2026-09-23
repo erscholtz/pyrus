@@ -1,7 +1,9 @@
 use pyrus::ast::Ast;
-use pyrus::hir::{hir_types::HIRModule, lower};
+use pyrus::hir::hir_types::HIRModule;
+use pyrus::hir::lower;
 use pyrus::layout::setup_layout;
-use pyrus::lexer::{TokenStream, lex_all};
+use pyrus::lexer::TokenStream;
+use pyrus::lexer::lex_all;
 use pyrus::parser::Parser;
 
 fn parse(

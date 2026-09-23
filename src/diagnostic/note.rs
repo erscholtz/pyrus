@@ -1,4 +1,6 @@
-use super::{Diagnostic, Severity, SourceLocation};
+use super::Diagnostic;
+use super::Severity;
+use super::SourceLocation;
 
 /// Supplemental context attached to a primary diagnostic.
 #[derive(Debug, Clone)]

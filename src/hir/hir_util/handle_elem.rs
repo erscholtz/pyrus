@@ -1,20 +1,36 @@
 use std::collections::HashMap;
 
-use crate::ast::{
-    ArgType, BinaryExpr, CallElem, ChildrenElem, CodeElem, DocElem,
-    DocElemKind, Expr, ExprKind, ImageElem, InterpolatedStringExpr, LinkElem,
-    ListElem, SectionElem, SeparatorElem, StructDefaultExpr, TableElem,
-    TextElem, UnaryExpr,
-};
-use crate::diagnostic::{SemanticError, SourceLocation};
-use crate::hir::{
-    HIRModule,
-    hir_types::{
-        AttributeNode, Block, ElementMetadata, FuncDecl, HirElementOp, Op,
-        ReturnSummary, ValueId,
-    },
-    hir_util::handle_args::handle_args,
-};
+use crate::ast::ArgType;
+use crate::ast::BinaryExpr;
+use crate::ast::CallElem;
+use crate::ast::ChildrenElem;
+use crate::ast::CodeElem;
+use crate::ast::DocElem;
+use crate::ast::DocElemKind;
+use crate::ast::Expr;
+use crate::ast::ExprKind;
+use crate::ast::ImageElem;
+use crate::ast::InterpolatedStringExpr;
+use crate::ast::LinkElem;
+use crate::ast::ListElem;
+use crate::ast::SectionElem;
+use crate::ast::SeparatorElem;
+use crate::ast::StructDefaultExpr;
+use crate::ast::TableElem;
+use crate::ast::TextElem;
+use crate::ast::UnaryExpr;
+use crate::diagnostic::SemanticError;
+use crate::diagnostic::SourceLocation;
+use crate::hir::HIRModule;
+use crate::hir::hir_types::AttributeNode;
+use crate::hir::hir_types::Block;
+use crate::hir::hir_types::ElementMetadata;
+use crate::hir::hir_types::FuncDecl;
+use crate::hir::hir_types::HirElementOp;
+use crate::hir::hir_types::Op;
+use crate::hir::hir_types::ReturnSummary;
+use crate::hir::hir_types::ValueId;
+use crate::hir::hir_util::handle_args::handle_args;
 
 pub fn lower_document_element(
     element: &DocElem,

@@ -3,12 +3,14 @@ use std::collections::HashMap;
 use crate::ast::Ast;
 use crate::diagnostic::SemanticError;
 use crate::hir::hir_types::HirElemDecl;
-use crate::hir::{
-    hir_passes::HIRPass,
-    hir_types::{
-        ElemId, FuncDecl, FuncId, Global, GlobalId, HIRModule, HirElementOp,
-    },
-};
+use crate::hir::hir_passes::HIRPass;
+use crate::hir::hir_types::ElemId;
+use crate::hir::hir_types::FuncDecl;
+use crate::hir::hir_types::FuncId;
+use crate::hir::hir_types::Global;
+use crate::hir::hir_types::GlobalId;
+use crate::hir::hir_types::HIRModule;
+use crate::hir::hir_types::HirElementOp;
 
 pub struct ValidationPass;
 

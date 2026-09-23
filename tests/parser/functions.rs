@@ -1,5 +1,8 @@
 use crate::support::template_statements;
-use pyrus::ast::{ExprKind, ReturnStmt, StmtKind, Type};
+use pyrus::ast::ExprKind;
+use pyrus::ast::ReturnStmt;
+use pyrus::ast::StmtKind;
+use pyrus::ast::Type;
 
 #[test]
 fn test_parse_function_declaration_with_parameter() {

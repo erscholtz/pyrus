@@ -1,4 +1,6 @@
-use super::{Diagnostic, Severity, SourceLocation};
+use super::Diagnostic;
+use super::Severity;
+use super::SourceLocation;
 
 /// Fatal diagnostics stop compilation immediately.
 #[derive(Debug, Clone)]

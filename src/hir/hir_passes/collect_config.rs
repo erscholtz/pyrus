@@ -1,8 +1,14 @@
-use crate::ast::{Ast, DocumentConfig, DocumentEntry, Item};
-use crate::diagnostic::{CompilerDiagnostic, SemanticError};
+use crate::ast::Ast;
+use crate::ast::DocumentConfig;
+use crate::ast::DocumentEntry;
+use crate::ast::Item;
+use crate::diagnostic::CompilerDiagnostic;
+use crate::diagnostic::SemanticError;
 use crate::hir::HIR;
 use crate::hir::hir_passes::HIRPass;
-use crate::hir::hir_types::{Config, DocOrientation, DocType};
+use crate::hir::hir_types::Config;
+use crate::hir::hir_types::DocOrientation;
+use crate::hir::hir_types::DocType;
 
 pub struct CollectConfig;
 

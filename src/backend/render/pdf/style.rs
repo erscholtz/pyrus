@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
-use printpdf::{Color, Rgb};
+use printpdf::Color;
+use printpdf::Rgb;
 
 use crate::hir::hir_types::StyleAttributes;
 
@@ -334,7 +335,8 @@ mod tests {
 
     use crate::hir::hir_types::StyleAttributes;
 
-    use super::{StyleLookup, normalize_css_value};
+    use super::StyleLookup;
+    use super::normalize_css_value;
 
     #[test]
     fn style_alias_lookup_reads_dehyphenated_font_size() {

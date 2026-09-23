@@ -1,10 +1,17 @@
-use crate::{
-    ast::{Ast, DocumentConfig, ElemDecl, ElemInvoke, Ident, Item, LayoutDecl},
-    diagnostic::{CompilerDiagnostic, Span, SyntaxError},
-    parser::tokens::TokenKind,
-    parser::{Parse, Parser},
-    util::Spanned,
-};
+use crate::ast::Ast;
+use crate::ast::DocumentConfig;
+use crate::ast::ElemDecl;
+use crate::ast::ElemInvoke;
+use crate::ast::Ident;
+use crate::ast::Item;
+use crate::ast::LayoutDecl;
+use crate::diagnostic::CompilerDiagnostic;
+use crate::diagnostic::Span;
+use crate::diagnostic::SyntaxError;
+use crate::parser::tokens::TokenKind;
+use crate::parser::Parse;
+use crate::parser::Parser;
+use crate::util::Spanned;
 
 impl Parse for Ast {
     fn parse(parser: &mut Parser) -> Result<Self, CompilerDiagnostic> {

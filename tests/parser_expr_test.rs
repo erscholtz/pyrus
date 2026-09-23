@@ -1,11 +1,13 @@
 #[path = "support/mod.rs"]
 mod support;
 
-use pyrus::ast::{BinOp, ExprKind, StmtKind, UnaryOp};
-use pyrus::{
-    diagnostic::{CompilerDiagnostic, SyntaxError},
-    lexer::lex_all,
-};
+use pyrus::ast::BinOp;
+use pyrus::ast::ExprKind;
+use pyrus::ast::StmtKind;
+use pyrus::ast::UnaryOp;
+use pyrus::diagnostic::CompilerDiagnostic;
+use pyrus::diagnostic::SyntaxError;
+use pyrus::lexer::lex_all;
 use support::template_statements;
 
 fn assigned_expr(source: &str) -> ExprKind {

@@ -1,4 +1,5 @@
-use crate::diagnostic::{CompilerDiagnostic, SourceLocation};
+use crate::diagnostic::CompilerDiagnostic;
+use crate::diagnostic::SourceLocation;
 
 pub(super) struct Cursor {
     pub(super) file: String,

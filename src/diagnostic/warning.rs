@@ -1,4 +1,6 @@
-use super::{Diagnostic, Severity, SourceLocation};
+use super::Diagnostic;
+use super::Severity;
+use super::SourceLocation;
 
 /// Non-fatal diagnostics that highlight likely mistakes or questionable code.
 #[derive(Debug, Clone)]

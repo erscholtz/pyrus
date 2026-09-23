@@ -1,10 +1,11 @@
-use crate::{
-    ast::{DocumentConfig, DocumentEntry, Ident},
-    diagnostic::CompilerDiagnostic,
-    parser::tokens::TokenKind,
-    parser::{Parse, Parser},
-    util::Spanned,
-};
+use crate::ast::DocumentConfig;
+use crate::ast::DocumentEntry;
+use crate::ast::Ident;
+use crate::diagnostic::CompilerDiagnostic;
+use crate::parser::tokens::TokenKind;
+use crate::parser::Parse;
+use crate::parser::Parser;
+use crate::util::Spanned;
 
 impl Parse for DocumentConfig {
     fn parse(parser: &mut Parser) -> Result<Self, CompilerDiagnostic> {

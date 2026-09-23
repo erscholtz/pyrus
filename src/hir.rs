@@ -7,10 +7,9 @@ use crate::diagnostic::CompilerDiagnostic;
 use crate::hir::hir_passes::collect_config::CollectConfig;
 use crate::hir::hir_passes::collect_invokes::CollectInvokes;
 use crate::hir::hir_passes::collect_layouts::CollectLayouts;
-use crate::hir::{
-    hir_passes::{PassManager, collect_decls::CollectDecls},
-    hir_types::HIR,
-};
+use crate::hir::hir_passes::PassManager;
+use crate::hir::hir_passes::collect_decls::CollectDecls;
+use crate::hir::hir_types::HIR;
 
 pub fn lower(ast: &Ast) -> Result<HIR, Vec<CompilerDiagnostic>> {
     let mut hir = HIR::new(&ast.file);

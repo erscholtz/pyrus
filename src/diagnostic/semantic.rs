@@ -1,4 +1,6 @@
-use super::{Diagnostic, Severity, SourceLocation};
+use super::Diagnostic;
+use super::Severity;
+use super::SourceLocation;
 
 /// Semantic errors detected during HLIR validation and type checking
 #[derive(Debug, Clone)]

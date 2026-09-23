@@ -4,7 +4,8 @@ mod elem;
 mod layout;
 mod root;
 
-use crate::{diagnostic::CompilerDiagnostic, parser::Parser};
+use crate::diagnostic::CompilerDiagnostic;
+use crate::parser::Parser;
 
 /// Parses one syntax construct from the parser's current token.
 pub trait Parse: Sized {

@@ -1,8 +1,9 @@
-use crate::{
-    ast::{DocumentConfig, ElemDecl, ElemInvoke, LayoutDecl},
-    diagnostic::Span,
-    util::Spanned,
-};
+use crate::ast::DocumentConfig;
+use crate::ast::ElemDecl;
+use crate::ast::ElemInvoke;
+use crate::ast::LayoutDecl;
+use crate::diagnostic::Span;
+use crate::util::Spanned;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Ident {

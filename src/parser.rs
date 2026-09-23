@@ -5,11 +5,13 @@ pub mod tokens;
 
 pub use parse::Parse;
 
-use crate::{
-    diagnostic::{CompilerDiagnostic, FatalError, SourceLocation, SyntaxError},
-    parser::lexer::Lexer,
-    parser::tokens::{Token, TokenKind},
-};
+use crate::diagnostic::CompilerDiagnostic;
+use crate::diagnostic::FatalError;
+use crate::diagnostic::SourceLocation;
+use crate::diagnostic::SyntaxError;
+use crate::parser::lexer::Lexer;
+use crate::parser::tokens::Token;
+use crate::parser::tokens::TokenKind;
 
 /// Parser state shared by the grammar-specific parse modules.
 pub struct Parser {

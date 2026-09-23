@@ -1,6 +1,11 @@
-use crate::ast::{ArgType, Type as AstType};
+use crate::ast::ArgType;
+use crate::ast::Type as AstType;
 use crate::diagnostic::SemanticError;
-use crate::hir::hir_types::{Block, Literal, Op, Type, ValueId};
+use crate::hir::hir_types::Block;
+use crate::hir::hir_types::Literal;
+use crate::hir::hir_types::Op;
+use crate::hir::hir_types::Type;
+use crate::hir::hir_types::ValueId;
 
 pub fn parse_type(ty: &AstType) -> Option<Type> {
     match ty {

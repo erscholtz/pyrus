@@ -1,7 +1,6 @@
-use pyrus::{
-    lexer::Lexer,
-    tokens::{Token, TokenKind},
-};
+use pyrus::lexer::Lexer;
+use pyrus::tokens::Token;
+use pyrus::tokens::TokenKind;
 
 fn lex(source: &str) -> Vec<Token> {
     let mut lexer = Lexer::new("test.pyr".to_string(), source.to_string());
