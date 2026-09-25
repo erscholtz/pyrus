@@ -1,11 +1,13 @@
 use std::env;
 use std::ffi::OsString;
 use std::fs;
+use std::path::PathBuf;
 
 use pyrus::ast::Ast;
 use pyrus::hir::lower;
 use pyrus::layout::layout;
 use pyrus::parser::Parser;
+use pyrus::render::Renderer;
 
 fn main() {
     let args: Vec<OsString> = env::args_os().collect();
@@ -38,6 +40,13 @@ fn main() {
         }
     };
 
-    let layout = layout(&hir);
-    println!("{:#?}", layout);
+    let layout = match layout(&hir) {
+        Ok(layout) => layout,
+        Err(err) => {
+            eprintln!("{:?}", err);
+            return;
+        }
+    };
+
+    Renderer::render_pdf(&layout.page, "test.pdf");
 }

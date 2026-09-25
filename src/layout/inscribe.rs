@@ -1,6 +1,5 @@
 use crate::diagnostic::CompilerDiagnostic;
 use crate::hir::hir_types::Content;
-use crate::hir::hir_types::Invoke;
 use crate::hir::hir_types::Layout;
 use crate::hir::hir_types::Sizing;
 
@@ -22,9 +21,9 @@ pub enum Font {
 
 #[derive(Debug, Clone, Copy)]
 pub struct Glyph {
-    char: char,
-    size: Sizes,
-    font: Font,
+    pub char: char,
+    pub size: Sizes,
+    pub font: Font,
 }
 
 #[derive(Debug, Clone)]
