@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+
 use crate::ast::LayoutAlignment;
 use crate::ast::LayoutRow;
 use crate::diagnostic::CompilerDiagnostic;
@@ -25,8 +26,8 @@ pub enum Alignment {
 
 #[derive(Debug, Clone)]
 pub struct AllocatedField {
-    content: GlyphRow,
-    alignment: Alignment,
+    pub content: GlyphRow,
+    pub alignment: Alignment,
 }
 
 pub fn allocate(
@@ -38,13 +39,16 @@ pub fn allocate(
         let layout = layouts.get(&invoke.name.clone()).unwrap();
         for layout_row in &layout.layouts {
             match layout_row {
-                LayoutRow::Single { alignment, .. } => {
+                LayoutRow::Single { field, alignment } => {
                     for elem in &invoke.elements {
-                        let allocated_field = AllocatedField {
-                            content: inscribe::inscribe(elem, layout)?,
-                            alignment: convert_layout(alignment),
-                        };
-                        content_rows.push(ContentRow::Single(allocated_field));
+                        if field.text == *elem.0 {
+                            let allocated_field = AllocatedField {
+                                content: inscribe::inscribe(elem, layout)?,
+                                alignment: convert_layout(alignment),
+                            };
+                            content_rows
+                                .push(ContentRow::Single(allocated_field));
+                        }
                     }
                 }
                 LayoutRow::Split {
@@ -53,22 +57,31 @@ pub fn allocate(
                     left_alignment,
                     right_alignment,
                 } => {
-                    let mut left = None;
+                    let mut left_line = None;
                     for elem in &invoke.elements {
-                        left = Some(AllocatedField {
-                            content: inscribe::inscribe(elem, layout)?,
-                            alignment: convert_layout(left_alignment),
-                        });
+                        if left.text == *elem.0 {
+                            left_line = Some(AllocatedField {
+                                content: inscribe::inscribe(elem, layout)?,
+                                alignment: convert_layout(left_alignment),
+                            });
+                        }
                     }
-                    let mut right = None;
+                    let mut right_line = None;
                     for elem in &invoke.elements {
-                        right = Some(AllocatedField {
-                            content: inscribe::inscribe(elem, layout)?,
-                            alignment: convert_layout(right_alignment),
-                        });
+                        if right.text == *elem.0 {
+                            right_line = Some(AllocatedField {
+                                content: inscribe::inscribe(elem, layout)?,
+                                alignment: convert_layout(right_alignment),
+                            });
+                        }
                     }
-                    if let (Some(left), Some(right)) = (left, right) {
-                        content_rows.push(ContentRow::Split { left, right });
+                    if let (Some(left_line), Some(right_line)) =
+                        (left_line, right_line)
+                    {
+                        content_rows.push(ContentRow::Split {
+                            left: left_line,
+                            right: right_line,
+                        });
                     } else {
                         // TODO Err here
                     }

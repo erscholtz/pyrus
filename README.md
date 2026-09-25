@@ -30,9 +30,7 @@ cargo test
 
 | Package | Version | Purpose |
 |---------|---------|---------|
-| phf | 0.11 | for better hashes in maps |
-| printpdf | 0.9.1 | PDF generation backend |
-| taffy | 0.9.2 | CSS-style layout engine |
+| krilla | 0.9.1 | PDF generation backend |
 
 ## Project Status
 

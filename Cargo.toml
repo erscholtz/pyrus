@@ -4,5 +4,4 @@ version = "0.2.0"
 edition = "2024"
 
 [dependencies]
-printpdf = "0.9.1"
-rust-fontconfig = "2.0.0"
+krilla = "0.8.2"
