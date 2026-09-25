@@ -4,11 +4,15 @@ mod inscribe; // make glyphs
 mod paginate; // add ResolvedRows to Pages
 mod wrap; // wrap rows to fit in margins
 
+use std::cmp::max;
+use std::cmp::min;
+
 use crate::diagnostic::CompilerDiagnostic;
 use crate::hir::hir_types::Config;
 use crate::hir::hir_types::DocOrientation;
 use crate::hir::hir_types::DocType;
 use crate::hir::hir_types::HIR;
+use crate::layout::allocate::Alignment;
 use crate::layout::allocate::ContentRow;
 use crate::layout::inscribe::GlyphRow;
 
@@ -17,14 +21,14 @@ use crate::layout::inscribe::GlyphRow;
 
 #[derive(Debug, Clone)]
 pub struct Page {
-    config: PageConfig,
-    content: Vec<ContentBox>,
+    pub config: PageConfig,
+    pub content: Vec<ContentBox>,
 }
 
 #[derive(Debug, Clone)]
 pub struct PageConfig {
-    grid_width: usize,
-    grid_height: usize,
+    pub grid_width: usize,
+    pub grid_height: usize,
     top_margin: usize,
     bottom_margin: usize,
     left_margin: usize,
@@ -46,8 +50,9 @@ pub enum PageType {
 
 #[derive(Debug, Clone)]
 pub struct ContentBox {
-    content: ContentRow,
-    coord: Coordinate,
+    pub content: Vec<GlyphRow>, // cut down to size
+    alignment: Alignment,
+    pub coord: Coordinate,
     width: usize,
     height: usize,
 }
@@ -61,7 +66,8 @@ struct Coordinate {
 #[derive(Debug, Clone)]
 pub struct Composer {
     // just figure out one page for now, multiple pages in the future
-    page: Page,
+    pub page: Page,
+    pub cur_line: usize,
     content: Vec<ContentRow>,
 }
 
@@ -69,6 +75,7 @@ impl Composer {
     pub fn new(hir: &HIR) -> Result<Self, CompilerDiagnostic> {
         Ok(Self {
             page: Composer::setup_pages(&hir.config)?,
+            cur_line: 0,
             content: allocate::allocate(&hir.invokes, &hir.layout)?,
         })
     }
@@ -99,6 +106,58 @@ impl Composer {
         })
     }
 
+    pub fn format(&mut self) {
+        let page_width = self.page.config.grid_width;
+        // find row
+
+        for row in &self.content {
+            match row {
+                ContentRow::Single(field) => {
+                    // wrap whats needed
+                    let lines = Composer::wrap(&field.content, page_width);
+                    let line_length = lines.len();
+                    // create boxes with start pos, extent
+                    self.page.content.push(self.draw_box(
+                        lines,
+                        field.alignment.clone(),
+                        page_width,
+                        None,
+                    ));
+                    self.cur_line += line_length;
+                }
+                ContentRow::Split { left, right } => {
+                    // determine border for each side (min len)
+                    let gap = min(
+                        page_width / 2,
+                        max(
+                            left.content.glyphs.len(),
+                            right.content.glyphs.len(),
+                        ),
+                    );
+                    // wrap whats needed
+                    let l_lines = Composer::wrap(&left.content, gap);
+                    let r_lines =
+                        Composer::wrap(&right.content, page_width - gap);
+                    // create boxes with start pos, extent
+                    let line_length = max(l_lines.len(), r_lines.len());
+                    self.page.content.push(self.draw_box(
+                        l_lines,
+                        left.alignment.clone(),
+                        gap,
+                        None,
+                    ));
+                    self.page.content.push(self.draw_box(
+                        r_lines,
+                        right.alignment.clone(),
+                        page_width - gap,
+                        Some(gap),
+                    ));
+                    self.cur_line += line_length;
+                }
+            }
+        }
+    }
+
     fn calculate_grid(
         page_type: &PageType,
         orientation: &Orientation,
@@ -111,9 +170,62 @@ impl Composer {
             Orientation::Landscape => Ok((y, x)),
         }
     }
+
+    fn wrap(content: &GlyphRow, gap: usize) -> Vec<GlyphRow> {
+        let mut lines = Vec::new();
+        let mut line = Vec::new();
+        for glyph in content.glyphs.iter() {
+            line.push(glyph.clone());
+            if line.len() == gap {
+                lines.push(GlyphRow {
+                    glyphs: line.clone(),
+                    name: "line".to_string() + &lines.len().to_string(),
+                    offset: line.len(),
+                });
+                line = Vec::new();
+            }
+        }
+        if !line.is_empty() {
+            lines.push(GlyphRow {
+                glyphs: line.clone(),
+                name: "line".to_string() + &lines.len().to_string(),
+                offset: line.len(),
+            });
+        }
+        lines
+    }
+
+    fn draw_box(
+        &self,
+        lines: Vec<GlyphRow>,
+        alignment: Alignment,
+        width: usize,
+        gap: Option<usize>,
+    ) -> ContentBox {
+        let coord = if gap.is_some() {
+            Coordinate {
+                x: gap.unwrap(),
+                y: self.cur_line,
+            }
+        } else {
+            Coordinate {
+                x: 0,
+                y: self.cur_line,
+            }
+        };
+
+        ContentBox {
+            content: lines.clone(),
+            alignment,
+            coord,
+            width,
+            height: lines.len(),
+        }
+    }
 }
 
 pub fn layout(hir: &HIR) -> Result<Composer, CompilerDiagnostic> {
-    let composer = Composer::new(hir)?;
+    let mut composer = Composer::new(hir)?;
+    composer.format();
     Ok(composer)
 }
