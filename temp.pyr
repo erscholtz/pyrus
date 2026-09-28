@@ -55,7 +55,7 @@ layout entry {
 @entry {
     company: ACME
     role: Software Engineer
-    date: 2025–2026
+    date: 2025-2026
 
     - Built **Pyrus**, a tiny resume compiler in `Rust`
     - Worked on low-level document layout and PDF generation

@@ -45,19 +45,26 @@ impl Renderer {
         };
 
         let mut page = document
-            .start_page_with(PageSettings::from_wh(200.0, 200.0).unwrap());
+            .start_page_with(PageSettings::from_wh(595.28, 841.89).unwrap());
         let mut surface = page.surface();
-        let content = &page_layout.content[0];
-        let row = &content.content[0];
-        let text: String = row.glyphs.iter().map(|glyph| glyph.char).collect();
-        surface.draw_text(
-            Point::from_xy(18.0, 20.0),
-            serif_font_reg.clone(),
-            10.0,
-            &text,
-            false,
-            TextDirection::Auto,
-        );
+
+        let mut i = 0;
+        for content in &page_layout.content {
+            for row in &content.content {
+                let y = 20.0 + i as f32 * 10.0;
+                let text: String =
+                    row.glyphs.iter().map(|glyph| glyph.char).collect();
+                surface.draw_text(
+                    Point::from_xy(18.0, y),
+                    serif_font_reg.clone(),
+                    10.0,
+                    &text,
+                    false,
+                    TextDirection::Auto,
+                );
+            }
+            i += 1;
+        }
         surface.finish();
         page.finish();
 
