@@ -3,14 +3,14 @@ use crate::ast::LayoutAlignment;
 use crate::ast::LayoutDecl;
 use crate::ast::LayoutProperty;
 use crate::ast::LayoutRow;
-use crate::diagnostic::CompilerDiagnostic;
-use crate::diagnostic::SyntaxError;
-use crate::parser::tokens::TokenKind;
+use crate::diagnostic::Diagnostic;
+use crate::diagnostic::Severity;
 use crate::parser::Parse;
 use crate::parser::Parser;
+use crate::parser::tokens::TokenKind;
 
 impl Parse for LayoutDecl {
-    fn parse(parser: &mut Parser) -> Result<Self, CompilerDiagnostic> {
+    fn parse(parser: &mut Parser) -> Result<Self, Diagnostic> {
         parser.consume_keyword("layout")?;
         parser.skip_trivia()?;
         let element = Ident::parse(parser)?;
@@ -32,7 +32,7 @@ impl Parse for LayoutDecl {
 impl LayoutDecl {
     fn parse_contents(
         parser: &mut Parser,
-    ) -> Result<(Vec<LayoutRow>, Vec<LayoutProperty>), CompilerDiagnostic> {
+    ) -> Result<(Vec<LayoutRow>, Vec<LayoutProperty>), Diagnostic> {
         let mut rows = Vec::new();
         let mut props = Vec::new();
 
@@ -51,27 +51,31 @@ impl LayoutDecl {
                     rows.push(row);
                 }
             } else {
-                return Err(SyntaxError::unexpected_token(
-                    vec![
-                        TokenKind::Identifier,
-                        TokenKind::Greater,
-                        TokenKind::Less,
-                    ],
-                    parser.peek()?.kind,
-                    parser.location()?,
-                )
-                .into());
+                return Err(Diagnostic {
+                    severity: Severity::Error,
+                    message: format!(
+                        "unexpected token `{}`",
+                        parser.peek()?.kind
+                    ),
+                    location: parser.location()?,
+                    span: None,
+                    help: None,
+                });
             }
             parser.skip_inline_trivia()?;
             if !parser.at(TokenKind::Newline)?
                 && !parser.at(TokenKind::RightBrace)?
             {
-                return Err(SyntaxError::unexpected_token(
-                    vec![TokenKind::Newline, TokenKind::RightBrace],
-                    parser.peek()?.kind,
-                    parser.location()?,
-                )
-                .into());
+                return Err(Diagnostic {
+                    severity: Severity::Error,
+                    message: format!(
+                        "unexpected token `{}`",
+                        parser.peek()?.kind
+                    ),
+                    location: parser.location()?,
+                    span: None,
+                    help: None,
+                });
             }
             parser.skip_trivia()?;
         }
@@ -84,7 +88,7 @@ impl LayoutDecl {
 // the AST. A repeated `alignment field` grammar could support forms such as
 // `< first | <> second | > third` without adding special cases here.
 impl Parse for LayoutRow {
-    fn parse(parser: &mut Parser) -> Result<Self, CompilerDiagnostic> {
+    fn parse(parser: &mut Parser) -> Result<Self, Diagnostic> {
         let (alignment, field) = LayoutRow::parse_aligned_field(parser)?;
         parser.skip_inline_trivia()?;
 
@@ -108,7 +112,7 @@ impl Parse for LayoutRow {
 impl LayoutRow {
     fn parse_aligned_field(
         parser: &mut Parser,
-    ) -> Result<(LayoutAlignment, Ident), CompilerDiagnostic> {
+    ) -> Result<(LayoutAlignment, Ident), Diagnostic> {
         let alignment = match (parser.peek()?.kind, parser.peek_next()?.kind) {
             (TokenKind::Less, TokenKind::Greater) => {
                 parser.consume(TokenKind::Less)?;
@@ -125,16 +129,16 @@ impl LayoutRow {
             }
             (TokenKind::Identifier, _) => LayoutAlignment::Left,
             _ => {
-                return Err(SyntaxError::unexpected_token(
-                    vec![
-                        TokenKind::Less,
-                        TokenKind::Greater,
-                        TokenKind::Identifier,
-                    ],
-                    parser.peek()?.kind,
-                    parser.location()?,
-                )
-                .into());
+                return Err(Diagnostic {
+                    severity: Severity::Error,
+                    message: format!(
+                        "unexpected token `{}`",
+                        parser.peek()?.kind
+                    ),
+                    location: parser.location()?,
+                    span: None,
+                    help: None,
+                });
             }
         };
 
@@ -146,7 +150,7 @@ impl LayoutRow {
 }
 
 impl Parse for LayoutProperty {
-    fn parse(parser: &mut Parser) -> Result<Self, CompilerDiagnostic> {
+    fn parse(parser: &mut Parser) -> Result<Self, Diagnostic> {
         let field = Ident::parse(parser)?;
         parser.skip_inline_trivia()?;
         parser.consume(TokenKind::Colon)?;
@@ -168,7 +172,7 @@ impl Parse for LayoutProperty {
 mod tests {
     use super::*;
 
-    fn parse_layout(source: &str) -> Result<LayoutDecl, CompilerDiagnostic> {
+    fn parse_layout(source: &str) -> Result<LayoutDecl, Diagnostic> {
         let file = "layout-test.pyr".to_string();
         let mut parser = Parser::new(file, source.to_string())?;
         LayoutDecl::parse(&mut parser)

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::ast::LayoutAlignment;
 use crate::ast::LayoutRow;
-use crate::diagnostic::CompilerDiagnostic;
+use crate::diagnostic::Diagnostic;
 use crate::hir::hir_types::Invoke;
 use crate::hir::hir_types::Layout;
 use crate::layout::GlyphRow;
@@ -33,7 +33,7 @@ pub struct AllocatedField {
 pub fn allocate(
     invokes: &Vec<Invoke>,
     layouts: &HashMap<String, Layout>,
-) -> Result<Vec<ContentRow>, CompilerDiagnostic> {
+) -> Result<Vec<ContentRow>, Diagnostic> {
     let mut content_rows = Vec::new();
     for invoke in invokes {
         let layout = layouts.get(&invoke.name.clone()).unwrap();

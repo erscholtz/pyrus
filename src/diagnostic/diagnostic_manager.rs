@@ -1,12 +1,5 @@
-use crate::parser::tokens::TokenKind;
-
 use super::Diagnostic;
-use super::FatalError;
-use super::Note;
-use super::SemanticError;
 use super::Severity;
-use super::SyntaxError;
-use super::Warning;
 
 #[derive(Debug, Clone, Default)]
 pub struct DiagnosticManager {

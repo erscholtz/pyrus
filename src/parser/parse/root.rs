@@ -5,16 +5,16 @@ use crate::ast::ElemInvoke;
 use crate::ast::Ident;
 use crate::ast::Item;
 use crate::ast::LayoutDecl;
-use crate::diagnostic::CompilerDiagnostic;
+use crate::diagnostic::Diagnostic;
+use crate::diagnostic::Severity;
 use crate::diagnostic::Span;
-use crate::diagnostic::SyntaxError;
-use crate::parser::tokens::TokenKind;
 use crate::parser::Parse;
 use crate::parser::Parser;
+use crate::parser::tokens::TokenKind;
 use crate::util::Spanned;
 
 impl Parse for Ast {
-    fn parse(parser: &mut Parser) -> Result<Self, CompilerDiagnostic> {
+    fn parse(parser: &mut Parser) -> Result<Self, Diagnostic> {
         let mut items = Vec::new();
         parser.skip_trivia()?;
         let mut document_created = false;
@@ -33,12 +33,16 @@ impl Parse for Ast {
             } else {
                 // TODO just plain text on its own
                 // Item::ElemInvoke(ElemInvoke::free_content(parser)?)
-                return Err(SyntaxError::invalid_construct(
-                    "top-level item",
-                    format!("unexpected token `{}`", parser.current_text()?),
+                return Err(Diagnostic {
+                    severity: Severity::Error,
+                    message: format!(
+                        "unexpected token `{}`",
+                        parser.current_text()?
+                    ),
                     location,
-                )
-                .into());
+                    span: None,
+                    help: None,
+                });
             };
 
             items.push(Spanned::new(item, location));
@@ -53,7 +57,7 @@ impl Parse for Ast {
 }
 
 impl Parse for Ident {
-    fn parse(parser: &mut Parser) -> Result<Self, CompilerDiagnostic> {
+    fn parse(parser: &mut Parser) -> Result<Self, Diagnostic> {
         let span = Span::new(
             parser.peek()?.range.start,
             parser.peek()?.range.end,
@@ -74,7 +78,7 @@ impl Parse for Ident {
 mod tests {
     use super::*;
 
-    fn parse_ast(source: &str) -> Result<Ast, CompilerDiagnostic> {
+    fn parse_ast(source: &str) -> Result<Ast, Diagnostic> {
         let file = "root-test.pyr".to_string();
         let mut parser = Parser::new(file, source.to_string())?;
         Ast::parse(&mut parser)

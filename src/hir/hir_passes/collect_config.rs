@@ -1,9 +1,8 @@
 use crate::ast::Ast;
 use crate::ast::DocumentConfig;
-use crate::ast::DocumentEntry;
 use crate::ast::Item;
-use crate::diagnostic::CompilerDiagnostic;
-use crate::diagnostic::SemanticError;
+use crate::diagnostic::Diagnostic;
+use crate::diagnostic::Severity;
 use crate::hir::HIR;
 use crate::hir::hir_passes::HIRPass;
 use crate::hir::hir_types::Config;
@@ -13,11 +12,7 @@ use crate::hir::hir_types::DocType;
 pub struct CollectConfig;
 
 impl HIRPass for CollectConfig {
-    fn run(
-        &mut self,
-        hir: &mut HIR,
-        ast: &Ast,
-    ) -> Result<(), Vec<CompilerDiagnostic>> {
+    fn run(&mut self, hir: &mut HIR, ast: &Ast) -> Result<(), Vec<Diagnostic>> {
         for item in &ast.items {
             match &item.node {
                 Item::Document(conf) => {
@@ -53,7 +48,7 @@ impl CollectConfig {
     fn find_config(
         &mut self,
         config: &DocumentConfig,
-    ) -> Result<Config, CompilerDiagnostic> {
+    ) -> Result<Config, Diagnostic> {
         // define default
         let mut doc_type = DocType::A4;
         let mut orientation = DocOrientation::Portrait;
@@ -71,11 +66,13 @@ impl CollectConfig {
                     }
                     _ => {
                         // TODO proper error handling here
-                        // return Err(CompilerDiagnostic::Semantic(
-                        //     SemanticError::InvalidDocType {
-                        //         value: entry.value.node.clone(),
-                        //     },
-                        // ));
+                        return Err(Diagnostic {
+                            severity: Severity::Error,
+                            message: "invalid doc type".to_string(),
+                            location: entry.value.location.clone(),
+                            span: None,
+                            help: None,
+                        });
                     }
                 },
                 "orientation" => match entry.value.node.as_str() {
@@ -84,11 +81,13 @@ impl CollectConfig {
                     }
                     _ => {
                         // TODO proper error handling here
-                        // return Err(CompilerDiagnostic::Semantic(
-                        //     SemanticError::InvalidDocType {
-                        //         value: entry.value.node.clone(),
-                        //     },
-                        // ));
+                        return Err(Diagnostic {
+                            severity: Severity::Error,
+                            message: "invalid orientation".to_string(),
+                            location: entry.value.location.clone(),
+                            span: None,
+                            help: None,
+                        });
                     }
                 },
                 "top" => {

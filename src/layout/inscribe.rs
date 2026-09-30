@@ -1,4 +1,6 @@
-use crate::diagnostic::CompilerDiagnostic;
+use crate::diagnostic::Diagnostic;
+use crate::diagnostic::Severity;
+use crate::diagnostic::SourceLocation;
 use crate::hir::hir_types::Content;
 use crate::hir::hir_types::Layout;
 use crate::hir::hir_types::Sizing;
@@ -86,7 +88,7 @@ impl GlyphRow {
 pub fn inscribe(
     elem: (&String, &Vec<Content>),
     layout: &Layout,
-) -> Result<GlyphRow, CompilerDiagnostic> {
+) -> Result<GlyphRow, Diagnostic> {
     let size = &layout.sizing[elem.0.as_str()];
     let mut glyphs: Vec<Glyph> = Vec::new();
     for content in elem.1 {
@@ -101,9 +103,17 @@ pub fn inscribe(
     let len = glyphs.len();
     if len == 0 {
         // TODO proper error here
-        // return Err(CompilerDiagnostic::Fatal(FatalError::new(
-        //     "inscribe: no glyphs generated",
-        // )));
+        return Err(Diagnostic {
+            severity: Severity::Fatal,
+            message: "inscribe: no glyphs generated".to_string(),
+            location: SourceLocation {
+                line: 0,
+                column: 0,
+                file: "".to_string(), // TODO do this better
+            },
+            span: None,
+            help: None,
+        });
     }
     Ok(GlyphRow::new(glyphs, elem.0.clone(), len))
 }

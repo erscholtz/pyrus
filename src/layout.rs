@@ -7,7 +7,7 @@ mod wrap; // wrap rows to fit in margins
 use std::cmp::max;
 use std::cmp::min;
 
-use crate::diagnostic::CompilerDiagnostic;
+use crate::diagnostic::Diagnostic;
 use crate::hir::hir_types::Config;
 use crate::hir::hir_types::DocOrientation;
 use crate::hir::hir_types::DocType;
@@ -72,7 +72,7 @@ pub struct Composer {
 }
 
 impl Composer {
-    pub fn new(hir: &HIR) -> Result<Self, CompilerDiagnostic> {
+    pub fn new(hir: &HIR) -> Result<Self, Diagnostic> {
         Ok(Self {
             page: Composer::setup_pages(&hir.config)?,
             cur_line: 0,
@@ -80,7 +80,7 @@ impl Composer {
         })
     }
 
-    pub fn setup_pages(config: &Config) -> Result<Page, CompilerDiagnostic> {
+    pub fn setup_pages(config: &Config) -> Result<Page, Diagnostic> {
         let page_type = match config.doc_type {
             DocType::A4 => PageType::A4,
         };
@@ -161,7 +161,7 @@ impl Composer {
     fn calculate_grid(
         page_type: &PageType,
         orientation: &Orientation,
-    ) -> Result<(usize, usize), CompilerDiagnostic> {
+    ) -> Result<(usize, usize), Diagnostic> {
         let (x, y) = match page_type {
             PageType::A4 => (166usize, 44usize),
         };
@@ -224,7 +224,7 @@ impl Composer {
     }
 }
 
-pub fn layout(hir: &HIR) -> Result<Composer, CompilerDiagnostic> {
+pub fn layout(hir: &HIR) -> Result<Composer, Diagnostic> {
     let mut composer = Composer::new(hir)?;
     composer.format();
     Ok(composer)

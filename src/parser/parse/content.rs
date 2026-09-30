@@ -2,13 +2,13 @@ use crate::ast::Content;
 use crate::ast::ContentBlock;
 use crate::ast::Inline;
 use crate::ast::InlineText;
-use crate::diagnostic::CompilerDiagnostic;
+use crate::diagnostic::Diagnostic;
 use crate::parser::Parse;
 use crate::parser::Parser;
 use crate::parser::tokens::TokenKind;
 
 impl Parse for Content {
-    fn parse(parser: &mut Parser) -> Result<Self, CompilerDiagnostic> {
+    fn parse(parser: &mut Parser) -> Result<Self, Diagnostic> {
         let mut blocks = Vec::new();
         while !parser.at(TokenKind::RightBrace)?
             && !parser.at(TokenKind::Eof)?
@@ -22,7 +22,7 @@ impl Parse for Content {
 }
 
 impl Parse for ContentBlock {
-    fn parse(parser: &mut Parser) -> Result<Self, CompilerDiagnostic> {
+    fn parse(parser: &mut Parser) -> Result<Self, Diagnostic> {
         match parser.peek()?.kind {
             TokenKind::Dash => {
                 let list = ContentBlock::consume_list(parser)?;
@@ -39,7 +39,7 @@ impl Parse for ContentBlock {
 impl ContentBlock {
     fn consume_list(
         parser: &mut Parser,
-    ) -> Result<Vec<InlineText>, CompilerDiagnostic> {
+    ) -> Result<Vec<InlineText>, Diagnostic> {
         let mut list = Vec::new();
         while parser.at(TokenKind::Dash)? {
             parser.consume(TokenKind::Dash)?;
@@ -56,7 +56,7 @@ impl ContentBlock {
 }
 
 impl Parse for InlineText {
-    fn parse(parser: &mut Parser) -> Result<Self, CompilerDiagnostic> {
+    fn parse(parser: &mut Parser) -> Result<Self, Diagnostic> {
         let mut parts = Vec::new();
         while !matches!(
             parser.peek()?.kind,
@@ -70,7 +70,7 @@ impl Parse for InlineText {
 
 // TODO want to fix this at some point, 150 lines of straight hatred below
 impl Parse for Inline {
-    fn parse(parser: &mut Parser) -> Result<Self, CompilerDiagnostic> {
+    fn parse(parser: &mut Parser) -> Result<Self, Diagnostic> {
         let mut opener = String::new();
         match (parser.peek()?.kind, parser.peek_next()?.kind) {
             (TokenKind::Backtick, _) => {
@@ -182,7 +182,7 @@ enum InlineParseResult {
 impl Inline {
     fn concat_bold_text(
         parser: &mut Parser,
-    ) -> Result<InlineParseResult, CompilerDiagnostic> {
+    ) -> Result<InlineParseResult, Diagnostic> {
         let mut text = String::new();
 
         while !parser.at(TokenKind::RightBrace)?
@@ -207,7 +207,7 @@ impl Inline {
     fn concat_text(
         parser: &mut Parser,
         delimiter: TokenKind,
-    ) -> Result<InlineParseResult, CompilerDiagnostic> {
+    ) -> Result<InlineParseResult, Diagnostic> {
         let mut text = String::new();
         while !parser.at(delimiter)?
             && !parser.at(TokenKind::Eof)?
@@ -239,13 +239,13 @@ impl Inline {
 mod tests {
     use super::*;
 
-    fn parse_inline(source: &str) -> Result<InlineText, CompilerDiagnostic> {
+    fn parse_inline(source: &str) -> Result<InlineText, Diagnostic> {
         let file = "inline-test.pyr".to_string();
         let mut parser = Parser::new(file, source.to_string())?;
         InlineText::parse(&mut parser)
     }
 
-    fn parse_content(source: &str) -> Result<Content, CompilerDiagnostic> {
+    fn parse_content(source: &str) -> Result<Content, Diagnostic> {
         let file = "content-block-test.pyr".to_string();
         let mut parser = Parser::new(file, source.to_string())?;
         Content::parse(&mut parser)

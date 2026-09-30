@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 
-use crate::diagnostic::CompilerDiagnostic;
+use crate::diagnostic::Diagnostic;
 use crate::parser::cursor::Cursor;
 use crate::parser::cursor::Mark;
 use crate::parser::tokens::Token;
@@ -60,7 +60,7 @@ impl Lexer {
     }
 
     /// Peeks at current token (token pull() would return)
-    pub fn peek(&mut self) -> Result<Token, CompilerDiagnostic> {
+    pub fn peek(&mut self) -> Result<Token, Diagnostic> {
         if self.lookahead.is_empty() {
             let tok = self.lex_token()?;
             self.lookahead.push_back(tok);
@@ -70,7 +70,7 @@ impl Lexer {
     }
 
     /// Peeks at the next token without advancing the cursor
-    pub fn peek_next(&mut self) -> Result<Token, CompilerDiagnostic> {
+    pub fn peek_next(&mut self) -> Result<Token, Diagnostic> {
         if self.lookahead.is_empty() {
             let first = self.lex_token()?;
             self.lookahead.push_back(first);
@@ -85,9 +85,7 @@ impl Lexer {
     }
 
     /// Peeks at next non whitespace token
-    pub fn peek_next_significant(
-        &mut self,
-    ) -> Result<Token, CompilerDiagnostic> {
+    pub fn peek_next_significant(&mut self) -> Result<Token, Diagnostic> {
         if self.lookahead.len() < 2 {
             self.peek_next()?; // buffering side-effect
         }
@@ -111,7 +109,7 @@ impl Lexer {
 
     /// Pulls the next token from the lexer, if there is something in the
     /// lookahead buffer it pulls from there first
-    pub fn pull(&mut self) -> Result<Token, CompilerDiagnostic> {
+    pub fn pull(&mut self) -> Result<Token, Diagnostic> {
         if self.lookahead.is_empty() {
             self.lex_token()
         } else {
@@ -124,7 +122,7 @@ impl Lexer {
         self.cursor.src.get(token.range.clone())
     }
 
-    fn lex_token(&mut self) -> Result<Token, CompilerDiagnostic> {
+    fn lex_token(&mut self) -> Result<Token, Diagnostic> {
         let start = self.cursor.mark();
         let Some(byte) = self.cursor.peek() else {
             return Ok(self.token(TokenKind::Eof, start));
@@ -159,17 +157,14 @@ impl Lexer {
         }
     }
 
-    fn lex_number(&mut self, start: Mark) -> Result<Token, CompilerDiagnostic> {
+    fn lex_number(&mut self, start: Mark) -> Result<Token, Diagnostic> {
         while self.cursor.peek().is_some_and(|byte| byte.is_ascii_digit()) {
             self.cursor.advance()?;
         }
         Ok(self.token(TokenKind::Number, start))
     }
 
-    fn lex_identifier(
-        &mut self,
-        start: Mark,
-    ) -> Result<Token, CompilerDiagnostic> {
+    fn lex_identifier(&mut self, start: Mark) -> Result<Token, Diagnostic> {
         self.cursor.advance()?;
         while self.cursor.peek().is_some_and(|byte| {
             byte.is_ascii_alphabetic() || byte == b'_' || byte.is_ascii_digit()
@@ -180,10 +175,7 @@ impl Lexer {
         Ok(self.token(TokenKind::Identifier, start))
     }
 
-    fn lex_whitespace(
-        &mut self,
-        start: Mark,
-    ) -> Result<Token, CompilerDiagnostic> {
+    fn lex_whitespace(&mut self, start: Mark) -> Result<Token, Diagnostic> {
         while self
             .cursor
             .peek()
@@ -194,10 +186,7 @@ impl Lexer {
         Ok(self.token(TokenKind::Whitespace, start))
     }
 
-    fn lex_comment(
-        &mut self,
-        start: Mark,
-    ) -> Result<Token, CompilerDiagnostic> {
+    fn lex_comment(&mut self, start: Mark) -> Result<Token, Diagnostic> {
         while self
             .cursor
             .peek()
@@ -208,10 +197,7 @@ impl Lexer {
         Ok(self.token(TokenKind::LineComment, start))
     }
 
-    fn lex_text_fragment(
-        &mut self,
-        start: Mark,
-    ) -> Result<Token, CompilerDiagnostic> {
+    fn lex_text_fragment(&mut self, start: Mark) -> Result<Token, Diagnostic> {
         while self.cursor.peek_char().is_some_and(|ch| {
             if !ch.is_ascii() {
                 return true;

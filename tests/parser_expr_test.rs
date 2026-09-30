@@ -5,7 +5,7 @@ use pyrus::ast::BinOp;
 use pyrus::ast::ExprKind;
 use pyrus::ast::StmtKind;
 use pyrus::ast::UnaryOp;
-use pyrus::diagnostic::CompilerDiagnostic;
+use pyrus::diagnostic::Diagnostic;
 use pyrus::diagnostic::SyntaxError;
 use pyrus::lexer::lex_all;
 use support::template_statements;
@@ -100,7 +100,7 @@ fn test_lex_unterminated_string() {
     assert!(!errors.is_empty(), "Should report an unterminated string");
     assert!(matches!(
         errors.first(),
-        Some(CompilerDiagnostic::Syntax(SyntaxError::UnterminatedDelimiter {
+        Some(Diagnostic::Syntax(SyntaxError::UnterminatedDelimiter {
             delimiter,
             ..
         })) if delimiter == "\""

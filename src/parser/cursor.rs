@@ -1,4 +1,5 @@
-use crate::diagnostic::CompilerDiagnostic;
+use crate::diagnostic::Diagnostic;
+use crate::diagnostic::Severity;
 use crate::diagnostic::SourceLocation;
 
 pub(super) struct Cursor {
@@ -51,14 +52,13 @@ impl Cursor {
     }
 
     /// advances the cursor to the next char in the file
-    pub(super) fn advance(&mut self) -> Result<(), CompilerDiagnostic> {
-        let cur = self.peek_char().ok_or_else(|| {
-            CompilerDiagnostic::Syntax(
-                crate::diagnostic::SyntaxError::UnexpectedEof {
-                    location: self.location(),
-                    expected: "a source character".to_string(),
-                },
-            )
+    pub(super) fn advance(&mut self) -> Result<(), Diagnostic> {
+        let cur = self.peek_char().ok_or_else(|| Diagnostic {
+            severity: Severity::Error,
+            message: "unexpected end of file".to_string(),
+            location: self.location(),
+            span: None,
+            help: None,
         })?;
 
         self.offset += cur.len_utf8();

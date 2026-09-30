@@ -5,16 +5,12 @@ pub mod collect_layouts;
 // pub mod validation_pass;
 
 use crate::ast::Ast;
-use crate::diagnostic::CompilerDiagnostic;
+use crate::diagnostic::Diagnostic;
 use crate::hir::HIR;
 
 /// Represents a pass to be executed on an HIR module.
 pub trait HIRPass {
-    fn run(
-        &mut self,
-        hir: &mut HIR,
-        ast: &Ast,
-    ) -> Result<(), Vec<CompilerDiagnostic>>;
+    fn run(&mut self, hir: &mut HIR, ast: &Ast) -> Result<(), Vec<Diagnostic>>;
     fn name(&self) -> &'static str;
 }
 
@@ -24,7 +20,7 @@ pub struct PassManager {
     failed: bool,
     executed_passes: Vec<&'static str>,
     failed_passes: Vec<&'static str>,
-    errors: Vec<CompilerDiagnostic>,
+    errors: Vec<Diagnostic>,
 }
 
 impl PassManager {
@@ -71,7 +67,7 @@ impl PassManager {
         &self.failed_passes
     }
 
-    pub fn finished(&self) -> Result<(), Vec<CompilerDiagnostic>> {
+    pub fn finished(&self) -> Result<(), Vec<Diagnostic>> {
         if self.failed {
             Err(self.errors.clone())
         } else {

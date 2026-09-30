@@ -4,13 +4,13 @@ use crate::ast::ElemInvoke;
 use crate::ast::FieldValue;
 use crate::ast::Ident;
 use crate::ast::InlineText;
-use crate::diagnostic::CompilerDiagnostic;
-use crate::parser::tokens::TokenKind;
+use crate::diagnostic::Diagnostic;
 use crate::parser::Parse;
 use crate::parser::Parser;
+use crate::parser::tokens::TokenKind;
 
 impl Parse for ElemDecl {
-    fn parse(parser: &mut Parser) -> Result<Self, CompilerDiagnostic> {
+    fn parse(parser: &mut Parser) -> Result<Self, Diagnostic> {
         parser.consume_keyword("elem")?;
         parser.skip_trivia()?;
         let name = Ident::parse(parser)?;
@@ -39,9 +39,7 @@ impl Parse for ElemDecl {
 }
 
 impl ElemDecl {
-    fn comsume_fields(
-        parser: &mut Parser,
-    ) -> Result<Vec<Ident>, CompilerDiagnostic> {
+    fn comsume_fields(parser: &mut Parser) -> Result<Vec<Ident>, Diagnostic> {
         let mut fields = Vec::new();
         while !parser.at_keyword("content")?
             && !parser.at(TokenKind::RightBrace)?
@@ -61,7 +59,7 @@ impl ElemDecl {
 }
 
 impl Parse for ElemInvoke {
-    fn parse(parser: &mut Parser) -> Result<Self, CompilerDiagnostic> {
+    fn parse(parser: &mut Parser) -> Result<Self, Diagnostic> {
         parser.consume(TokenKind::At)?;
         let name = Ident::parse(parser)?;
         parser.skip_trivia()?;
@@ -87,7 +85,7 @@ impl Parse for ElemInvoke {
 impl ElemInvoke {
     fn comsume_field_values(
         parser: &mut Parser,
-    ) -> Result<Vec<FieldValue>, CompilerDiagnostic> {
+    ) -> Result<Vec<FieldValue>, Diagnostic> {
         let mut field_values = Vec::new();
         while !parser.at(TokenKind::RightBrace)?
             && !parser.at(TokenKind::Eof)?
@@ -124,16 +122,16 @@ mod tests {
     use super::*;
     use crate::ast::ContentBlock;
 
-    fn parser(source: &str) -> Result<Parser, CompilerDiagnostic> {
+    fn parser(source: &str) -> Result<Parser, Diagnostic> {
         let file = "element-test.pyr".to_string();
         Parser::new(file, source.to_string())
     }
 
-    fn parse_decl(source: &str) -> Result<ElemDecl, CompilerDiagnostic> {
+    fn parse_decl(source: &str) -> Result<ElemDecl, Diagnostic> {
         ElemDecl::parse(&mut parser(source)?)
     }
 
-    fn parse_invoke(source: &str) -> Result<ElemInvoke, CompilerDiagnostic> {
+    fn parse_invoke(source: &str) -> Result<ElemInvoke, Diagnostic> {
         ElemInvoke::parse(&mut parser(source)?)
     }
 

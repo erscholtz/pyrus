@@ -88,9 +88,14 @@ impl Diagnostic {
             Severity::Fatal => "fatal error",
         };
 
-        let location = &self.location;
-        let mut result =
-            format!("{} at {}: {}", severity_str, location, self.message);
+        let mut result = format!(
+            "{}: {}\n  --> {}:{}:{}",
+            severity_str,
+            self.message,
+            self.location.file,
+            self.location.line,
+            self.location.column,
+        );
 
         if let Some(help) = &self.help {
             result.push_str(&format!("\n  help: {}", help));

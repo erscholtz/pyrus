@@ -1,6 +1,6 @@
 use crate::ast::Ast;
 use crate::ast::Item;
-use crate::diagnostic::CompilerDiagnostic;
+use crate::diagnostic::Diagnostic;
 use crate::hir::HIR;
 use crate::hir::hir_passes::HIRPass;
 use crate::hir::hir_types::Elem;
@@ -8,11 +8,7 @@ use crate::hir::hir_types::Elem;
 pub struct CollectDecls;
 
 impl HIRPass for CollectDecls {
-    fn run(
-        &mut self,
-        hir: &mut HIR,
-        ast: &Ast,
-    ) -> Result<(), Vec<CompilerDiagnostic>> {
+    fn run(&mut self, hir: &mut HIR, ast: &Ast) -> Result<(), Vec<Diagnostic>> {
         let items = ast.items.clone();
         for item in items {
             match item.node {

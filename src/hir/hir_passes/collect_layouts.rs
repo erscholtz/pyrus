@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use crate::diagnostic::Diagnostic;
+use crate::diagnostic::Severity;
 use crate::hir::hir_passes::HIRPass;
 use crate::hir::hir_types::Layout;
 use crate::hir::hir_types::Sizing;
@@ -11,7 +13,7 @@ impl HIRPass for CollectLayouts {
         &mut self,
         hir: &mut crate::hir::HIR,
         ast: &crate::ast::Ast,
-    ) -> Result<(), Vec<crate::diagnostic::CompilerDiagnostic>> {
+    ) -> Result<(), Vec<Diagnostic>> {
         let diagnostics = Vec::new();
         for item in &ast.items {
             match &item.node {
@@ -26,14 +28,18 @@ impl HIRPass for CollectLayouts {
                             "md" => Sizing::Md,
                             "sm" => Sizing::Sm,
                             _ => {
-                                // TODO this needs to be implemented correctly
-                                // diagnostics.push(
-                                //     SemanticError::InvalidStyleProperty {
-                                //         location: prop.value.span.clone(),
-                                //         property: prop.field.text.clone(),
-                                //         value: prop.value.text.clone(),
-                                //     }.into(),
-                                // );
+                                // TODO this is still not correct yet
+                                // diagnostics.push(Diagnostic {
+                                //     severity: Severity::Error,
+                                //     message: "invalid style property"
+                                //         .to_string(),
+                                //     location: prop
+                                //         .value
+                                //         .span
+                                //         .as_source_location(),
+                                //     span: None,
+                                //     help: None,
+                                // });
                                 continue;
                             }
                         };

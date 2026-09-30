@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use crate::ast::ContentBlock;
 use crate::ast::Inline;
 use crate::ast::InlineText;
+use crate::diagnostic::Diagnostic;
 use crate::hir::hir_passes::HIRPass;
 use crate::hir::hir_types::Content;
 use crate::hir::hir_types::Invoke;
@@ -14,7 +15,7 @@ impl HIRPass for CollectInvokes {
         &mut self,
         hir: &mut crate::hir::HIR,
         ast: &crate::ast::Ast,
-    ) -> Result<(), Vec<crate::diagnostic::CompilerDiagnostic>> {
+    ) -> Result<(), Vec<Diagnostic>> {
         for item in &ast.items {
             match &item.node {
                 crate::ast::Item::ElemInvoke(invoke) => {

@@ -3,15 +3,15 @@ pub mod hir_types;
 pub mod hir_util;
 
 use crate::ast::Ast;
-use crate::diagnostic::CompilerDiagnostic;
+use crate::diagnostic::Diagnostic;
+use crate::hir::hir_passes::PassManager;
 use crate::hir::hir_passes::collect_config::CollectConfig;
+use crate::hir::hir_passes::collect_decls::CollectDecls;
 use crate::hir::hir_passes::collect_invokes::CollectInvokes;
 use crate::hir::hir_passes::collect_layouts::CollectLayouts;
-use crate::hir::hir_passes::PassManager;
-use crate::hir::hir_passes::collect_decls::CollectDecls;
 use crate::hir::hir_types::HIR;
 
-pub fn lower(ast: &Ast) -> Result<HIR, Vec<CompilerDiagnostic>> {
+pub fn lower(ast: &Ast) -> Result<HIR, Vec<Diagnostic>> {
     let mut hir = HIR::new(&ast.file);
 
     let result = PassManager::default()

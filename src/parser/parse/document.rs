@@ -1,14 +1,14 @@
 use crate::ast::DocumentConfig;
 use crate::ast::DocumentEntry;
 use crate::ast::Ident;
-use crate::diagnostic::CompilerDiagnostic;
-use crate::parser::tokens::TokenKind;
+use crate::diagnostic::Diagnostic;
 use crate::parser::Parse;
 use crate::parser::Parser;
+use crate::parser::tokens::TokenKind;
 use crate::util::Spanned;
 
 impl Parse for DocumentConfig {
-    fn parse(parser: &mut Parser) -> Result<Self, CompilerDiagnostic> {
+    fn parse(parser: &mut Parser) -> Result<Self, Diagnostic> {
         parser.consume_keyword("document")?;
         parser.skip_trivia()?;
         parser.consume(TokenKind::LeftBrace)?;
@@ -27,7 +27,7 @@ impl Parse for DocumentConfig {
 }
 
 impl Parse for DocumentEntry {
-    fn parse(parser: &mut Parser) -> Result<Self, CompilerDiagnostic> {
+    fn parse(parser: &mut Parser) -> Result<Self, Diagnostic> {
         let name = Ident::parse(parser)?;
         parser.skip_trivia()?;
         parser.consume(TokenKind::Colon)?;
@@ -49,9 +49,7 @@ impl Parse for DocumentEntry {
 mod tests {
     use super::*;
 
-    fn parse_document(
-        source: &str,
-    ) -> Result<DocumentConfig, CompilerDiagnostic> {
+    fn parse_document(source: &str) -> Result<DocumentConfig, Diagnostic> {
         let file = "document-test.pyr".to_string();
         let mut parser = Parser::new(file, source.to_string())?;
         DocumentConfig::parse(&mut parser)
