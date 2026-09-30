@@ -32,7 +32,7 @@ impl HIRPass for CollectLayouts {
                                 //         location: prop.value.span.clone(),
                                 //         property: prop.field.text.clone(),
                                 //         value: prop.value.text.clone(),
-                                //     },
+                                //     }.into(),
                                 // );
                                 continue;
                             }

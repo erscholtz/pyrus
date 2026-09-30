@@ -1,2 +1,4 @@
 - [ ] check all of the fiels and mentions for sizing or size, this could be commmon functionality that can be extracted almost right after AST, since its parsed as a enum then just gets carried over
 - [ ] I belive there is another case like this for alignment, maybe some others like config or so but to be determined
+- [ ] Think of combining elem call and layout call, elem doest really add anything, specific items are called out in layout already??
+- [ ]

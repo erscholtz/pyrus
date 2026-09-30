@@ -64,49 +64,38 @@ impl fmt::Display for SourceLocation {
     }
 }
 
-/// Core trait that all compiler diagnostics implement
-pub trait Diagnostic: std::fmt::Debug {
-    /// The main error message
-    fn message(&self) -> &str;
-
-    /// Source location (line:column format)
-    fn location(&self) -> SourceLocation;
-
-    /// Severity level
-    fn severity(&self) -> Severity;
-
-    /// Whether compilation can continue after this error
-    fn recoverable(&self) -> bool {
-        !matches!(self.severity(), Severity::Fatal)
-    }
-
-    /// Optional: full span information if available
-    fn span(&self) -> Option<&Span> {
-        None
-    }
-
-    /// Optional: help message with suggestions
-    fn help(&self) -> Option<&str> {
-        None
-    }
+#[derive(Debug, Clone)]
+pub struct Diagnostic {
+    pub severity: Severity,
+    pub message: String,
+    pub location: SourceLocation,
+    pub span: Option<Span>,
+    pub help: Option<String>,
 }
 
-/// Display implementation for any Diagnostic
-pub fn format_diagnostic<D: Diagnostic>(diag: &D) -> String {
-    let severity_str = match diag.severity() {
-        Severity::Error => "error",
-        Severity::Warning => "warning",
-        Severity::Note => "note",
-        Severity::Fatal => "fatal error",
-    };
-
-    let location = diag.location();
-    let mut result =
-        format!("{} at {}: {}", severity_str, location, diag.message());
-
-    if let Some(help) = diag.help() {
-        result.push_str(&format!("\n  help: {}", help));
+impl Diagnostic {
+    /// Whether compilation can continue after this error
+    pub fn recoverable(&self) -> bool {
+        !matches!(self.severity, Severity::Fatal)
     }
 
-    result
+    /// Display implementation for any Diagnostic
+    pub fn format(&self) -> String {
+        let severity_str = match self.severity {
+            Severity::Error => "error",
+            Severity::Warning => "warning",
+            Severity::Note => "note",
+            Severity::Fatal => "fatal error",
+        };
+
+        let location = &self.location;
+        let mut result =
+            format!("{} at {}: {}", severity_str, location, self.message);
+
+        if let Some(help) = &self.help {
+            result.push_str(&format!("\n  help: {}", help));
+        }
+
+        result
+    }
 }
