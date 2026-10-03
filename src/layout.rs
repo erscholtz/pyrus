@@ -106,57 +106,56 @@ impl Composer {
         })
     }
 
-    pub fn format(&mut self) {
-        let page_width = self.page.config.grid_width;
-        // find row
-
-        for row in &self.content {
-            match row {
-                ContentRow::Single(field) => {
-                    // wrap whats needed
-                    let lines = Composer::wrap(&field.content, page_width);
-                    let line_length = lines.len();
-                    // create boxes with start pos, extent
-                    self.page.content.push(self.draw_box(
-                        lines,
-                        field.alignment.clone(),
-                        page_width,
-                        None,
-                    ));
-                    self.cur_line += line_length;
-                }
-                ContentRow::Split { left, right } => {
-                    // determine border for each side (min len)
-                    let gap = min(
-                        page_width / 2,
-                        max(
-                            left.content.glyphs.len(),
-                            right.content.glyphs.len(),
-                        ),
-                    );
-                    // wrap whats needed
-                    let l_lines = Composer::wrap(&left.content, gap);
-                    let r_lines =
-                        Composer::wrap(&right.content, page_width - gap);
-                    // create boxes with start pos, extent
-                    let line_length = max(l_lines.len(), r_lines.len());
-                    self.page.content.push(self.draw_box(
-                        l_lines,
-                        left.alignment.clone(),
-                        gap,
-                        None,
-                    ));
-                    self.page.content.push(self.draw_box(
-                        r_lines,
-                        right.alignment.clone(),
-                        page_width - gap,
-                        Some(gap),
-                    ));
-                    self.cur_line += line_length;
-                }
-            }
-        }
-    }
+    // pub fn format(&mut self) {
+    //     let page_width = self.page.config.grid_width;
+    //     // find row
+    //     for row in &self.content {
+    //         match row {
+    //             ContentRow::Single(field) => {
+    //                 // wrap whats needed
+    //                 let lines = Composer::wrap(&field.content, page_width);
+    //                 let line_length = lines.len();
+    //                 // create boxes with start pos, extent
+    //                 self.page.content.push(self.draw_box(
+    //                     lines,
+    //                     field.alignment.clone(),
+    //                     page_width,
+    //                     None,
+    //                 ));
+    //                 self.cur_line += line_length;
+    //             }
+    //             ContentRow::Split { left, right } => {
+    //                 // determine border for each side (min len)
+    //                 let gap = min(
+    //                     page_width / 2,
+    //                     max(
+    //                         left.content.glyphs.len(),
+    //                         right.content.glyphs.len(),
+    //                     ),
+    //                 );
+    //                 // wrap whats needed
+    //                 let l_lines = Composer::wrap(&left.content, gap);
+    //                 let r_lines =
+    //                     Composer::wrap(&right.content, page_width - gap);
+    //                 // create boxes with start pos, extent
+    //                 let line_length = max(l_lines.len(), r_lines.len());
+    //                 self.page.content.push(self.draw_box(
+    //                     l_lines,
+    //                     left.alignment.clone(),
+    //                     gap,
+    //                     None,
+    //                 ));
+    //                 self.page.content.push(self.draw_box(
+    //                     r_lines,
+    //                     right.alignment.clone(),
+    //                     page_width - gap,
+    //                     Some(gap),
+    //                 ));
+    //                 self.cur_line += line_length;
+    //             }
+    //         }
+    //     }
+    // }
 
     fn calculate_grid(
         page_type: &PageType,
@@ -224,8 +223,25 @@ impl Composer {
     }
 }
 
-pub fn layout(hir: &HIR) -> Result<Composer, Diagnostic> {
-    let mut composer = Composer::new(hir)?;
-    composer.format();
-    Ok(composer)
+pub fn layout(hir: &HIR) -> Result<(), Diagnostic> {
+    println!("Allocating rows \n_____________________");
+    let rows = allocate::allocate(&hir.invokes, &hir.layout).unwrap();
+    for row in &rows {
+        println!("{}", row);
+    }
+
+    println!("Measuring rows \n_____________________");
+    let mut split_line = Vec::new();
+    for row in rows {
+        let width = match row {
+            ContentRow::Single(_) => 80,
+            ContentRow::Split { left, right } => {
+                min(80 / 2, max(left.content.len(), right.content.len()))
+            }
+        };
+        split_line.push(width);
+        println!("Width: {}", width);
+    }
+
+    Ok(())
 }

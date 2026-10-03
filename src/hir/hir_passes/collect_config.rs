@@ -59,7 +59,7 @@ impl CollectConfig {
         let mut padding = 0;
 
         for entry in &config.entries {
-            match entry.name.text.as_str().clone() {
+            match entry.name.text.as_str() {
                 "doc_type" => match entry.value.node.as_str() {
                     "A4" => {
                         doc_type = DocType::A4;

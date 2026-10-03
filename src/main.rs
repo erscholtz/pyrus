@@ -48,5 +48,5 @@ fn main() {
         }
     };
 
-    Renderer::render_pdf(&layout.page, "test.pdf");
+    // Renderer::render_pdf(&layout.page, "test.pdf");
 }

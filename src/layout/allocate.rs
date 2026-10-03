@@ -1,12 +1,11 @@
 use std::collections::HashMap;
+use std::fmt::Display;
 
 use crate::ast::LayoutAlignment;
 use crate::ast::LayoutRow;
 use crate::diagnostic::Diagnostic;
 use crate::hir::hir_types::Invoke;
 use crate::hir::hir_types::Layout;
-use crate::layout::GlyphRow;
-use crate::layout::inscribe;
 
 #[derive(Debug, Clone)]
 pub enum ContentRow {
@@ -15,6 +14,17 @@ pub enum ContentRow {
         left: AllocatedField,
         right: AllocatedField,
     },
+}
+
+impl Display for ContentRow {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ContentRow::Single(field) => write!(f, "{}", field),
+            ContentRow::Split { left, right } => {
+                write!(f, "{} / {}", left, right)
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -26,8 +36,14 @@ pub enum Alignment {
 
 #[derive(Debug, Clone)]
 pub struct AllocatedField {
-    pub content: GlyphRow,
+    pub content: String,
     pub alignment: Alignment,
+}
+
+impl Display for AllocatedField {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.content)
+    }
 }
 
 pub fn allocate(
@@ -43,7 +59,7 @@ pub fn allocate(
                     for elem in &invoke.elements {
                         if field.text == *elem.0 {
                             let allocated_field = AllocatedField {
-                                content: inscribe::inscribe(elem, layout)?,
+                                content: elem.0.clone(),
                                 alignment: convert_layout(alignment),
                             };
                             content_rows
@@ -61,7 +77,7 @@ pub fn allocate(
                     for elem in &invoke.elements {
                         if left.text == *elem.0 {
                             left_line = Some(AllocatedField {
-                                content: inscribe::inscribe(elem, layout)?,
+                                content: elem.0.clone(),
                                 alignment: convert_layout(left_alignment),
                             });
                         }
@@ -70,7 +86,7 @@ pub fn allocate(
                     for elem in &invoke.elements {
                         if right.text == *elem.0 {
                             right_line = Some(AllocatedField {
-                                content: inscribe::inscribe(elem, layout)?,
+                                content: elem.0.clone(),
                                 alignment: convert_layout(right_alignment),
                             });
                         }
