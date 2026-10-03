@@ -36,13 +36,13 @@ pub enum Alignment {
 
 #[derive(Debug, Clone)]
 pub struct AllocatedField {
-    pub content: String,
+    pub content: Vec<String>,
     pub alignment: Alignment,
 }
 
 impl Display for AllocatedField {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.content)
+        write!(f, "{:#?}", self.content)
     }
 }
 
@@ -59,7 +59,11 @@ pub fn allocate(
                     for elem in &invoke.elements {
                         if field.text == *elem.0 {
                             let allocated_field = AllocatedField {
-                                content: elem.0.clone(),
+                                content: elem
+                                    .1
+                                    .iter()
+                                    .map(|op| op.content.clone())
+                                    .collect(),
                                 alignment: convert_layout(alignment),
                             };
                             content_rows
@@ -77,7 +81,11 @@ pub fn allocate(
                     for elem in &invoke.elements {
                         if left.text == *elem.0 {
                             left_line = Some(AllocatedField {
-                                content: elem.0.clone(),
+                                content: elem
+                                    .1
+                                    .iter()
+                                    .map(|op| op.content.clone())
+                                    .collect(),
                                 alignment: convert_layout(left_alignment),
                             });
                         }
@@ -86,7 +94,11 @@ pub fn allocate(
                     for elem in &invoke.elements {
                         if right.text == *elem.0 {
                             right_line = Some(AllocatedField {
-                                content: elem.0.clone(),
+                                content: elem
+                                    .1
+                                    .iter()
+                                    .map(|op| op.content.clone())
+                                    .collect(),
                                 alignment: convert_layout(right_alignment),
                             });
                         }

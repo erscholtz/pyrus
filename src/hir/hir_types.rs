@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, ops::Range};
 
 use crate::ast::LayoutRow;
 
@@ -100,16 +100,17 @@ pub struct Layout {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Content {
-    Text(String),
-    Bold(String),
-    Italic(String),
-    NerdFont(String),
-    Link { label: String, href: String },
+pub struct TextOp {
+    pub content: String,
+    pub link_targets: Vec<String>,
+    pub bold_ranges: Vec<Range<usize>>,
+    pub italic_ranges: Vec<Range<usize>>,
+    pub nerd_font_ranges: Vec<Range<usize>>,
+    pub link_ranges: Vec<Range<usize>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Invoke {
     pub name: String,
-    pub elements: HashMap<String, Vec<Content>>,
+    pub elements: HashMap<String, Vec<TextOp>>, // NOTE vec because of bullet lists
 }

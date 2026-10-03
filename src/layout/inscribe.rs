@@ -1,7 +1,6 @@
 use crate::diagnostic::Diagnostic;
 use crate::diagnostic::Severity;
 use crate::diagnostic::SourceLocation;
-use crate::hir::hir_types::Content;
 use crate::hir::hir_types::Layout;
 use crate::hir::hir_types::Sizing;
 
@@ -85,35 +84,35 @@ impl GlyphRow {
     }
 }
 
-pub fn inscribe(
-    elem: (&String, &Vec<Content>),
-    layout: &Layout,
-) -> Result<GlyphRow, Diagnostic> {
-    let size = &layout.sizing[elem.0.as_str()];
-    let mut glyphs: Vec<Glyph> = Vec::new();
-    for content in elem.1 {
-        glyphs.extend(match content {
-            Content::Text(text) => Glyph::inscribe_text(&text, size),
-            Content::Bold(text) => Glyph::inscribe_bold(&text, size),
-            Content::Italic(text) => Glyph::inscribe_italic(&text, size),
-            Content::NerdFont(text) => Glyph::inscribe_nerd(&text, size),
-            _ => Vec::new(),
-        });
-    }
-    let len = glyphs.len();
-    if len == 0 {
-        // TODO proper error here
-        return Err(Diagnostic {
-            severity: Severity::Fatal,
-            message: "inscribe: no glyphs generated".to_string(),
-            location: SourceLocation {
-                line: 0,
-                column: 0,
-                file: "".to_string(), // TODO do this better
-            },
-            span: None,
-            help: None,
-        });
-    }
-    Ok(GlyphRow::new(glyphs, elem.0.clone(), len))
-}
+// pub fn inscribe(
+//     elem: (&String, &Vec<Content>),
+//     layout: &Layout,
+// ) -> Result<GlyphRow, Diagnostic> {
+//     let size = &layout.sizing[elem.0.as_str()];
+//     let mut glyphs: Vec<Glyph> = Vec::new();
+//     for content in elem.1 {
+//         glyphs.extend(match content {
+//             Content::Text(text) => Glyph::inscribe_text(&text, size),
+//             Content::Bold(text) => Glyph::inscribe_bold(&text, size),
+//             Content::Italic(text) => Glyph::inscribe_italic(&text, size),
+//             Content::NerdFont(text) => Glyph::inscribe_nerd(&text, size),
+//             _ => Vec::new(),
+//         });
+//     }
+//     let len = glyphs.len();
+//     if len == 0 {
+//         // TODO proper error here
+//         return Err(Diagnostic {
+//             severity: Severity::Fatal,
+//             message: "inscribe: no glyphs generated".to_string(),
+//             location: SourceLocation {
+//                 line: 0,
+//                 column: 0,
+//                 file: "".to_string(), // TODO do this better
+//             },
+//             span: None,
+//             help: None,
+//         });
+//     }
+//     Ok(GlyphRow::new(glyphs, elem.0.clone(), len))
+// }
