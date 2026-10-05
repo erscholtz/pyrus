@@ -52,13 +52,11 @@ impl Renderer {
         for content in &page_layout.content {
             for row in &content.content {
                 let y = 20.0 + i as f32 * 10.0;
-                let text: String =
-                    row.glyphs.iter().map(|glyph| glyph.char).collect();
                 surface.draw_text(
                     Point::from_xy(18.0, y),
                     serif_font_reg.clone(),
                     10.0,
-                    &text,
+                    &row,
                     false,
                     TextDirection::Auto,
                 );

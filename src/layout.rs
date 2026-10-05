@@ -56,7 +56,7 @@ pub enum WrappedRow {
 
 #[derive(Debug, Clone)]
 pub struct ContentBox {
-    pub content: Vec<GlyphRow>, // cut down to size
+    pub content: Vec<String>, // cut down to size
     alignment: Alignment,
     pub coord: Coordinate,
     width: usize,
@@ -200,36 +200,59 @@ impl Composer {
         lines
     }
 
-    fn draw_box(
-        &self,
-        lines: Vec<GlyphRow>,
-        alignment: Alignment,
-        width: usize,
-        gap: Option<usize>,
-    ) -> ContentBox {
-        let coord = if gap.is_some() {
-            Coordinate {
-                x: gap.unwrap(),
-                y: self.cur_line,
-            }
-        } else {
-            Coordinate {
-                x: 0,
-                y: self.cur_line,
-            }
-        };
+    // fn draw_box(
+    //     &self,
+    //     lines: Vec<GlyphRow>,
+    //     alignment: Alignment,
+    //     width: usize,
+    //     gap: Option<usize>,
+    // ) -> ContentBox {
+    //     let coord = if gap.is_some() {
+    //         Coordinate {
+    //             x: gap.unwrap(),
+    //             y: self.cur_line,
+    //         }
+    //     } else {
+    //         Coordinate {
+    //             x: 0,
+    //             y: self.cur_line,
+    //         }
+    //     };
 
-        ContentBox {
-            content: lines.clone(),
-            alignment,
-            coord,
-            width,
-            height: lines.len(),
-        }
-    }
+    //     ContentBox {
+    //         content: lines.clone(),
+    //         alignment,
+    //         coord,
+    //         width,
+    //         height: lines.len(),
+    //     }
+    // }
 }
 
-pub fn layout(hir: &HIR) -> Result<(), Diagnostic> {
+pub fn layout(hir: &HIR) -> Result<Page, Diagnostic> {
+    let page_type = match hir.config.doc_type {
+        DocType::A4 => PageType::A4,
+    };
+    let orientation = match hir.config.orientation {
+        DocOrientation::Portrait => Orientation::Portrait,
+    };
+
+    let (width, height) = Composer::calculate_grid(&page_type, &orientation)?;
+
+    let mut page = Page {
+        config: PageConfig {
+            grid_width: width,
+            grid_height: height,
+            top_margin: hir.config.top_margin,
+            bottom_margin: hir.config.bottom_margin,
+            left_margin: hir.config.left_margin,
+            right_margin: hir.config.right_margin,
+            orientation: orientation,
+            page_type: page_type,
+        },
+        content: Vec::new(),
+    };
+
     println!("Allocating rows \n_____________________");
     let rows = allocate::allocate(&hir.invokes, &hir.layout).unwrap();
     for row in &rows {
@@ -250,10 +273,12 @@ pub fn layout(hir: &HIR) -> Result<(), Diagnostic> {
                     left.content.get(0).map_or(0, |s| s.len()),
                     right.content.get(0).map_or(0, |s| s.len()),
                 );
-                if max > 80 / 2 && min > 80 / 2 {
-                    80 / 2
-                } else if max > 80 / 2 {
-                    80 / 2 - min
+                if max > page.config.grid_width / 2
+                    && min > page.config.grid_width / 2
+                {
+                    page.config.grid_width / 2
+                } else if max > page.config.grid_width / 2 {
+                    page.config.grid_width / 2 - min
                 } else {
                     max
                 }
@@ -315,8 +340,6 @@ pub fn layout(hir: &HIR) -> Result<(), Diagnostic> {
                     right_wrapped_lines.push(right_wrapped_line.clone());
                     right_wrapped_line.clear();
                 }
-                println!("{:#?}", right_wrapped_line);
-
                 WrappedRow::Split(left_wrapped_lines, right_wrapped_lines)
             }
         };
@@ -325,5 +348,48 @@ pub fn layout(hir: &HIR) -> Result<(), Diagnostic> {
 
     println!("Split line: {:?}", wrapped_rows);
 
-    Ok(())
+    println!("Laying out rows \n_____________________");
+    let mut text_boxes = Vec::new();
+    let mut len = 0;
+    for (i, row) in wrapped_rows.iter().enumerate() {
+        println!("Row {}: {:?}", i, row);
+
+        match row {
+            WrappedRow::Single(text) => {
+                text_boxes.push(ContentBox {
+                    content: text.clone(),
+                    alignment: Alignment::Left,
+                    coord: Coordinate { x: 0, y: len },
+                    width: page.config.grid_width,
+                    height: text.len(),
+                });
+                len += text.len();
+            }
+            WrappedRow::Split(left, right) => {
+                text_boxes.push(ContentBox {
+                    content: left.clone(),
+                    alignment: Alignment::Left,
+                    coord: Coordinate { x: 0, y: len },
+                    width: 0, // NOTE we calculate this width before we should use it
+                    height: left.len(),
+                });
+                text_boxes.push(ContentBox {
+                    content: right.clone(),
+                    alignment: Alignment::Right,
+                    coord: Coordinate {
+                        x: text_boxes.last().unwrap().width, // NOTE we calculate this gap before we should use it
+                        y: len,
+                    },
+                    width: page.config.grid_width
+                        - text_boxes.last().unwrap().width, // NOTE we calculate this width before we should use it
+                    height: right.len(),
+                });
+                len += left.len() + right.len();
+            }
+        }
+    }
+
+    page.content = text_boxes;
+
+    Ok(page)
 }
