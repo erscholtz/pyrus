@@ -29,10 +29,10 @@ pub struct Page {
 pub struct PageConfig {
     pub grid_width: usize,
     pub grid_height: usize,
-    top_margin: usize,
-    bottom_margin: usize,
-    left_margin: usize,
-    right_margin: usize,
+    pub top_margin: usize,
+    pub bottom_margin: usize,
+    pub left_margin: usize,
+    pub right_margin: usize,
     orientation: Orientation,
     page_type: PageType,
 }
@@ -298,7 +298,6 @@ pub fn layout(hir: &HIR) -> Result<Page, Diagnostic> {
                 for item in &field.content {
                     for char in item.chars() {
                         if wrapped_line.len() == split_line[i] {
-                            wrapped_line.push('\n'); // TODO see if this one good or not
                             wrapped_lines.push(wrapped_line.clone());
                             wrapped_line.clear();
                         }
@@ -318,7 +317,6 @@ pub fn layout(hir: &HIR) -> Result<Page, Diagnostic> {
                 for item in &left.content {
                     for char in item.chars() {
                         if left_wrapped_line.len() == split_line[i] {
-                            left_wrapped_line.push('\n'); // TODO see if this one good or not
                             left_wrapped_lines.push(left_wrapped_line.clone());
                             left_wrapped_line.clear();
                         }
@@ -330,7 +328,6 @@ pub fn layout(hir: &HIR) -> Result<Page, Diagnostic> {
                 for item in &right.content {
                     for char in item.chars() {
                         if right_wrapped_line.len() == split_line[i] {
-                            right_wrapped_line.push('\n'); // TODO see if this one good or not
                             right_wrapped_lines
                                 .push(right_wrapped_line.clone());
                             right_wrapped_line.clear();

@@ -52,10 +52,10 @@ impl CollectConfig {
         // define default
         let mut doc_type = DocType::A4;
         let mut orientation = DocOrientation::Portrait;
-        let mut top_margin = 0;
-        let mut bottom_margin = 0;
-        let mut left_margin = 0;
-        let mut right_margin = 0;
+        let mut top_margin = 40;
+        let mut bottom_margin = 40;
+        let mut left_margin = 40;
+        let mut right_margin = 40;
         let mut padding = 0;
 
         for entry in &config.entries {

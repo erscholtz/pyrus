@@ -5,11 +5,25 @@ document {
 
 elem header {
     name,
+    target_role,
     contact,
 }
 
 elem separator {
     title,
+}
+
+elem skills {
+    languages,
+    systems,
+    tools,
+}
+
+elem project {
+    title,
+    stack,
+    link,
+    content,
 }
 
 elem entry {
@@ -19,10 +33,22 @@ elem entry {
     content,
 }
 
+elem education {
+    institution,
+    location,
+    degree,
+    distinction,
+    date,
+    content,
+}
+
 layout header {
-    < name | > contact
+    name
+    target_role
+    contact
 
     name: xl
+    target_role: md
     contact: sm
 }
 
@@ -32,20 +58,110 @@ layout separator {
     title: lg
 }
 
-layout entry {
-    < company  | > date
-    role
+layout skills {
+    languages
+    systems
+    tools
+
+    languages: sm
+    systems: sm
+    tools: sm
+}
+
+layout project {
+    < title | > link
+    stack
     content
 
-    company: md
+    title: md
+    link: sm
+    stack: sm
+    content: sm
+}
+
+layout entry {
+    < role | > date
+    company
+    content
+
+    company: sm
     date: sm
-    role: sm
+    role: md
+    content: sm
+}
+
+layout education {
+    < institution | > date
+    degree
+    location
+    distinction
+    content
+
+    institution: md
+    location: sm
+    degree: md
+    distinction: sm
+    date: sm
     content: sm
 }
 
 @header {
-    name: Erik Example
-    contact: `github` · `email`
+    name: Erik Scholtz
+    target_role: Systems and Infrastructure Engineer
+    contact: erikscholtz23@gmail.com | linkedin.com/in/erikscholtz | github.com/erscholtz
+}
+
+@separator {
+    title: Skills
+}
+
+@skills {
+    languages: Languages: Rust, C, C++, Python
+    systems: Systems: Linux kernel drivers, UEFI/EDK-II, QEMU, TPM2, IPC, JSON-RPC
+    tools: Tools: Cargo, CMake, KBuild, Make, Meson, Git, Valgrind, SQLite
+}
+
+@separator {
+    title: Projects
+}
+
+@project {
+    title: harnessd Autocomplete Daemon
+    stack: Rust · Tokio · tree-sitter · SQLite · JSON-RPC
+    link: [github](github.com/erscholtz/harnessd)
+
+    - Engineered a Rust daemon with local IPC, lockfile-based single-instance control, and graceful shutdown to serve editor and CLI requests over JSON-RPC 2.0.
+    - Built a rusqlite proposal cache keyed by file path, byte range, and content hash, using indexed lookups and invalidation guards to keep completions fast, bounded, and coherent with source changes.
+    - Used tree-sitter to resolve cursor byte offsets to AST regions and precompute cached suggestions from TODO/FIXME anchors across multiple languages.
+}
+
+@project {
+    title: UEFI CVE Replication and Firmware Patch
+    stack: C · EDK-II · QEMU · UEFI Secure Boot
+    link: [github](github.com/erscholtz/uefi-cve-replication)
+
+    - Replicated CVE-2022-21894 (Baton Drop) using QEMU; demonstrated vulnerability by safely sandboxing exploit payload in QEMU to understand attack vector.
+    - Proposed proof-of-concept patch through monotonic counter in EDK-II using C on EFI file sign date timestamps preventing rollback attacks.
+}
+
+@project {
+    title: Pyrus Domain-Specific Compiler
+    stack: Rust · Recursive Descent Parsing · HIR · PDF Rendering
+    link: [github](github.com/erscholtz/pyrus)
+
+    - Zero-dependency compiler pipeline from lexer to parser to HIR for a typesetting language. Created this resume.
+    - Implemented recursive descent parser with Pratt-style operator precedence and string interpolation support.
+}
+
+@project {
+    title: Linux Character Device Driver
+    stack: C · KBuild · Make · Linux Kernel APIs
+    link: [github](github.com/erscholtz/linux-character-device-driver)
+
+    - Implemented file operations using kernel APIs register_chrdev, class_create, and device_create.
+    - Enabled dynamic runtime configuration through write operations allowing users to change output byte values.
+    - Utilized kernel memory management functions copy_from_user and put_user for user-kernel space data transfer.
+    - Built and deployed using kernel build system KBuild with Makefile automation.
 }
 
 @separator {
@@ -53,10 +169,42 @@ layout entry {
 }
 
 @entry {
-    company: ACME
-    role: Software Engineer
-    date: 2025-2026
+    company: Deloitte · Toronto, ON
+    role: Infrastructure Engineer
+    date: September 2025 - Present
 
-    - Built **Pyrus**, a tiny resume compiler in `Rust`
-    - Worked on low-level document layout and PDF generation
+    - Applied constraint-solving techniques to optimize CI resource scheduling, reducing queue times by 20% under shared compute constraints.
+}
+
+@entry {
+    company: Syncademia AI · Waterloo, ON
+    role: Infrastructure Engineer
+    date: January 2025 - August 2025
+
+    - Reduced dependency surface area by 40% through targeted library audit and replacement, simplifying runtime behavior and eliminating classes of failure.
+    - Built a streaming document ingestion pipeline with backpressure handling to process 1000+ page inputs without exceeding memory limits.
+}
+
+@entry {
+    company: Deloitte · Toronto, ON
+    role: Software Engineering Co-op
+    date: May 2024 - September 2024
+
+    - Developed a telemetry tool to analyze system logs and visualize object dependencies, adopted by multiple enterprise teams for debugging.
+}
+
+@separator {
+    title: Education
+}
+
+@education {
+    institution: Carleton University
+    location: Ottawa, ON
+    degree: Bachelor of Computer Science
+    distinction: Honours with Distinction - 3.7 GPA
+    date: September 2020 - December 2024
+
+    - Mathematics Minor: Linear Programming Optimizations, Computational Numerical Methods
+    - Honours Project: UEFI CVE Replication and Firmware Hardening, co-authored with peers
+    - Selected Coursework: Operating Systems, Distributed Systems, Trusted Computing, Programming Paradigms
 }

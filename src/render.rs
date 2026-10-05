@@ -50,18 +50,21 @@ impl Renderer {
 
         let mut i = 0;
         for content in &page_layout.content {
+            let mut row_count = 0;
             for row in &content.content {
-                let y = 20.0 + i as f32 * 10.0;
+                let y = page_layout.config.top_margin as f32
+                    + (row_count + i) as f32 * 10.0;
                 surface.draw_text(
-                    Point::from_xy(18.0, y),
+                    Point::from_xy(page_layout.config.left_margin as f32, y),
                     serif_font_reg.clone(),
                     10.0,
                     &row,
                     false,
                     TextDirection::Auto,
                 );
+                row_count += 1;
             }
-            i += 1;
+            i += row_count;
         }
         surface.finish();
         page.finish();
