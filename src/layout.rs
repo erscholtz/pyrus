@@ -96,12 +96,13 @@ pub fn wrap_lines(field: &AllocatedField, split: usize) -> Vec<String> {
     let mut wrapped_lines = Vec::new();
     let mut wrapped_line = String::new();
     for item in &field.content {
-        for char in item.chars() {
-            if wrapped_line.len() == split {
+        for word in item.split_whitespace() {
+            if wrapped_line.len() + 1 + word.len() >= split {
                 wrapped_lines.push(wrapped_line.clone());
                 wrapped_line.clear();
             }
-            wrapped_line.push(char);
+            wrapped_line.push_str(word);
+            wrapped_line.push(' ');
         }
         wrapped_lines.push(wrapped_line.clone());
         wrapped_line.clear();
@@ -209,7 +210,7 @@ pub fn layout(hir: &HIR) -> Result<Page, Diagnostic> {
                 len += text.len();
             }
             WrappedRow::Split(left, right) => {
-                let max_width = left
+                let l_max_width = left
                     .iter()
                     .map(|line| line.chars().count())
                     .max()
@@ -217,14 +218,18 @@ pub fn layout(hir: &HIR) -> Result<Page, Diagnostic> {
                 text_boxes.push(ContentBox {
                     content: left.clone(),
                     coord: (0, len),
-                    width: max_width, // NOTE we calculate this width before we should use it
+                    width: l_max_width,
                     height: left.len(),
                 });
+                let r_max_width = right
+                    .iter()
+                    .map(|line| line.chars().count())
+                    .max()
+                    .unwrap_or(0);
                 text_boxes.push(ContentBox {
                     content: right.clone(),
-                    coord: (max_width + 3, len), // NOTE we calculate this gap before we should use it
-                    width: page.config.grid_width
-                        - text_boxes.last().unwrap().width, // NOTE we calculate this width before we should use it
+                    coord: (page.config.grid_width - r_max_width, len),
+                    width: r_max_width,
                     height: right.len(),
                 });
                 len += left.len() + right.len();
