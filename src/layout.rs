@@ -13,6 +13,7 @@ use crate::hir::hir_types::DocOrientation;
 use crate::hir::hir_types::DocType;
 use crate::hir::hir_types::HIR;
 use crate::layout::allocate::Alignment;
+use crate::layout::allocate::AllocatedField;
 use crate::layout::allocate::ContentRow;
 use crate::layout::inscribe::GlyphRow;
 
@@ -48,6 +49,12 @@ pub enum PageType {
     A4,
 }
 
+pub enum FieldType {
+    Single,
+    Left,
+    Right,
+}
+
 #[derive(Debug, Clone)]
 pub enum WrappedRow {
     Single(Vec<String>),
@@ -57,16 +64,9 @@ pub enum WrappedRow {
 #[derive(Debug, Clone)]
 pub struct ContentBox {
     pub content: Vec<String>, // cut down to size
-    alignment: Alignment,
-    pub coord: Coordinate,
+    pub coord: (usize, usize),
     width: usize,
     height: usize,
-}
-
-#[derive(Debug, Clone)]
-struct Coordinate {
-    x: usize,
-    y: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -78,155 +78,35 @@ pub struct Composer {
 }
 
 impl Composer {
-    pub fn new(hir: &HIR) -> Result<Self, Diagnostic> {
-        Ok(Self {
-            page: Composer::setup_pages(&hir.config)?,
-            cur_line: 0,
-            content: allocate::allocate(&hir.invokes, &hir.layout)?,
-        })
-    }
-
-    pub fn setup_pages(config: &Config) -> Result<Page, Diagnostic> {
-        let page_type = match config.doc_type {
-            DocType::A4 => PageType::A4,
-        };
-        let orientation = match config.orientation {
-            DocOrientation::Portrait => Orientation::Portrait,
-        };
-
-        let (width, height) =
-            Composer::calculate_grid(&page_type, &orientation)?;
-
-        Ok(Page {
-            config: PageConfig {
-                grid_width: width,
-                grid_height: height,
-                top_margin: config.top_margin,
-                bottom_margin: config.bottom_margin,
-                left_margin: config.left_margin,
-                right_margin: config.right_margin,
-                orientation: orientation,
-                page_type: page_type,
-            },
-            content: Vec::new(),
-        })
-    }
-
-    // pub fn format(&mut self) {
-    //     let page_width = self.page.config.grid_width;
-    //     // find row
-    //     for row in &self.content {
-    //         match row {
-    //             ContentRow::Single(field) => {
-    //                 // wrap whats needed
-    //                 let lines = Composer::wrap(&field.content, page_width);
-    //                 let line_length = lines.len();
-    //                 // create boxes with start pos, extent
-    //                 self.page.content.push(self.draw_box(
-    //                     lines,
-    //                     field.alignment.clone(),
-    //                     page_width,
-    //                     None,
-    //                 ));
-    //                 self.cur_line += line_length;
-    //             }
-    //             ContentRow::Split { left, right } => {
-    //                 // determine border for each side (min len)
-    //                 let gap = min(
-    //                     page_width / 2,
-    //                     max(
-    //                         left.content.glyphs.len(),
-    //                         right.content.glyphs.len(),
-    //                     ),
-    //                 );
-    //                 // wrap whats needed
-    //                 let l_lines = Composer::wrap(&left.content, gap);
-    //                 let r_lines =
-    //                     Composer::wrap(&right.content, page_width - gap);
-    //                 // create boxes with start pos, extent
-    //                 let line_length = max(l_lines.len(), r_lines.len());
-    //                 self.page.content.push(self.draw_box(
-    //                     l_lines,
-    //                     left.alignment.clone(),
-    //                     gap,
-    //                     None,
-    //                 ));
-    //                 self.page.content.push(self.draw_box(
-    //                     r_lines,
-    //                     right.alignment.clone(),
-    //                     page_width - gap,
-    //                     Some(gap),
-    //                 ));
-    //                 self.cur_line += line_length;
-    //             }
-    //         }
-    //     }
-    // }
-
     fn calculate_grid(
         page_type: &PageType,
         orientation: &Orientation,
     ) -> Result<(usize, usize), Diagnostic> {
         let (x, y) = match page_type {
-            PageType::A4 => (166usize, 44usize),
+            PageType::A4 => (90usize, 44usize),
         };
         match orientation {
             Orientation::Portrait => Ok((x, y)),
             Orientation::Landscape => Ok((y, x)),
         }
     }
+}
 
-    fn wrap(content: &GlyphRow, gap: usize) -> Vec<GlyphRow> {
-        let mut lines = Vec::new();
-        let mut line = Vec::new();
-        for glyph in content.glyphs.iter() {
-            line.push(glyph.clone());
-            if line.len() == gap {
-                lines.push(GlyphRow {
-                    glyphs: line.clone(),
-                    name: "line".to_string() + &lines.len().to_string(),
-                    offset: line.len(),
-                });
-                line = Vec::new();
+pub fn wrap_lines(field: &AllocatedField, split: usize) -> Vec<String> {
+    let mut wrapped_lines = Vec::new();
+    let mut wrapped_line = String::new();
+    for item in &field.content {
+        for char in item.chars() {
+            if wrapped_line.len() == split {
+                wrapped_lines.push(wrapped_line.clone());
+                wrapped_line.clear();
             }
+            wrapped_line.push(char);
         }
-        if !line.is_empty() {
-            lines.push(GlyphRow {
-                glyphs: line.clone(),
-                name: "line".to_string() + &lines.len().to_string(),
-                offset: line.len(),
-            });
-        }
-        lines
+        wrapped_lines.push(wrapped_line.clone());
+        wrapped_line.clear();
     }
-
-    // fn draw_box(
-    //     &self,
-    //     lines: Vec<GlyphRow>,
-    //     alignment: Alignment,
-    //     width: usize,
-    //     gap: Option<usize>,
-    // ) -> ContentBox {
-    //     let coord = if gap.is_some() {
-    //         Coordinate {
-    //             x: gap.unwrap(),
-    //             y: self.cur_line,
-    //         }
-    //     } else {
-    //         Coordinate {
-    //             x: 0,
-    //             y: self.cur_line,
-    //         }
-    //     };
-
-    //     ContentBox {
-    //         content: lines.clone(),
-    //         alignment,
-    //         coord,
-    //         width,
-    //         height: lines.len(),
-    //     }
-    // }
+    wrapped_lines
 }
 
 pub fn layout(hir: &HIR) -> Result<Page, Diagnostic> {
@@ -239,6 +119,8 @@ pub fn layout(hir: &HIR) -> Result<Page, Diagnostic> {
 
     let (width, height) = Composer::calculate_grid(&page_type, &orientation)?;
 
+    println!("Setting up page \n_____________________");
+    println!("Page size: {}x{}", width, height);
     let mut page = Page {
         config: PageConfig {
             grid_width: width,
@@ -263,7 +145,7 @@ pub fn layout(hir: &HIR) -> Result<Page, Diagnostic> {
     let mut split_line = Vec::new();
     for row in &rows {
         let width = match row {
-            ContentRow::Single(_) => 80,
+            ContentRow::Single(_) => page.config.grid_width,
             ContentRow::Split { left, right } => {
                 let max = max(
                     left.content.get(0).map_or(0, |s| s.len()),
@@ -293,50 +175,13 @@ pub fn layout(hir: &HIR) -> Result<Page, Diagnostic> {
     for (i, row) in rows.iter().enumerate() {
         let row_content = match row {
             ContentRow::Single(field) => {
-                let mut wrapped_lines = Vec::new();
-                let mut wrapped_line = String::new();
-                for item in &field.content {
-                    for char in item.chars() {
-                        if wrapped_line.len() == split_line[i] {
-                            wrapped_lines.push(wrapped_line.clone());
-                            wrapped_line.clear();
-                        }
-                        wrapped_line.push(char);
-                    }
-                    wrapped_lines.push(wrapped_line.clone());
-                    wrapped_line.clear();
-                }
+                let wrapped_lines = wrap_lines(field, split_line[i]);
                 WrappedRow::Single(wrapped_lines)
             }
             ContentRow::Split { left, right } => {
-                let mut left_wrapped_lines = Vec::new();
-                let mut right_wrapped_lines = Vec::new();
-                let mut left_wrapped_line = String::new();
-                let mut right_wrapped_line = String::new();
-
-                for item in &left.content {
-                    for char in item.chars() {
-                        if left_wrapped_line.len() == split_line[i] {
-                            left_wrapped_lines.push(left_wrapped_line.clone());
-                            left_wrapped_line.clear();
-                        }
-                        left_wrapped_line.push(char);
-                    }
-                    left_wrapped_lines.push(left_wrapped_line.clone());
-                    left_wrapped_line.clear();
-                }
-                for item in &right.content {
-                    for char in item.chars() {
-                        if right_wrapped_line.len() == split_line[i] {
-                            right_wrapped_lines
-                                .push(right_wrapped_line.clone());
-                            right_wrapped_line.clear();
-                        }
-                        right_wrapped_line.push(char);
-                    }
-                    right_wrapped_lines.push(right_wrapped_line.clone());
-                    right_wrapped_line.clear();
-                }
+                let left_wrapped_lines = wrap_lines(left, split_line[i]);
+                let right_wrapped_lines =
+                    wrap_lines(right, page.config.grid_width - split_line[i]);
                 WrappedRow::Split(left_wrapped_lines, right_wrapped_lines)
             }
         };
@@ -344,6 +189,8 @@ pub fn layout(hir: &HIR) -> Result<Page, Diagnostic> {
     }
 
     println!("Split line: {:?}", wrapped_rows);
+
+    // TODO have to do alignment in the laying out step, krilla only takes in coords
 
     println!("Laying out rows \n_____________________");
     let mut text_boxes = Vec::new();
@@ -355,28 +202,27 @@ pub fn layout(hir: &HIR) -> Result<Page, Diagnostic> {
             WrappedRow::Single(text) => {
                 text_boxes.push(ContentBox {
                     content: text.clone(),
-                    alignment: Alignment::Left,
-                    coord: Coordinate { x: 0, y: len },
+                    coord: (0, len),
                     width: page.config.grid_width,
                     height: text.len(),
                 });
                 len += text.len();
             }
             WrappedRow::Split(left, right) => {
+                let max_width = left
+                    .iter()
+                    .map(|line| line.chars().count())
+                    .max()
+                    .unwrap_or(0);
                 text_boxes.push(ContentBox {
                     content: left.clone(),
-                    alignment: Alignment::Left,
-                    coord: Coordinate { x: 0, y: len },
-                    width: 0, // NOTE we calculate this width before we should use it
+                    coord: (0, len),
+                    width: max_width, // NOTE we calculate this width before we should use it
                     height: left.len(),
                 });
                 text_boxes.push(ContentBox {
                     content: right.clone(),
-                    alignment: Alignment::Right,
-                    coord: Coordinate {
-                        x: text_boxes.last().unwrap().width, // NOTE we calculate this gap before we should use it
-                        y: len,
-                    },
+                    coord: (max_width + 3, len), // NOTE we calculate this gap before we should use it
                     width: page.config.grid_width
                         - text_boxes.last().unwrap().width, // NOTE we calculate this width before we should use it
                     height: right.len(),

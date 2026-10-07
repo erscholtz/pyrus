@@ -83,7 +83,6 @@ impl GlyphRow {
         }
     }
 }
-
 // pub fn inscribe(
 //     elem: (&String, &Vec<Content>),
 //     layout: &Layout,

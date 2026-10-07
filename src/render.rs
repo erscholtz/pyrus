@@ -51,11 +51,14 @@ impl Renderer {
         let mut i = 0;
         for content in &page_layout.content {
             let mut row_count = 0;
+            let (x, y) = content.coord;
             for row in &content.content {
-                let y = page_layout.config.top_margin as f32
-                    + (row_count + i) as f32 * 10.0;
+                let render_x =
+                    page_layout.config.left_margin as f32 + x as f32 * 5.66;
+                let render_y = page_layout.config.top_margin as f32
+                    + (y + row_count) as f32 * 10.5;
                 surface.draw_text(
-                    Point::from_xy(page_layout.config.left_margin as f32, y),
+                    Point::from_xy(render_x, render_y),
                     serif_font_reg.clone(),
                     10.0,
                     &row,
