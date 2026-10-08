@@ -71,40 +71,41 @@ impl CollectInvokes {
     fn lower_inlines(&self, inline: InlineText) -> TextOp {
         let mut text_op = TextOp {
             content: String::new(),
-            link_targets: Vec::new(),
+            link_hrefs: Vec::new(),
             bold_ranges: Vec::new(),
             italic_ranges: Vec::new(),
             nerd_font_ranges: Vec::new(),
             link_ranges: Vec::new(),
         };
 
+        let mut len = 0; // NOTE it would be nice if I can do this without that random start var on every case
         for part in &inline.parts {
-            let mut len = 0;
+            let start = len;
             match part {
                 Inline::Text(text) => {
                     text_op.content.push_str(&text);
-                    len += text.len();
+                    len = text_op.content.len();
                 }
                 Inline::Bold(text) => {
                     text_op.content.push_str(&text);
-                    text_op.bold_ranges.push(len..text.len());
-                    len += text.len();
+                    len = text_op.content.len();
+                    text_op.bold_ranges.push(start..len);
                 }
                 Inline::Italic(text) => {
                     text_op.content.push_str(&text);
-                    text_op.italic_ranges.push(len..text.len());
-                    len += text.len();
+                    len = text_op.content.len();
+                    text_op.italic_ranges.push(start..len);
                 }
                 Inline::NerdFont(text) => {
                     text_op.content.push_str(&text);
-                    text_op.nerd_font_ranges.push(len..text.len());
-                    len += text.len();
+                    len = text_op.content.len();
+                    text_op.nerd_font_ranges.push(start..len);
                 }
                 Inline::Link { label, href } => {
                     text_op.content.push_str(&label);
-                    text_op.link_ranges.push(len..label.len());
-                    text_op.link_targets.push(href.clone());
-                    len += label.len();
+                    len = text_op.content.len();
+                    text_op.link_ranges.push(start..len);
+                    text_op.link_hrefs.push(href.clone());
                 }
             }
         }

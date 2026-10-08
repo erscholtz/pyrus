@@ -6,6 +6,26 @@ use crate::ast::LayoutRow;
 use crate::diagnostic::Diagnostic;
 use crate::hir::hir_types::Invoke;
 use crate::hir::hir_types::Layout;
+use crate::hir::hir_types::TextOp;
+
+#[derive(Debug, Clone)]
+pub enum Alignment {
+    Left,
+    Center,
+    Right,
+}
+
+#[derive(Debug, Clone)]
+pub struct AllocatedField {
+    pub content: Vec<TextOp>,
+    pub alignment: Alignment,
+}
+
+impl Display for AllocatedField {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:#?}", self.content)
+    }
+}
 
 #[derive(Debug, Clone)]
 pub enum ContentRow {
@@ -27,25 +47,6 @@ impl Display for ContentRow {
     }
 }
 
-#[derive(Debug, Clone)]
-pub enum Alignment {
-    Left,
-    Center,
-    Right,
-}
-
-#[derive(Debug, Clone)]
-pub struct AllocatedField {
-    pub content: Vec<String>,
-    pub alignment: Alignment,
-}
-
-impl Display for AllocatedField {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:#?}", self.content)
-    }
-}
-
 pub fn allocate(
     invokes: &Vec<Invoke>,
     layouts: &HashMap<String, Layout>,
@@ -62,7 +63,7 @@ pub fn allocate(
                                 content: elem
                                     .1
                                     .iter()
-                                    .map(|op| op.content.clone())
+                                    .map(|op| op.clone())
                                     .collect(),
                                 alignment: convert_layout(alignment),
                             };
@@ -84,7 +85,7 @@ pub fn allocate(
                                 content: elem
                                     .1
                                     .iter()
-                                    .map(|op| op.content.clone())
+                                    .map(|op| op.clone())
                                     .collect(),
                                 alignment: convert_layout(left_alignment),
                             });
@@ -97,7 +98,7 @@ pub fn allocate(
                                 content: elem
                                     .1
                                     .iter()
-                                    .map(|op| op.content.clone())
+                                    .map(|op| op.clone())
                                     .collect(),
                                 alignment: convert_layout(right_alignment),
                             });

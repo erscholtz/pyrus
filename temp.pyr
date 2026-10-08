@@ -112,7 +112,7 @@ layout education {
 }
 
 @separator {
-    title: Skills
+    title: -- SKILLS --------------------------------------------------------------------------------
 }
 
 @skills {
@@ -122,7 +122,7 @@ layout education {
 }
 
 @separator {
-    title: Projects
+    title: -- PROJECTS ------------------------------------------------------------------------------
 }
 
 @project {
@@ -145,7 +145,7 @@ layout education {
 }
 
 @project {
-    title: Pyrus Domain-Specific Compiler
+    title: Pyrus - Typesetting language and compiler
     stack: Rust · Recursive Descent Parsing · HIR · PDF Rendering
     link: [github](github.com/erscholtz/pyrus)
 
@@ -165,7 +165,7 @@ layout education {
 }
 
 @separator {
-    title: Experience
+    title: -- EXPERIENCE ----------------------------------------------------------------------------
 }
 
 @entry {
@@ -194,7 +194,7 @@ layout education {
 }
 
 @separator {
-    title: Education
+    title: -- EDUCATION -----------------------------------------------------------------------------
 }
 
 @education {

@@ -102,7 +102,7 @@ pub struct Layout {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TextOp {
     pub content: String,
-    pub link_targets: Vec<String>,
+    pub link_hrefs: Vec<String>,
     pub bold_ranges: Vec<Range<usize>>,
     pub italic_ranges: Vec<Range<usize>>,
     pub nerd_font_ranges: Vec<Range<usize>>,

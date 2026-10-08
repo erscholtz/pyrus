@@ -6,12 +6,14 @@ mod wrap; // wrap rows to fit in margins
 
 use std::cmp::max;
 use std::cmp::min;
+use std::ops::Range;
 
 use crate::diagnostic::Diagnostic;
 use crate::hir::hir_types::Config;
 use crate::hir::hir_types::DocOrientation;
 use crate::hir::hir_types::DocType;
 use crate::hir::hir_types::HIR;
+use crate::hir::hir_types::TextOp;
 use crate::layout::allocate::Alignment;
 use crate::layout::allocate::AllocatedField;
 use crate::layout::allocate::ContentRow;
@@ -56,9 +58,24 @@ pub enum FieldType {
 }
 
 #[derive(Debug, Clone)]
+pub struct WrappedRowContents {
+    pub content: Vec<String>,
+    pub italics_range: Vec<Range<usize>>,
+    pub bold_range: Vec<Range<usize>>,
+    pub nerd_range: Vec<Range<usize>>,
+    pub link_range: Vec<Range<usize>>,
+    pub link_hrefs: Vec<String>,
+}
+
+#[derive(Debug, Clone)]
 pub enum WrappedRow {
-    Single(Vec<String>),
-    Split(Vec<String>, Vec<String>),
+    Single {
+        content: Vec<WrappedRowContents>,
+    },
+    Split {
+        left: Vec<WrappedRowContents>,
+        right: Vec<WrappedRowContents>,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -69,45 +86,59 @@ pub struct ContentBox {
     height: usize,
 }
 
-#[derive(Debug, Clone)]
-pub struct Composer {
-    // just figure out one page for now, multiple pages in the future
-    pub page: Page,
-    pub cur_line: usize,
-    content: Vec<ContentRow>,
-}
-
-impl Composer {
-    fn calculate_grid(
-        page_type: &PageType,
-        orientation: &Orientation,
-    ) -> Result<(usize, usize), Diagnostic> {
-        let (x, y) = match page_type {
-            PageType::A4 => (90usize, 44usize),
-        };
-        match orientation {
-            Orientation::Portrait => Ok((x, y)),
-            Orientation::Landscape => Ok((y, x)),
-        }
+pub fn calculate_grid(
+    page_type: &PageType,
+    orientation: &Orientation,
+) -> Result<(usize, usize), Diagnostic> {
+    let (x, y) = match page_type {
+        PageType::A4 => (90usize, 44usize),
+    };
+    match orientation {
+        Orientation::Portrait => Ok((x, y)),
+        Orientation::Landscape => Ok((y, x)),
     }
 }
 
-pub fn wrap_lines(field: &AllocatedField, split: usize) -> Vec<String> {
+pub fn wrap_lines(
+    field: &AllocatedField,
+    split: usize,
+) -> Vec<WrappedRowContents> {
+    let mut wrapped_contents = Vec::new();
+    let mut italics_range = Vec::new();
+    let mut bold_range = Vec::new();
+    let mut nerd_range = Vec::new();
+    let mut link_range = Vec::new();
+    let mut link_hrefs = Vec::new();
+
     let mut wrapped_lines = Vec::new();
-    let mut wrapped_line = String::new();
     for item in &field.content {
-        for word in item.split_whitespace() {
-            if wrapped_line.len() + 1 + word.len() >= split {
+        let mut wrapped_line = String::new();
+        for word in item.content.split_whitespace() {
+            if wrapped_line.len() + word.len() > split {
                 wrapped_lines.push(wrapped_line.clone());
                 wrapped_line.clear();
             }
             wrapped_line.push_str(word);
-            wrapped_line.push(' ');
+            if word != item.content.split_whitespace().last().unwrap() {
+                wrapped_line.push(' ');
+            }
         }
         wrapped_lines.push(wrapped_line.clone());
-        wrapped_line.clear();
+        italics_range.extend(item.italic_ranges.clone());
+        bold_range.extend(item.bold_ranges.clone());
+        nerd_range.extend(item.nerd_font_ranges.clone());
+        link_range.extend(item.link_ranges.clone());
+        link_hrefs.extend(item.link_hrefs.clone());
     }
-    wrapped_lines
+    wrapped_contents.push(WrappedRowContents {
+        content: wrapped_lines.clone(),
+        italics_range,
+        bold_range,
+        nerd_range,
+        link_range,
+        link_hrefs,
+    });
+    wrapped_contents
 }
 
 pub fn layout(hir: &HIR) -> Result<Page, Diagnostic> {
@@ -118,10 +149,8 @@ pub fn layout(hir: &HIR) -> Result<Page, Diagnostic> {
         DocOrientation::Portrait => Orientation::Portrait,
     };
 
-    let (width, height) = Composer::calculate_grid(&page_type, &orientation)?;
+    let (width, height) = calculate_grid(&page_type, &orientation)?;
 
-    println!("Setting up page \n_____________________");
-    println!("Page size: {}x{}", width, height);
     let mut page = Page {
         config: PageConfig {
             grid_width: width,
@@ -149,12 +178,12 @@ pub fn layout(hir: &HIR) -> Result<Page, Diagnostic> {
             ContentRow::Single(_) => page.config.grid_width,
             ContentRow::Split { left, right } => {
                 let max = max(
-                    left.content.get(0).map_or(0, |s| s.len()),
-                    right.content.get(0).map_or(0, |s| s.len()),
+                    left.content.get(0).map_or(0, |s| s.content.len()),
+                    right.content.get(0).map_or(0, |s| s.content.len()),
                 );
                 let min = min(
-                    left.content.get(0).map_or(0, |s| s.len()),
-                    right.content.get(0).map_or(0, |s| s.len()),
+                    left.content.get(0).map_or(0, |s| s.content.len()),
+                    right.content.get(0).map_or(0, |s| s.content.len()),
                 );
                 if max > page.config.grid_width / 2
                     && min > page.config.grid_width / 2
@@ -176,14 +205,17 @@ pub fn layout(hir: &HIR) -> Result<Page, Diagnostic> {
     for (i, row) in rows.iter().enumerate() {
         let row_content = match row {
             ContentRow::Single(field) => {
-                let wrapped_lines = wrap_lines(field, split_line[i]);
-                WrappedRow::Single(wrapped_lines)
+                let content = wrap_lines(&field, split_line[i]);
+                WrappedRow::Single { content }
             }
             ContentRow::Split { left, right } => {
-                let left_wrapped_lines = wrap_lines(left, split_line[i]);
-                let right_wrapped_lines =
+                let left_content = wrap_lines(left, split_line[i]);
+                let right_content =
                     wrap_lines(right, page.config.grid_width - split_line[i]);
-                WrappedRow::Split(left_wrapped_lines, right_wrapped_lines)
+                WrappedRow::Split {
+                    left: left_content,
+                    right: right_content,
+                }
             }
         };
         wrapped_rows.push(row_content);
@@ -200,39 +232,49 @@ pub fn layout(hir: &HIR) -> Result<Page, Diagnostic> {
         println!("Row {}: {:?}", i, row);
 
         match row {
-            WrappedRow::Single(text) => {
-                text_boxes.push(ContentBox {
-                    content: text.clone(),
-                    coord: (0, len),
-                    width: page.config.grid_width,
-                    height: text.len(),
-                });
-                len += text.len();
+            WrappedRow::Single { content } => {
+                for item in content {
+                    text_boxes.push(ContentBox {
+                        content: item.content.clone(),
+                        coord: (0, len),
+                        width: page.config.grid_width,
+                        height: item.content.len(),
+                    });
+                    len += item.content.len();
+                }
             }
-            WrappedRow::Split(left, right) => {
-                let l_max_width = left
-                    .iter()
-                    .map(|line| line.chars().count())
-                    .max()
-                    .unwrap_or(0);
-                text_boxes.push(ContentBox {
-                    content: left.clone(),
-                    coord: (0, len),
-                    width: l_max_width,
-                    height: left.len(),
-                });
-                let r_max_width = right
-                    .iter()
-                    .map(|line| line.chars().count())
-                    .max()
-                    .unwrap_or(0);
-                text_boxes.push(ContentBox {
-                    content: right.clone(),
-                    coord: (page.config.grid_width - r_max_width, len),
-                    width: r_max_width,
-                    height: right.len(),
-                });
-                len += left.len() + right.len();
+            WrappedRow::Split { left, right } => {
+                for l_item in left {
+                    let l_max_width = l_item
+                        .content
+                        .iter()
+                        .map(|line| line.chars().count())
+                        .max()
+                        .unwrap_or(0);
+                    text_boxes.push(ContentBox {
+                        content: l_item.content.clone(),
+                        coord: (0, len),
+                        width: l_max_width,
+                        height: left.len(),
+                    });
+                    len += left.len()
+                }
+
+                for r_item in right {
+                    let r_max_width = r_item
+                        .content
+                        .iter()
+                        .map(|line| line.chars().count())
+                        .max()
+                        .unwrap_or(0);
+                    text_boxes.push(ContentBox {
+                        content: r_item.content.clone(),
+                        coord: (page.config.grid_width - r_max_width, len),
+                        width: r_max_width,
+                        height: right.len(),
+                    });
+                    len += right.len();
+                }
             }
         }
     }
