@@ -14,6 +14,7 @@ use crate::hir::hir_types::DocOrientation;
 use crate::hir::hir_types::DocType;
 use crate::hir::hir_types::HIR;
 use crate::hir::hir_types::TextOp;
+use crate::hir::hir_types::TextType;
 use crate::layout::allocate::Alignment;
 use crate::layout::allocate::AllocatedField;
 use crate::layout::allocate::ContentRow;
@@ -58,13 +59,21 @@ pub enum FieldType {
 }
 
 #[derive(Debug, Clone)]
+pub enum RowStyle {
+    None,
+    BulletRow,
+    WrappedBullet,
+}
+
+#[derive(Debug, Clone)]
 pub struct WrappedRowContents {
-    pub content: Vec<String>,
+    pub row: String,
     pub italics_range: Vec<Range<usize>>,
     pub bold_range: Vec<Range<usize>>,
     pub nerd_range: Vec<Range<usize>>,
     pub link_range: Vec<Range<usize>>,
     pub link_hrefs: Vec<String>,
+    pub row_style: RowStyle,
 }
 
 #[derive(Debug, Clone)]
@@ -80,7 +89,7 @@ pub enum WrappedRow {
 
 #[derive(Debug, Clone)]
 pub struct ContentBox {
-    pub content: Vec<String>, // cut down to size
+    pub rows: Vec<WrappedRowContents>, // cut down to size
     pub coord: (usize, usize),
     width: usize,
     height: usize,
@@ -110,34 +119,71 @@ pub fn wrap_lines(
     let mut link_range = Vec::new();
     let mut link_hrefs = Vec::new();
 
-    let mut wrapped_lines = Vec::new();
     for item in &field.content {
-        let mut wrapped_line = String::new();
-        for word in item.content.split_whitespace() {
-            if wrapped_line.len() + word.len() > split {
-                wrapped_lines.push(wrapped_line.clone());
-                wrapped_line.clear();
-            }
-            wrapped_line.push_str(word);
-            if word != item.content.split_whitespace().last().unwrap() {
-                wrapped_line.push(' ');
+        let mut row = String::new();
+        let mut row_len = 0;
+        for text_type in &item.content {
+            let text = match text_type {
+                TextType::Text(s) => s,
+                TextType::Bold(s) => {
+                    bold_range.push(Range {
+                        start: row_len,
+                        end: row_len + s.len(),
+                    });
+                    s
+                }
+                TextType::Italic(s) => {
+                    italics_range.push(Range {
+                        start: row_len,
+                        end: row_len + s.len(),
+                    });
+                    s
+                }
+                TextType::Nerd(s) => {
+                    nerd_range.push(Range {
+                        start: row_len,
+                        end: row_len + s.len(),
+                    });
+                    s
+                }
+                TextType::Link { label, href } => {
+                    link_range.push(Range {
+                        start: row_len,
+                        end: row_len + label.len(),
+                    });
+                    link_hrefs.push(href.clone());
+                    label
+                }
+            };
+            if row_len + text.len() > split {
+                let left_over = String::new();
+                // TODO extra work to split on words and all that
+                wrapped_contents.push(WrappedRowContents {
+                    row: row.clone(),
+                    italics_range: italics_range.clone(),
+                    bold_range: bold_range.clone(),
+                    nerd_range: nerd_range.clone(),
+                    link_range: link_range.clone(),
+                    link_hrefs: link_hrefs.clone(),
+                    row_style: RowStyle::None, // FIXME this needs to get figured out in extra work here
+                });
+                row_len = left_over.len();
+            } else {
+                row_len += text.len();
+                row.push_str(text);
             }
         }
-        wrapped_lines.push(wrapped_line.clone());
-        italics_range.extend(item.italic_ranges.clone());
-        bold_range.extend(item.bold_ranges.clone());
-        nerd_range.extend(item.nerd_font_ranges.clone());
-        link_range.extend(item.link_ranges.clone());
-        link_hrefs.extend(item.link_hrefs.clone());
+        wrapped_contents.push(WrappedRowContents {
+            row: row.clone(),
+            italics_range: italics_range.clone(),
+            bold_range: bold_range.clone(),
+            nerd_range: nerd_range.clone(),
+            link_range: link_range.clone(),
+            link_hrefs: link_hrefs.clone(),
+            row_style: RowStyle::None, // FIXME this needs to get figured out in extra work here
+        });
     }
-    wrapped_contents.push(WrappedRowContents {
-        content: wrapped_lines.clone(),
-        italics_range,
-        bold_range,
-        nerd_range,
-        link_range,
-        link_hrefs,
-    });
+
     wrapped_contents
 }
 
@@ -177,14 +223,32 @@ pub fn layout(hir: &HIR) -> Result<Page, Diagnostic> {
         let width = match row {
             ContentRow::Single(_) => page.config.grid_width,
             ContentRow::Split { left, right } => {
-                let max = max(
-                    left.content.get(0).map_or(0, |s| s.content.len()),
-                    right.content.get(0).map_or(0, |s| s.content.len()),
-                );
-                let min = min(
-                    left.content.get(0).map_or(0, |s| s.content.len()),
-                    right.content.get(0).map_or(0, |s| s.content.len()),
-                );
+                let left_len: usize = left
+                    .content
+                    .iter()
+                    .flat_map(|text_op| text_op.content.iter())
+                    .map(|item| match item {
+                        TextType::Text(s)
+                        | TextType::Bold(s)
+                        | TextType::Italic(s)
+                        | TextType::Nerd(s) => s.len(),
+                        TextType::Link { label, .. } => label.len(),
+                    })
+                    .sum();
+                let right_len: usize = right
+                    .content
+                    .iter()
+                    .flat_map(|text_op| text_op.content.iter())
+                    .map(|item| match item {
+                        TextType::Text(s)
+                        | TextType::Bold(s)
+                        | TextType::Italic(s)
+                        | TextType::Nerd(s) => s.len(),
+                        TextType::Link { label, .. } => label.len(),
+                    })
+                    .sum();
+                let max = max(left_len, right_len);
+                let min = min(left_len, right_len);
                 if max > page.config.grid_width / 2
                     && min > page.config.grid_width / 2
                 {
@@ -233,48 +297,31 @@ pub fn layout(hir: &HIR) -> Result<Page, Diagnostic> {
 
         match row {
             WrappedRow::Single { content } => {
-                for item in content {
-                    text_boxes.push(ContentBox {
-                        content: item.content.clone(),
-                        coord: (0, len),
-                        width: page.config.grid_width,
-                        height: item.content.len(),
-                    });
-                    len += item.content.len();
-                }
+                text_boxes.push(ContentBox {
+                    rows: content.clone(),
+                    coord: (0, len),
+                    width: split_line[i],
+                    height: content.len(),
+                });
+                len += content.len();
             }
             WrappedRow::Split { left, right } => {
-                for l_item in left {
-                    let l_max_width = l_item
-                        .content
-                        .iter()
-                        .map(|line| line.chars().count())
-                        .max()
-                        .unwrap_or(0);
-                    text_boxes.push(ContentBox {
-                        content: l_item.content.clone(),
-                        coord: (0, len),
-                        width: l_max_width,
-                        height: left.len(),
-                    });
-                    len += left.len()
-                }
+                text_boxes.push(ContentBox {
+                    rows: left.clone(),
+                    coord: (0, len),
+                    width: split_line[i],
+                    height: left.len(),
+                });
+                len += left.len();
 
-                for r_item in right {
-                    let r_max_width = r_item
-                        .content
-                        .iter()
-                        .map(|line| line.chars().count())
-                        .max()
-                        .unwrap_or(0);
-                    text_boxes.push(ContentBox {
-                        content: r_item.content.clone(),
-                        coord: (page.config.grid_width - r_max_width, len),
-                        width: r_max_width,
-                        height: right.len(),
-                    });
-                    len += right.len();
-                }
+                let right_len = page.config.grid_width - split_line[i];
+                text_boxes.push(ContentBox {
+                    rows: right.clone(),
+                    coord: (page.config.grid_width - right_len, len),
+                    width: right_len,
+                    height: right.len(),
+                });
+                len += right.len();
             }
         }
     }

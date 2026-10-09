@@ -52,7 +52,7 @@ impl Renderer {
         for content in &page_layout.content {
             let mut row_count = 0;
             let (x, y) = content.coord;
-            for row in &content.content {
+            for row in &content.rows {
                 let render_x =
                     page_layout.config.left_margin as f32 + x as f32 * 5.66;
                 let render_y = page_layout.config.top_margin as f32
@@ -61,7 +61,7 @@ impl Renderer {
                     Point::from_xy(render_x, render_y),
                     serif_font_reg.clone(),
                     10.0,
-                    &row,
+                    &row.row,
                     false,
                     TextDirection::Auto,
                 );

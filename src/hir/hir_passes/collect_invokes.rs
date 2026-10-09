@@ -7,6 +7,7 @@ use crate::diagnostic::Diagnostic;
 use crate::hir::hir_passes::HIRPass;
 use crate::hir::hir_types::Invoke;
 use crate::hir::hir_types::TextOp;
+use crate::hir::hir_types::TextType;
 
 pub struct CollectInvokes;
 
@@ -69,47 +70,28 @@ impl Default for CollectInvokes {
 
 impl CollectInvokes {
     fn lower_inlines(&self, inline: InlineText) -> TextOp {
-        let mut text_op = TextOp {
-            content: String::new(),
-            link_hrefs: Vec::new(),
-            bold_ranges: Vec::new(),
-            italic_ranges: Vec::new(),
-            nerd_font_ranges: Vec::new(),
-            link_ranges: Vec::new(),
-        };
-
-        let mut len = 0; // NOTE it would be nice if I can do this without that random start var on every case
+        let mut content = Vec::new();
         for part in &inline.parts {
-            let start = len;
             match part {
                 Inline::Text(text) => {
-                    text_op.content.push_str(&text);
-                    len = text_op.content.len();
+                    content.push(TextType::Text(text.clone()))
                 }
                 Inline::Bold(text) => {
-                    text_op.content.push_str(&text);
-                    len = text_op.content.len();
-                    text_op.bold_ranges.push(start..len);
+                    content.push(TextType::Bold(text.clone()))
                 }
                 Inline::Italic(text) => {
-                    text_op.content.push_str(&text);
-                    len = text_op.content.len();
-                    text_op.italic_ranges.push(start..len);
+                    content.push(TextType::Italic(text.clone()))
                 }
                 Inline::NerdFont(text) => {
-                    text_op.content.push_str(&text);
-                    len = text_op.content.len();
-                    text_op.nerd_font_ranges.push(start..len);
+                    content.push(TextType::Nerd(text.clone()))
                 }
-                Inline::Link { label, href } => {
-                    text_op.content.push_str(&label);
-                    len = text_op.content.len();
-                    text_op.link_ranges.push(start..len);
-                    text_op.link_hrefs.push(href.clone());
-                }
+                Inline::Link { label, href } => content.push(TextType::Link {
+                    label: label.clone(),
+                    href: href.clone(),
+                }),
             }
         }
 
-        text_op
+        TextOp { content }
     }
 }
