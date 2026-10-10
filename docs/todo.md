@@ -7,7 +7,7 @@
 
 # forwards thinking
 - [ ] for layout I am thinking I do not need to add in the allocate, 
-- [x] also more inscribe to work on already wrapped rows of string, this would be so fast (maybe think about this more because there would have to be a way to split different fonts like nerd font, right now they are in a vec of content which saves that info along strings but I think this can be done better with spans potentially SOA style rather than AOS style)
+- [ ] think about maybe having saved ranges for overlapping styles instead of saving them to a specific type right now, might also be faster since the entire string of a row is available without loops
 ``` rust
 struct Content {
     text: String,

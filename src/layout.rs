@@ -9,7 +9,6 @@ use std::cmp::min;
 use std::ops::Range;
 
 use crate::diagnostic::Diagnostic;
-use crate::hir::hir_types::Config;
 use crate::hir::hir_types::DocOrientation;
 use crate::hir::hir_types::DocType;
 use crate::hir::hir_types::HIR;
@@ -67,12 +66,7 @@ pub enum RowStyle {
 
 #[derive(Debug, Clone)]
 pub struct WrappedRowContents {
-    pub row: String,
-    pub italics_range: Vec<Range<usize>>,
-    pub bold_range: Vec<Range<usize>>,
-    pub nerd_range: Vec<Range<usize>>,
-    pub link_range: Vec<Range<usize>>,
-    pub link_hrefs: Vec<String>,
+    pub row: Vec<TextType>,
     pub row_style: RowStyle,
 }
 
@@ -113,73 +107,65 @@ pub fn wrap_lines(
     split: usize,
 ) -> Vec<WrappedRowContents> {
     let mut wrapped_contents = Vec::new();
-    let mut italics_range = Vec::new();
-    let mut bold_range = Vec::new();
-    let mut nerd_range = Vec::new();
-    let mut link_range = Vec::new();
-    let mut link_hrefs = Vec::new();
 
     for item in &field.content {
-        let mut row = String::new();
+        let mut row = Vec::new();
         let mut row_len = 0;
         for text_type in &item.content {
             let text = match text_type {
                 TextType::Text(s) => s,
-                TextType::Bold(s) => {
-                    bold_range.push(Range {
-                        start: row_len,
-                        end: row_len + s.len(),
-                    });
-                    s
-                }
-                TextType::Italic(s) => {
-                    italics_range.push(Range {
-                        start: row_len,
-                        end: row_len + s.len(),
-                    });
-                    s
-                }
-                TextType::Nerd(s) => {
-                    nerd_range.push(Range {
-                        start: row_len,
-                        end: row_len + s.len(),
-                    });
-                    s
-                }
-                TextType::Link { label, href } => {
-                    link_range.push(Range {
-                        start: row_len,
-                        end: row_len + label.len(),
-                    });
-                    link_hrefs.push(href.clone());
-                    label
-                }
+                TextType::Bold(s) => s,
+                TextType::Italic(s) => s,
+                TextType::Nerd(s) => s,
+                TextType::Link { label, href } => label,
             };
             if row_len + text.len() > split {
-                let left_over = String::new();
                 // TODO extra work to split on words and all that
+                let mut pos = text.len() - (row_len + text.len() - split);
+                for i in (0..pos).rev() {
+                    pos = i;
+                    if text.chars().nth(i).unwrap().is_whitespace() {
+                        break;
+                    }
+                    if i == 0 {
+                        // fallback to splitting at the max length if no whitespace is found
+                        pos = row_len + text.len() - split;
+                    }
+                }
+                let (left, right) = text.split_at(pos);
+                row.push(match text_type {
+                    TextType::Text(_) => TextType::Text(left.to_string()),
+                    TextType::Bold(_) => TextType::Bold(left.to_string()),
+                    TextType::Italic(_) => TextType::Italic(left.to_string()),
+                    TextType::Nerd(_) => TextType::Nerd(left.to_string()),
+                    TextType::Link { label, href } => TextType::Link {
+                        label: left.to_string(),
+                        href: href.clone(),
+                    },
+                });
                 wrapped_contents.push(WrappedRowContents {
                     row: row.clone(),
-                    italics_range: italics_range.clone(),
-                    bold_range: bold_range.clone(),
-                    nerd_range: nerd_range.clone(),
-                    link_range: link_range.clone(),
-                    link_hrefs: link_hrefs.clone(),
                     row_style: RowStyle::None, // FIXME this needs to get figured out in extra work here
                 });
-                row_len = left_over.len();
+                row.clear();
+                row.push(match text_type {
+                    TextType::Text(_) => TextType::Text(right.to_string()),
+                    TextType::Bold(_) => TextType::Bold(right.to_string()),
+                    TextType::Italic(_) => TextType::Italic(right.to_string()),
+                    TextType::Nerd(_) => TextType::Nerd(right.to_string()),
+                    TextType::Link { label, href } => TextType::Link {
+                        label: right.to_string(),
+                        href: href.clone(),
+                    },
+                });
+                row_len = right.len();
             } else {
                 row_len += text.len();
-                row.push_str(text);
+                row.push(text_type.clone());
             }
         }
         wrapped_contents.push(WrappedRowContents {
             row: row.clone(),
-            italics_range: italics_range.clone(),
-            bold_range: bold_range.clone(),
-            nerd_range: nerd_range.clone(),
-            link_range: link_range.clone(),
-            link_hrefs: link_hrefs.clone(),
             row_style: RowStyle::None, // FIXME this needs to get figured out in extra work here
         });
     }

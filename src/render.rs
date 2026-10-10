@@ -7,7 +7,7 @@ use krilla::{
     text::{Font, TextDirection},
 };
 
-use crate::layout::Page;
+use crate::{hir::hir_types::TextType, layout::Page};
 
 pub struct Renderer {}
 
@@ -57,14 +57,26 @@ impl Renderer {
                     page_layout.config.left_margin as f32 + x as f32 * 5.66;
                 let render_y = page_layout.config.top_margin as f32
                     + (y + row_count) as f32 * 10.5;
-                surface.draw_text(
-                    Point::from_xy(render_x, render_y),
-                    serif_font_reg.clone(),
-                    10.0,
-                    &row.row,
-                    false,
-                    TextDirection::Auto,
-                );
+
+                for text in &row.row {
+                    let (text, font) = match text {
+                        TextType::Text(s) => (s, &serif_font_reg),
+                        TextType::Bold(s) => (s, &serif_font_bold),
+                        TextType::Italic(s) => (s, &serif_font_reg),
+                        TextType::Nerd(s) => (s, &nerd_font_reg),
+                        TextType::Link { label, .. } => {
+                            (label, &serif_font_reg)
+                        }
+                    };
+                    surface.draw_text(
+                        Point::from_xy(render_x, render_y),
+                        font.to_owned(),
+                        10.0,
+                        &text,
+                        false,
+                        TextDirection::Auto,
+                    );
+                }
                 row_count += 1;
             }
             i += row_count;
