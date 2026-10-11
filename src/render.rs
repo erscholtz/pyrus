@@ -53,7 +53,7 @@ impl Renderer {
             let mut row_count = 0;
             let (x, y) = content.coord;
             for row in &content.rows {
-                let render_x =
+                let mut render_x =
                     page_layout.config.left_margin as f32 + x as f32 * 5.66;
                 let render_y = page_layout.config.top_margin as f32
                     + (y + row_count) as f32 * 10.5;
@@ -76,6 +76,7 @@ impl Renderer {
                         false,
                         TextDirection::Auto,
                     );
+                    render_x += text.len() as f32 * 5.66;
                 }
                 row_count += 1;
             }

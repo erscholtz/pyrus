@@ -106,28 +106,28 @@ layout education {
 }
 
 @header {
-    name: Erik Scholtz
-    target_role: Systems and Infrastructure Engineer
+    name: **Erik Scholtz**
+    target_role: *Systems and Infrastructure Engineer*
     contact: erikscholtz23@gmail.com | linkedin.com/in/erikscholtz | github.com/erscholtz
 }
 
 @separator {
-    title: -- SKILLS --------------------------------------------------------------------------------
+    title: **-- SKILLS --------------------------------------------------------------------------------**
 }
 
 @skills {
-    languages: Languages: Rust, C, C++, Python
-    systems: Systems: Linux kernel drivers, UEFI/EDK-II, QEMU, TPM2, IPC, JSON-RPC
-    tools: Tools: Cargo, CMake, KBuild, Make, Meson, Git, Valgrind, SQLite
+    languages: **Languages:** `Rust, C, C++, Python`
+    systems: **Systems:** Linux kernel drivers, UEFI/EDK-II, QEMU, TPM2, IPC, JSON-RPC
+    tools: **Tools:** `Cargo, CMake, KBuild, Make, Meson, Git, Valgrind, SQLite`
 }
 
 @separator {
-    title: -- PROJECTS ------------------------------------------------------------------------------
+    title: **-- PROJECTS ------------------------------------------------------------------------------**
 }
 
 @project {
-    title: harnessd Autocomplete Daemon
-    stack: Rust · Tokio · tree-sitter · SQLite · JSON-RPC
+    title: **harnessd Autocomplete Daemon**
+    stack: `Rust · Tokio · tree-sitter · SQLite · JSON-RPC`
     link: [github](github.com/erscholtz/harnessd)
 
     - Engineered a Rust daemon with local IPC, lockfile-based single-instance control, and graceful shutdown to serve editor and CLI requests over JSON-RPC 2.0.
@@ -136,8 +136,8 @@ layout education {
 }
 
 @project {
-    title: UEFI CVE Replication and Firmware Patch
-    stack: C · EDK-II · QEMU · UEFI Secure Boot
+    title: **UEFI CVE Replication and Firmware Patch**
+    stack: `C · EDK-II · QEMU · UEFI Secure Boot`
     link: [github](github.com/erscholtz/uefi-cve-replication)
 
     - Replicated CVE-2022-21894 (Baton Drop) using QEMU; demonstrated vulnerability by safely sandboxing exploit payload in QEMU to understand attack vector.
@@ -145,8 +145,8 @@ layout education {
 }
 
 @project {
-    title: Pyrus - Typesetting language and compiler
-    stack: Rust · Recursive Descent Parsing · HIR · PDF Rendering
+    title: **Pyrus - Typesetting language and compiler**
+    stack: `Rust · Recursive Descent Parsing · HIR · PDF Rendering`
     link: [github](github.com/erscholtz/pyrus)
 
     - Zero-dependency compiler pipeline from lexer to parser to HIR for a typesetting language. Created this resume.
@@ -154,55 +154,55 @@ layout education {
 }
 
 @project {
-    title: Linux Character Device Driver
-    stack: C · KBuild · Make · Linux Kernel APIs
+    title: **Linux Character Device Driver**
+    stack: `C · KBuild · Make · Linux Kernel APIs`
     link: [github](github.com/erscholtz/linux-character-device-driver)
 
-    - Implemented file operations using kernel APIs register_chrdev, class_create, and device_create.
+    - Implemented file operations using kernel APIs `register_chrdev`, `class_create`, and `device_create`.
     - Enabled dynamic runtime configuration through write operations allowing users to change output byte values.
-    - Utilized kernel memory management functions copy_from_user and put_user for user-kernel space data transfer.
+    - Utilized kernel memory management functions `copy_from_user` and `put_user` for user-kernel space data transfer.
     - Built and deployed using kernel build system KBuild with Makefile automation.
 }
 
 @separator {
-    title: -- EXPERIENCE ----------------------------------------------------------------------------
+    title: **-- EXPERIENCE ----------------------------------------------------------------------------**
 }
 
 @entry {
-    company: Deloitte · Toronto, ON
-    role: Infrastructure Engineer
-    date: September 2025 - Present
+    company: **Deloitte** · Toronto, ON
+    role: **Infrastructure Engineer**
+    date: *September 2025 - Present*
 
     - Applied constraint-solving techniques to optimize CI resource scheduling, reducing queue times by 20% under shared compute constraints.
 }
 
 @entry {
-    company: Syncademia AI · Waterloo, ON
-    role: Infrastructure Engineer
-    date: January 2025 - August 2025
+    company: **Syncademia AI** · Waterloo, ON
+    role: **Infrastructure Engineer**
+    date: *January 2025 - August 2025*
 
     - Reduced dependency surface area by 40% through targeted library audit and replacement, simplifying runtime behavior and eliminating classes of failure.
     - Built a streaming document ingestion pipeline with backpressure handling to process 1000+ page inputs without exceeding memory limits.
 }
 
 @entry {
-    company: Deloitte · Toronto, ON
-    role: Software Engineering Co-op
-    date: May 2024 - September 2024
+    company: **Deloitte** · Toronto, ON
+    role: **Software Engineering Co-op**
+    date: *May 2024 - September 2024*
 
     - Developed a telemetry tool to analyze system logs and visualize object dependencies, adopted by multiple enterprise teams for debugging.
 }
 
 @separator {
-    title: -- EDUCATION -----------------------------------------------------------------------------
+    title: **-- EDUCATION -----------------------------------------------------------------------------**
 }
 
 @education {
-    institution: Carleton University
+    institution: **Carleton University**
     location: Ottawa, ON
-    degree: Bachelor of Computer Science
-    distinction: Honours with Distinction - 3.7 GPA
-    date: September 2020 - December 2024
+    degree: **Bachelor of Computer Science**
+    distinction: *Honours with Distinction - 3.7 GPA*
+    date: *September 2020 - December 2024*
 
     - Mathematics Minor: Linear Programming Optimizations, Computational Numerical Methods
     - Honours Project: UEFI CVE Replication and Firmware Hardening, co-authored with peers
