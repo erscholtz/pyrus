@@ -120,45 +120,53 @@ pub fn wrap_lines(
                 TextType::Link { label, href } => label,
             };
             if row_len + text.len() > split {
-                // TODO extra work to split on words and all that
-                let mut pos = text.len() - (row_len + text.len() - split);
-                for i in (0..pos).rev() {
-                    pos = i;
-                    if text.chars().nth(i).unwrap().is_whitespace() {
-                        break;
+                let mut left_over = text.clone();
+                while row_len + left_over.len() > split {
+                    let mut remaining = split - row_len;
+                    for i in (0..remaining).rev() {
+                        if left_over.chars().nth(i).unwrap().is_whitespace() {
+                            remaining = i;
+                            break;
+                        }
+                        if i == 0 {
+                            // fallback to splitting at the max length if no
+                            // whitespace is found
+                            remaining = split - row_len;
+                        }
                     }
-                    if i == 0 {
-                        // fallback to splitting at the max length if no whitespace is found
-                        pos = row_len + text.len() - split;
-                    }
+                    let (left, right) = left_over.split_at(remaining);
+                    row.push(match text_type {
+                        TextType::Text(_) => TextType::Text(left.to_string()),
+                        TextType::Bold(_) => TextType::Bold(left.to_string()),
+                        TextType::Italic(_) => {
+                            TextType::Italic(left.to_string())
+                        }
+                        TextType::Nerd(_) => TextType::Nerd(left.to_string()),
+                        TextType::Link { label, href } => TextType::Link {
+                            label: left.to_string(),
+                            href: href.clone(),
+                        },
+                    });
+                    wrapped_contents.push(WrappedRowContents {
+                        row: row.clone(),
+                        row_style: RowStyle::None, // FIXME this needs to get figured out in extra work here
+                    });
+                    row.clear();
+                    left_over = right.trim().to_string();
+                    row_len = 0;
                 }
-                let (left, right) = text.split_at(pos);
                 row.push(match text_type {
-                    TextType::Text(_) => TextType::Text(left.to_string()),
-                    TextType::Bold(_) => TextType::Bold(left.to_string()),
-                    TextType::Italic(_) => TextType::Italic(left.to_string()),
-                    TextType::Nerd(_) => TextType::Nerd(left.to_string()),
+                    TextType::Text(_) => TextType::Text(left_over.to_string()),
+                    TextType::Bold(_) => TextType::Bold(left_over.to_string()),
+                    TextType::Italic(_) => {
+                        TextType::Italic(left_over.to_string())
+                    }
+                    TextType::Nerd(_) => TextType::Nerd(left_over.to_string()),
                     TextType::Link { label, href } => TextType::Link {
-                        label: left.to_string(),
+                        label: left_over.to_string(),
                         href: href.clone(),
                     },
                 });
-                wrapped_contents.push(WrappedRowContents {
-                    row: row.clone(),
-                    row_style: RowStyle::None, // FIXME this needs to get figured out in extra work here
-                });
-                row.clear();
-                row.push(match text_type {
-                    TextType::Text(_) => TextType::Text(right.to_string()),
-                    TextType::Bold(_) => TextType::Bold(right.to_string()),
-                    TextType::Italic(_) => TextType::Italic(right.to_string()),
-                    TextType::Nerd(_) => TextType::Nerd(right.to_string()),
-                    TextType::Link { label, href } => TextType::Link {
-                        label: right.to_string(),
-                        href: href.clone(),
-                    },
-                });
-                row_len = right.len();
             } else {
                 row_len += text.len();
                 row.push(text_type.clone());
@@ -172,7 +180,6 @@ pub fn wrap_lines(
 
     wrapped_contents
 }
-
 pub fn layout(hir: &HIR) -> Result<Page, Diagnostic> {
     let page_type = match hir.config.doc_type {
         DocType::A4 => PageType::A4,
@@ -197,13 +204,8 @@ pub fn layout(hir: &HIR) -> Result<Page, Diagnostic> {
         content: Vec::new(),
     };
 
-    println!("Allocating rows \n_____________________");
     let rows = allocate::allocate(&hir.invokes, &hir.layout).unwrap();
-    for row in &rows {
-        println!("{}", row);
-    }
 
-    println!("Measuring rows \n_____________________");
     let mut split_line = Vec::new();
     for row in &rows {
         let width = match row {
@@ -247,10 +249,8 @@ pub fn layout(hir: &HIR) -> Result<Page, Diagnostic> {
             }
         };
         split_line.push(width);
-        println!("Width: {}", width);
     }
 
-    println!("Wrapping rows \n_____________________");
     let mut wrapped_rows = Vec::new();
     for (i, row) in rows.iter().enumerate() {
         let row_content = match row {
@@ -271,16 +271,9 @@ pub fn layout(hir: &HIR) -> Result<Page, Diagnostic> {
         wrapped_rows.push(row_content);
     }
 
-    println!("Split line: {:?}", wrapped_rows);
-
-    // TODO have to do alignment in the laying out step, krilla only takes in coords
-
-    println!("Laying out rows \n_____________________");
     let mut text_boxes = Vec::new();
     let mut len = 0;
     for (i, row) in wrapped_rows.iter().enumerate() {
-        println!("Row {}: {:?}", i, row);
-
         match row {
             WrappedRow::Single { content } => {
                 text_boxes.push(ContentBox {
@@ -298,16 +291,14 @@ pub fn layout(hir: &HIR) -> Result<Page, Diagnostic> {
                     width: split_line[i],
                     height: left.len(),
                 });
-                len += left.len();
-
-                let right_len = page.config.grid_width - split_line[i];
+                let right_width = page.config.grid_width - split_line[i];
                 text_boxes.push(ContentBox {
                     rows: right.clone(),
-                    coord: (page.config.grid_width - right_len, len),
-                    width: right_len,
+                    coord: (page.config.grid_width - split_line[i], len),
+                    width: right_width,
                     height: right.len(),
                 });
-                len += right.len();
+                len += left.len().max(right.len());
             }
         }
     }
