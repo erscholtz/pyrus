@@ -1,13 +1,15 @@
 use std::path::PathBuf;
 
-use krilla::{
-    Document,
-    geom::Point,
-    page::PageSettings,
-    text::{Font, TextDirection},
-};
+use krilla::Document;
+use krilla::geom::Point;
+use krilla::page::PageSettings;
+use krilla::text::Font;
+use krilla::text::TextDirection;
 
-use crate::{hir::hir_types::TextType, layout::Page};
+use crate::hir::hir_types::TextType;
+use crate::layout::Page;
+use crate::layout::RowStyle;
+use crate::layout::allocate::Alignment;
 
 pub struct Renderer {}
 
@@ -53,11 +55,60 @@ impl Renderer {
             let mut row_count = 0;
             let (x, y) = content.coord;
             for row in &content.rows {
-                let mut render_x =
-                    page_layout.config.left_margin as f32 + x as f32 * 5.66;
+                let row_format_padding = match &row.row_style {
+                    RowStyle::BulletRow => 2 as f32 * 5.66,
+                    RowStyle::TrailingBullet => 2 as f32 * 5.66,
+                    RowStyle::None => 0 as f32 * 5.66,
+                };
+                let mut render_x = match row.alignment {
+                    Alignment::Right => {
+                        let text_len = match row
+                            .row
+                            .iter()
+                            .map(|text| match text {
+                                TextType::Text(s) => s.len(),
+                                TextType::Bold(s) => s.len(),
+                                TextType::Italic(s) => s.len(),
+                                TextType::Nerd(s) => s.len(),
+                                TextType::Link { label, .. } => label.len(),
+                            })
+                            .sum::<usize>()
+                        {
+                            0 => 0,
+                            len => len,
+                        };
+                        let allignment_padding =
+                            (page_layout.config.grid_width - x - text_len)
+                                as f32
+                                * 5.66;
+                        page_layout.config.left_margin as f32
+                            + (x as f32) * 5.66
+                            + row_format_padding
+                            + allignment_padding
+                    }
+                    Alignment::Center => {
+                        page_layout.config.left_margin as f32
+                            + (x as f32) * 5.66
+                            + row_format_padding
+                    }
+                    Alignment::Left => {
+                        page_layout.config.left_margin as f32
+                            + (x as f32) * 5.66
+                            + row_format_padding
+                    }
+                };
                 let render_y = page_layout.config.top_margin as f32
                     + (y + row_count) as f32 * 10.5;
-
+                if row.row_style == RowStyle::BulletRow {
+                    surface.draw_text(
+                        Point::from_xy(render_x - 2.0 * 5.66, render_y),
+                        nerd_font_reg.clone(),
+                        10.0,
+                        "•",
+                        true,
+                        TextDirection::Auto,
+                    );
+                }
                 for text in &row.row {
                     let (text, font) = match text {
                         TextType::Text(s) => (s, &serif_font_reg),

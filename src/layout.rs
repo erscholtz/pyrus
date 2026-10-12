@@ -1,4 +1,4 @@
-mod allocate; // allocate glyphs to rows
+pub mod allocate; // allocate glyphs to rows
 mod compose; // compose wrapped rows to ResolvedRow(s)
 mod inscribe; // make glyphs
 mod paginate; // add ResolvedRows to Pages
@@ -9,6 +9,7 @@ use std::cmp::min;
 use std::ops::Range;
 
 use crate::diagnostic::Diagnostic;
+use crate::hir::hir_passes::collect_invokes::TextStyle;
 use crate::hir::hir_types::DocOrientation;
 use crate::hir::hir_types::DocType;
 use crate::hir::hir_types::HIR;
@@ -57,17 +58,18 @@ pub enum FieldType {
     Right,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum RowStyle {
     None,
     BulletRow,
-    WrappedBullet,
+    TrailingBullet,
 }
 
 #[derive(Debug, Clone)]
 pub struct WrappedRowContents {
     pub row: Vec<TextType>,
     pub row_style: RowStyle,
+    pub alignment: Alignment,
 }
 
 #[derive(Debug, Clone)]
@@ -111,6 +113,14 @@ pub fn wrap_lines(
     for item in &field.content {
         let mut row = Vec::new();
         let mut row_len = 0;
+        let mut available_space = split;
+        let mut row_style = match item.style {
+            TextStyle::Paragraph => RowStyle::None,
+            TextStyle::BulletList => {
+                available_space -= 2; // account for bullet and space
+                RowStyle::BulletRow
+            }
+        };
         for text_type in &item.content {
             let text = match text_type {
                 TextType::Text(s) => s,
@@ -119,10 +129,10 @@ pub fn wrap_lines(
                 TextType::Nerd(s) => s,
                 TextType::Link { label, href } => label,
             };
-            if row_len + text.len() > split {
+            if row_len + text.len() > available_space {
                 let mut left_over = text.clone();
-                while row_len + left_over.len() > split {
-                    let mut remaining = split - row_len;
+                while row_len + left_over.len() > available_space {
+                    let mut remaining = available_space - row_len;
                     for i in (0..remaining).rev() {
                         if left_over.chars().nth(i).unwrap().is_whitespace() {
                             remaining = i;
@@ -131,7 +141,11 @@ pub fn wrap_lines(
                         if i == 0 {
                             // fallback to splitting at the max length if no
                             // whitespace is found
-                            remaining = split - row_len;
+                            if text.len() > available_space {
+                                remaining = available_space;
+                            } else {
+                                remaining = 0;
+                            }
                         }
                     }
                     let (left, right) = left_over.split_at(remaining);
@@ -149,8 +163,12 @@ pub fn wrap_lines(
                     });
                     wrapped_contents.push(WrappedRowContents {
                         row: row.clone(),
-                        row_style: RowStyle::None, // FIXME this needs to get figured out in extra work here
+                        row_style: row_style.clone(), // FIXME this needs to get figured out in extra work here
+                        alignment: field.alignment.clone(),
                     });
+                    if row_style == RowStyle::BulletRow {
+                        row_style = RowStyle::TrailingBullet;
+                    }
                     row.clear();
                     left_over = right.trim().to_string();
                     row_len = 0;
@@ -174,7 +192,8 @@ pub fn wrap_lines(
         }
         wrapped_contents.push(WrappedRowContents {
             row: row.clone(),
-            row_style: RowStyle::None, // FIXME this needs to get figured out in extra work here
+            row_style: row_style.clone(), // FIXME this needs to get figured out in extra work here
+            alignment: field.alignment.clone(),
         });
     }
 
@@ -211,7 +230,7 @@ pub fn layout(hir: &HIR) -> Result<Page, Diagnostic> {
         let width = match row {
             ContentRow::Single(_) => page.config.grid_width,
             ContentRow::Split { left, right } => {
-                let left_len: usize = left
+                let left_width: usize = left
                     .content
                     .iter()
                     .flat_map(|text_op| text_op.content.iter())
@@ -223,7 +242,7 @@ pub fn layout(hir: &HIR) -> Result<Page, Diagnostic> {
                         TextType::Link { label, .. } => label.len(),
                     })
                     .sum();
-                let right_len: usize = right
+                let right_width: usize = right
                     .content
                     .iter()
                     .flat_map(|text_op| text_op.content.iter())
@@ -235,8 +254,8 @@ pub fn layout(hir: &HIR) -> Result<Page, Diagnostic> {
                         TextType::Link { label, .. } => label.len(),
                     })
                     .sum();
-                let max = max(left_len, right_len);
-                let min = min(left_len, right_len);
+                let max = max(left_width, right_width);
+                let min = min(left_width, right_width);
                 if max > page.config.grid_width / 2
                     && min > page.config.grid_width / 2
                 {

@@ -1,6 +1,6 @@
 use std::{collections::HashMap, ops::Range};
 
-use crate::ast::LayoutRow;
+use crate::{ast::LayoutRow, hir::hir_passes::collect_invokes::TextStyle};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HIR {
@@ -111,6 +111,7 @@ pub enum TextType {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TextOp {
     pub content: Vec<TextType>,
+    pub style: TextStyle,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

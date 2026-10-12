@@ -5,9 +5,16 @@ use crate::ast::Inline;
 use crate::ast::InlineText;
 use crate::diagnostic::Diagnostic;
 use crate::hir::hir_passes::HIRPass;
+use crate::hir::hir_passes::collect_invokes::TextStyle::Paragraph;
 use crate::hir::hir_types::Invoke;
 use crate::hir::hir_types::TextOp;
 use crate::hir::hir_types::TextType;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TextStyle {
+    Paragraph,
+    BulletList,
+}
 
 pub struct CollectInvokes;
 
@@ -24,7 +31,10 @@ impl HIRPass for CollectInvokes {
                     let mut elements = HashMap::new();
                     for field in &invoke.fields {
                         let name = field.name.text.clone();
-                        let text = self.lower_inlines(field.value.clone());
+                        let text = self.lower_inlines(
+                            field.value.clone(),
+                            TextStyle::Paragraph,
+                        );
 
                         elements.insert(name, vec![text]);
                     }
@@ -34,14 +44,17 @@ impl HIRPass for CollectInvokes {
                         for block in &content.blocks {
                             match block {
                                 ContentBlock::Paragraph(text) => {
-                                    content_parts
-                                        .push(self.lower_inlines(text.clone()));
+                                    content_parts.push(self.lower_inlines(
+                                        text.clone(),
+                                        TextStyle::Paragraph,
+                                    ));
                                 }
                                 ContentBlock::BulletList(items) => {
                                     for item in items {
-                                        content_parts.push(
-                                            self.lower_inlines(item.clone()),
-                                        );
+                                        content_parts.push(self.lower_inlines(
+                                            item.clone(),
+                                            TextStyle::BulletList,
+                                        ));
                                     }
                                 }
                             }
@@ -69,7 +82,7 @@ impl Default for CollectInvokes {
 }
 
 impl CollectInvokes {
-    fn lower_inlines(&self, inline: InlineText) -> TextOp {
+    fn lower_inlines(&self, inline: InlineText, style: TextStyle) -> TextOp {
         let mut content = Vec::new();
         for part in &inline.parts {
             match part {
@@ -92,6 +105,6 @@ impl CollectInvokes {
             }
         }
 
-        TextOp { content }
+        TextOp { content, style }
     }
 }
