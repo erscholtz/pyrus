@@ -108,7 +108,7 @@ layout education {
 @header {
     name: **Erik Scholtz**
     target_role: *Systems and Infrastructure Engineer*
-    contact: erikscholtz23@gmail.com | linkedin.com/in/erikscholtz | github.com/erscholtz
+    contact: erikscholtz23@gmail.com | https://linkedin.com/in/erikscholtz | https://github.com/erscholtz
 }
 
 @separator {
@@ -128,7 +128,7 @@ layout education {
 @project {
     title: **harnessd Autocomplete Daemon**
     stack: `Rust · Tokio · tree-sitter · SQLite · JSON-RPC`
-    link: [github](github.com/erscholtz/harnessd)
+    link: [github](https://github.com/erscholtz/harnessd)
 
     - Engineered a Rust daemon with local IPC, lockfile-based single-instance control, and graceful shutdown to serve editor and CLI requests over JSON-RPC 2.0.
     - Built a rusqlite proposal cache keyed by file path, byte range, and content hash, using indexed lookups and invalidation guards to keep completions fast, bounded, and coherent with source changes.
@@ -138,7 +138,7 @@ layout education {
 @project {
     title: **UEFI CVE Replication and Firmware Patch**
     stack: `C · EDK-II · QEMU · UEFI Secure Boot`
-    link: [github](github.com/erscholtz/uefi-cve-replication)
+    link: [github](https://github.com/erscholtz/uefi-cve-replication)
 
     - Replicated CVE-2022-21894 (Baton Drop) using QEMU; demonstrated vulnerability by safely sandboxing exploit payload in QEMU to understand attack vector.
     - Proposed proof-of-concept patch through monotonic counter in EDK-II using C on EFI file sign date timestamps preventing rollback attacks.
@@ -147,7 +147,7 @@ layout education {
 @project {
     title: **Pyrus - Typesetting language and compiler**
     stack: `Rust · Recursive Descent Parsing · HIR · PDF Rendering`
-    link: [github](github.com/erscholtz/pyrus)
+    link: [github](https://github.com/erscholtz/pyrus)
 
     - Zero-dependency compiler pipeline from lexer to parser to HIR for a typesetting language. Created this resume.
     - Implemented recursive descent parser with Pratt-style operator precedence and string interpolation support.
@@ -156,7 +156,7 @@ layout education {
 @project {
     title: **Linux Character Device Driver**
     stack: `C · KBuild · Make · Linux Kernel APIs`
-    link: [github](github.com/erscholtz/linux-character-device-driver)
+    link: [github](https://github.com/erscholtz/linux-character-device-driver)
 
     - Implemented file operations using kernel APIs `register_chrdev`, `class_create`, and `device_create`.
     - Enabled dynamic runtime configuration through write operations allowing users to change output byte values.
