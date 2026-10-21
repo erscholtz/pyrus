@@ -7,6 +7,7 @@ use crate::diagnostic::Diagnostic;
 use crate::hir::hir_types::Invoke;
 use crate::hir::hir_types::Layout;
 use crate::hir::hir_types::TextOp;
+use crate::layout::inscribe::GlyphRun;
 
 #[derive(Debug, Clone)]
 pub enum Alignment {
@@ -15,8 +16,9 @@ pub enum Alignment {
     Right,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct AllocatedField {
+    pub glyph_run: Vec<GlyphRun>,
     pub content: Vec<TextOp>,
     pub alignment: Alignment,
 }
@@ -27,7 +29,7 @@ impl Display for AllocatedField {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum ContentRow {
     Single(AllocatedField),
     Split {
@@ -60,6 +62,7 @@ pub fn allocate(
                     for elem in &invoke.elements {
                         if field.text == *elem.0 {
                             let allocated_field = AllocatedField {
+                                glyph_run: Vec::new(),
                                 content: elem
                                     .1
                                     .iter()
@@ -82,6 +85,7 @@ pub fn allocate(
                     for elem in &invoke.elements {
                         if left.text == *elem.0 {
                             left_line = Some(AllocatedField {
+                                glyph_run: Vec::new(),
                                 content: elem
                                     .1
                                     .iter()
@@ -95,6 +99,7 @@ pub fn allocate(
                     for elem in &invoke.elements {
                         if right.text == *elem.0 {
                             right_line = Some(AllocatedField {
+                                glyph_run: Vec::new(),
                                 content: elem
                                     .1
                                     .iter()

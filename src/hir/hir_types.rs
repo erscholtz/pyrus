@@ -2,7 +2,7 @@ use std::{collections::HashMap, ops::Range};
 
 use crate::{ast::LayoutRow, hir::hir_passes::collect_invokes::TextStyle};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct HIR {
     pub file: String,
     pub config: Config,
@@ -33,14 +33,14 @@ pub enum DocOrientation {
     Portrait,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Config {
     pub doc_type: DocType,
     pub orientation: DocOrientation,
-    pub top_margin: usize,
-    pub bottom_margin: usize,
-    pub left_margin: usize,
-    pub right_margin: usize,
+    pub top_margin: f32,
+    pub bottom_margin: f32,
+    pub left_margin: f32,
+    pub right_margin: f32,
     pub padding: usize,
 }
 
@@ -48,10 +48,10 @@ impl Config {
     pub fn new(
         doc_type: DocType,
         doc_orientation: DocOrientation,
-        top: usize,
-        bottom: usize,
-        left: usize,
-        right: usize,
+        top: f32,
+        bottom: f32,
+        left: f32,
+        right: f32,
         padding: usize,
     ) -> Self {
         Self {
@@ -71,10 +71,10 @@ impl Default for Config {
         Self {
             doc_type: DocType::A4,
             orientation: DocOrientation::Portrait,
-            top_margin: 4,
-            bottom_margin: 4,
-            left_margin: 4,
-            right_margin: 4,
+            top_margin: 40 as f32,
+            bottom_margin: 40 as f32,
+            left_margin: 40 as f32,
+            right_margin: 40 as f32,
             padding: 1,
         }
     }

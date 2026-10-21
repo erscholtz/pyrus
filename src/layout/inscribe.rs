@@ -1,8 +1,13 @@
+use harfrust::Buffer;
+use harfrust::Font as HarfFont;
+use harfrust::ShapeOptions;
+use harfrust::ShaperFont;
+
 use crate::diagnostic::Diagnostic;
 use crate::diagnostic::Severity;
 use crate::diagnostic::SourceLocation;
-use crate::hir::hir_types::Layout;
-use crate::hir::hir_types::Sizing;
+use crate::hir::hir_types::TextType;
+use crate::layout::allocate::ContentRow;
 
 #[derive(Debug, Clone, Copy)]
 pub enum Sizes {
@@ -17,101 +22,85 @@ pub enum Font {
     Serif,
     Bold,
     Italic,
-    NerdFont,
+    Nerd,
 }
 
-#[derive(Debug, Clone, Copy)]
-pub struct Glyph {
-    pub char: char,
-    pub size: Sizes,
-    pub font: Font,
+#[derive(Debug)]
+pub struct GlyphRun {
+    pub buffer: Buffer,
+    pub units_per_em: f32,
 }
 
-#[derive(Debug, Clone)]
-pub struct GlyphRow {
-    pub glyphs: Vec<Glyph>,
-    pub name: String,
-    pub offset: usize,
-}
+pub fn inscribe(rows: &mut Vec<ContentRow>) -> Result<(), Diagnostic> {
+    let serif_bytes =
+        std::fs::read("fonts/newsreader/static/Newsreader_9pt-Light.ttf")
+            .expect("Failed to read font file"); // Replace with your diagnostic handling later.
+    let serif_bold_bytes =
+        std::fs::read("fonts/newsreader/static/Newsreader_9pt-Medium.ttf")
+            .expect("Failed to read font file"); // Replace with your diagnostic handling later.
+    let italic_bytes =
+        std::fs::read("fonts/newsreader/static/Newsreader_9pt-LightItalic.ttf")
+            .expect("Failed to read font file"); // Replace with your diagnostic handling later.
+    let nerd_bytes = std::fs::read(
+        "fonts/inconsolata-nerd-font-mono/InconsolataNerdFontMono-Regular.ttf",
+    )
+    .expect("Failed to read font file"); // Replace with your diagnostic handling later.
 
-impl Glyph {
-    fn new(char: char, size: &Sizing, font: Font) -> Self {
-        let layout_size = match size {
-            Sizing::Sm => Sizes::Sm,
-            Sizing::Md => Sizes::Md,
-            Sizing::Lg => Sizes::Lg,
-            Sizing::Xl => Sizes::Xl,
+    let serif_font = HarfFont::new(serif_bytes, 0).expect("valid font"); // Replace with your diagnostic handling later.
+    let bold_font = HarfFont::new(serif_bold_bytes, 0).expect("valid font"); // Replace with your diagnostic handling later.
+    let italic_font = HarfFont::new(italic_bytes, 0).expect("valid font"); // Replace with your diagnostic handling later.
+    let nerd_font = HarfFont::new(nerd_bytes, 0).expect("valid font"); // Replace with your diagnostic handling later.
+
+    let serif_shaping_font = ShaperFont::new(&serif_font);
+    let bold_shaping_font = ShaperFont::new(&bold_font);
+    let italic_shaping_font = ShaperFont::new(&italic_font);
+    let nerd_shaping_font = ShaperFont::new(&nerd_font);
+
+    for row in rows {
+        let fields = match row {
+            ContentRow::Single(field) => vec![field],
+            ContentRow::Split { left, right } => vec![left, right],
         };
-        Self {
-            char,
-            size: layout_size,
-            font,
+        for field in fields {
+            let mut buffers = Vec::new();
+            for op in &field.content {
+                for text_ty in &op.content {
+                    let (text, font) = match text_ty {
+                        TextType::Text(text) => (text, Font::Serif),
+                        TextType::Bold(text) => (text, Font::Bold),
+                        TextType::Italic(text) => (text, Font::Italic),
+                        TextType::Nerd(text) => (text, Font::Nerd),
+                        TextType::Link { label, .. } => (label, Font::Serif),
+                    };
+                    let mut buffer = Buffer::new();
+                    buffer.push_str(text);
+                    buffer.guess_segment_properties();
+                    let shaping_font = match font {
+                        Font::Serif => &serif_shaping_font,
+                        Font::Bold => &bold_shaping_font,
+                        Font::Italic => &italic_shaping_font,
+                        Font::Nerd => &nerd_shaping_font,
+                    };
+                    harfrust::shape(
+                        shaping_font,
+                        &mut buffer,
+                        ShapeOptions::default(),
+                    )
+                    .map_err(|err| Diagnostic {
+                        severity: Severity::Fatal,
+                        message: format!("Failed to shape text: {err:?}"),
+                        location: SourceLocation::new(0, 0, ""),
+                        span: None,
+                        help: None,
+                    })?;
+                    buffers.push(GlyphRun {
+                        buffer,
+                        units_per_em: shaping_font.units_per_em() as f32,
+                    });
+                }
+            }
+            field.glyph_run = buffers;
         }
     }
-
-    fn inscribe_text(text: &str, size: &Sizing) -> Vec<Glyph> {
-        text.chars()
-            .map(|c| Glyph::new(c, size, Font::Serif))
-            .collect()
-    }
-
-    fn inscribe_bold(text: &str, size: &Sizing) -> Vec<Glyph> {
-        text.chars()
-            .map(|c| Glyph::new(c, size, Font::Bold))
-            .collect()
-    }
-
-    fn inscribe_italic(text: &str, size: &Sizing) -> Vec<Glyph> {
-        text.chars()
-            .map(|c| Glyph::new(c, size, Font::Italic))
-            .collect()
-    }
-
-    fn inscribe_nerd(text: &str, size: &Sizing) -> Vec<Glyph> {
-        text.chars()
-            .map(|c| Glyph::new(c, size, Font::NerdFont))
-            .collect()
-    }
+    Ok(())
 }
-
-impl GlyphRow {
-    pub fn new(glyphs: Vec<Glyph>, name: String, offset: usize) -> Self {
-        Self {
-            glyphs,
-            name,
-            offset,
-        }
-    }
-}
-// pub fn inscribe(
-//     elem: (&String, &Vec<Content>),
-//     layout: &Layout,
-// ) -> Result<GlyphRow, Diagnostic> {
-//     let size = &layout.sizing[elem.0.as_str()];
-//     let mut glyphs: Vec<Glyph> = Vec::new();
-//     for content in elem.1 {
-//         glyphs.extend(match content {
-//             Content::Text(text) => Glyph::inscribe_text(&text, size),
-//             Content::Bold(text) => Glyph::inscribe_bold(&text, size),
-//             Content::Italic(text) => Glyph::inscribe_italic(&text, size),
-//             Content::NerdFont(text) => Glyph::inscribe_nerd(&text, size),
-//             _ => Vec::new(),
-//         });
-//     }
-//     let len = glyphs.len();
-//     if len == 0 {
-//         // TODO proper error here
-//         return Err(Diagnostic {
-//             severity: Severity::Fatal,
-//             message: "inscribe: no glyphs generated".to_string(),
-//             location: SourceLocation {
-//                 line: 0,
-//                 column: 0,
-//                 file: "".to_string(), // TODO do this better
-//             },
-//             span: None,
-//             help: None,
-//         });
-//     }
-//     Ok(GlyphRow::new(glyphs, elem.0.clone(), len))
-// }

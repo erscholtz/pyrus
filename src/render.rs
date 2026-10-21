@@ -1,21 +1,15 @@
 use std::path::PathBuf;
 
 use krilla::Document;
-use krilla::action::Action;
 use krilla::action::LinkAction;
-use krilla::annotation::LinkAnnotation;
-use krilla::annotation::Target;
-use krilla::geom::Point;
-use krilla::geom::Rect;
+use krilla::annotation::{LinkAnnotation, Target};
+use krilla::geom::{Point, Rect};
 use krilla::page::PageSettings;
-use krilla::text::Font;
-use krilla::text::TextDirection;
+use krilla::text::{Font, TextDirection};
 
 use crate::hir::hir_types::TextType;
-use crate::layout::Page;
-use crate::layout::RowStyle;
 use crate::layout::allocate::Alignment;
-use crate::render;
+use crate::layout::{BULLET_INDENT, FONT_SIZE, LINE_HEIGHT, Page, RowStyle};
 
 pub struct Renderer {}
 
@@ -24,132 +18,115 @@ impl Renderer {
         let mut document = Document::new();
         let serif_font_reg = {
             let path = PathBuf::from(
-                "src/fonts/new-heterodox-mono/NewHeterodoxMono-Book.otf",
+                "fonts/newsreader/static/Newsreader_9pt-Light.ttf",
             );
             let data = std::fs::read(&path).unwrap();
             Font::new(data.into(), 0).unwrap()
         };
         let serif_font_bold = {
             let path = PathBuf::from(
-                "src/fonts/new-heterodox-mono/NewHeterodoxMono-Bold.otf",
+                "fonts/newsreader/static/Newsreader_9pt-Medium.ttf",
             );
             let data = std::fs::read(&path).unwrap();
             Font::new(data.into(), 0).unwrap()
         };
-
+        let serif_font_italic = {
+            let path = PathBuf::from(
+                "fonts/newsreader/static/Newsreader_9pt-LightItalic.ttf",
+            );
+            let data = std::fs::read(&path).unwrap();
+            Font::new(data.into(), 0).unwrap()
+        };
         let nerd_font_reg = {
             let path = PathBuf::from(
-                "src/fonts/inconsolata-nerd-font-mono/InconsolataNerdFontMono-Regular.ttf",
-            );
-            let data = std::fs::read(&path).unwrap();
-            Font::new(data.into(), 0).unwrap()
-        };
-        let nerd_font_bold = {
-            let path = PathBuf::from(
-                "src/fonts/inconsolata-nerd-font-mono/InconsolataNerdFontMono-Bold.ttf",
+                "fonts/inconsolata-nerd-font-mono/InconsolataNerdFontMono-Regular.ttf",
             );
             let data = std::fs::read(&path).unwrap();
             Font::new(data.into(), 0).unwrap()
         };
 
+        let (width, height) = crate::layout::calculate_grid(
+            &page_layout.config.page_type,
+            &page_layout.config.orientation,
+        )
+        .unwrap();
         let mut page = document
-            .start_page_with(PageSettings::from_wh(595.28, 841.89).unwrap());
+            .start_page_with(PageSettings::from_wh(width, height).unwrap());
         let mut surface = page.surface();
         let mut annotations = Vec::new();
 
         for content in &page_layout.content {
-            let mut row_count = 0;
             let (x, y) = content.coord;
-            for row in &content.rows {
-                let row_format_padding = match &row.row_style {
-                    RowStyle::BulletRow => 2 as f32 * 5.66,
-                    RowStyle::TrailingBullet => 2 as f32 * 5.66,
-                    RowStyle::None => 0 as f32 * 5.66,
+            for (row_count, row) in content.rows.iter().enumerate() {
+                let row_format_padding = match row.row_style {
+                    RowStyle::BulletRow | RowStyle::TrailingBullet => {
+                        BULLET_INDENT
+                    }
+                    RowStyle::None => 0.0,
                 };
-                let mut render_x = match row.alignment {
-                    Alignment::Right => {
-                        let text_len = match row
-                            .row
-                            .iter()
-                            .map(|text| match text {
-                                TextType::Text(s) => s.len(),
-                                TextType::Bold(s) => s.len(),
-                                TextType::Italic(s) => s.len(),
-                                TextType::Nerd(s) => s.len(),
-                                TextType::Link { label, .. } => label.len(),
-                            })
-                            .sum::<usize>()
-                        {
-                            0 => 0,
-                            len => len,
-                        };
-                        let allignment_padding =
-                            (page_layout.config.grid_width - x - text_len)
-                                as f32
-                                * 5.66;
-                        page_layout.config.left_margin as f32
-                            + (x as f32) * 5.66
-                            + row_format_padding
-                            + allignment_padding
-                    }
-                    Alignment::Center => {
-                        page_layout.config.left_margin as f32
-                            + (x as f32) * 5.66
-                            + row_format_padding
-                    }
-                    Alignment::Left => {
-                        page_layout.config.left_margin as f32
-                            + (x as f32) * 5.66
-                            + row_format_padding
-                    }
+                let text_width: f32 =
+                    row.row.iter().map(|text| text.width).sum();
+                let remaining =
+                    (content.width - row_format_padding - text_width).max(0.0);
+                let alignment_padding = match row.alignment {
+                    Alignment::Right => remaining,
+                    Alignment::Center => remaining / 2.0,
+                    Alignment::Left => 0.0,
                 };
-                let render_y = page_layout.config.top_margin as f32
-                    + (y + row_count) as f32 * 10.5;
+                let mut render_x = page_layout.config.left_margin
+                    + x
+                    + row_format_padding
+                    + alignment_padding;
+                let render_y = page_layout.config.top_margin
+                    + y
+                    + row_count as f32 * LINE_HEIGHT
+                    + FONT_SIZE;
                 if row.row_style == RowStyle::BulletRow {
                     surface.draw_text(
-                        Point::from_xy(render_x - 2.0 * 5.66, render_y),
+                        Point::from_xy(render_x - BULLET_INDENT, render_y),
                         nerd_font_reg.clone(),
-                        10.0,
+                        FONT_SIZE,
                         "•",
                         true,
                         TextDirection::Auto,
                     );
                 }
                 for text in &row.row {
-                    let (text_string, font) = match text {
+                    let (text_string, font) = match &text.content {
                         TextType::Text(s) => (s, &serif_font_reg),
                         TextType::Bold(s) => (s, &serif_font_bold),
-                        TextType::Italic(s) => (s, &serif_font_reg),
+                        TextType::Italic(s) => (s, &serif_font_italic),
                         TextType::Nerd(s) => (s, &nerd_font_reg),
                         TextType::Link { label, href } => {
                             let target = Target::Action(
                                 LinkAction::new(href.clone()).into(),
                             );
-                            let annotation = LinkAnnotation::new(
-                                Rect::from_xywh(
-                                    render_x,
-                                    render_y - 10 as f32,
-                                    label.len() as f32 * 5.66,
-                                    10 as f32,
-                                )
-                                .unwrap(),
-                                target,
-                            );
-                            annotations.push(annotation.into());
+                            if text.width > 0.0 {
+                                let annotation = LinkAnnotation::new(
+                                    Rect::from_xywh(
+                                        render_x,
+                                        render_y - FONT_SIZE,
+                                        text.width,
+                                        FONT_SIZE,
+                                    )
+                                    .unwrap(),
+                                    target,
+                                );
+                                annotations.push(annotation.into());
+                            }
                             (label, &serif_font_reg)
                         }
                     };
-                    surface.draw_text(
+                    surface.draw_glyphs(
                         Point::from_xy(render_x, render_y),
+                        &text.glyphs,
                         font.to_owned(),
-                        10.0,
-                        &text_string,
+                        text_string,
+                        FONT_SIZE,
                         false,
-                        TextDirection::Auto,
                     );
-                    render_x += text_string.len() as f32 * 5.66;
+                    render_x += text.width;
                 }
-                row_count += 1;
             }
         }
         surface.finish();
@@ -157,7 +134,6 @@ impl Renderer {
             page.add_annotation(annotation);
         }
         page.finish();
-
         let pdf_bytes = document.finish().unwrap();
         std::fs::write(output_path, pdf_bytes).unwrap();
     }
