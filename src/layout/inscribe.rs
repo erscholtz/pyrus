@@ -10,14 +10,6 @@ use crate::hir::hir_types::TextType;
 use crate::layout::allocate::ContentRow;
 
 #[derive(Debug, Clone, Copy)]
-pub enum Sizes {
-    Sm,
-    Md,
-    Lg,
-    Xl,
-}
-
-#[derive(Debug, Clone, Copy)]
 pub enum Font {
     Serif,
     Bold,

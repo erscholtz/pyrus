@@ -252,6 +252,7 @@ pub fn wrap_lines(
             TextStyle::Paragraph => RowStyle::None,
             TextStyle::BulletList => RowStyle::BulletRow,
         };
+        // FIXME ?? strange looking code I dont like it
         let available = (split
             - if row_style == RowStyle::BulletRow {
                 BULLET_INDENT
@@ -344,6 +345,7 @@ pub fn wrap_lines(
     wrapped_contents
 }
 
+// FIXME ?? bad code there should be function chaining 4 layers deep that is crazy
 fn field_width(field: &AllocatedField) -> f32 {
     let mut runs = field.glyph_run.iter();
     field
@@ -375,6 +377,7 @@ fn field_width(field: &AllocatedField) -> f32 {
         })
         .fold(0.0, f32::max)
 }
+
 pub fn layout(hir: &HIR) -> Result<Page, Diagnostic> {
     let page_type = match hir.config.doc_type {
         DocType::A4 => PageType::A4,
@@ -481,13 +484,14 @@ pub fn layout(hir: &HIR) -> Result<Page, Diagnostic> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hir::hir_types::TextOp;
+    use crate::hir::hir_types::{Sizing, TextOp};
 
     fn shaped_field(content: Vec<TextOp>) -> AllocatedField {
         let mut rows = vec![ContentRow::Single(AllocatedField {
             content,
             glyph_run: Vec::new(),
             alignment: Alignment::Left,
+            size: Sizing::Sm,
         })];
         inscribe::inscribe(&mut rows).unwrap();
         match rows.pop().unwrap() {

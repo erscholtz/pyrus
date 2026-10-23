@@ -16,6 +16,7 @@ pub struct Renderer {}
 impl Renderer {
     pub fn render_pdf(page_layout: &Page, output_path: &str) {
         let mut document = Document::new();
+        // FIXME super inefficient importing the fonts again, use the warm versions in shaping
         let serif_font_reg = {
             let path = PathBuf::from(
                 "fonts/newsreader/static/Newsreader_9pt-Light.ttf",
