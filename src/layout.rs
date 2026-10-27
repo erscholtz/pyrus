@@ -4,6 +4,7 @@ mod inscribe; // make glyphs
 mod paginate; // add ResolvedRows to Pages
 mod wrap; // wrap rows to fit in margins
 
+use std::cmp::max;
 use std::collections::BTreeMap;
 use std::ops::Range;
 
@@ -12,14 +13,13 @@ use crate::hir::hir_passes::collect_invokes::TextStyle;
 use crate::hir::hir_types::DocOrientation;
 use crate::hir::hir_types::DocType;
 use crate::hir::hir_types::HIR;
+use crate::hir::hir_types::Sizing;
 use crate::hir::hir_types::TextType;
 use crate::layout::allocate::Alignment;
 use crate::layout::allocate::AllocatedField;
 use crate::layout::allocate::ContentRow;
 use krilla::text::{GlyphId, KrillaGlyph};
 
-pub const FONT_SIZE: f32 = 10.0;
-pub const LINE_HEIGHT: f32 = 10.5;
 pub const BULLET_INDENT: f32 = 10.0;
 
 // spacing out what rows we have given the top down margins and remaing rows we
@@ -70,6 +70,9 @@ pub struct WrappedRowContents {
     pub row: Vec<WrappedText>,
     pub row_style: RowStyle,
     pub alignment: Alignment,
+    pub size: Sizing,
+    pub height: f32,
+    // pub width: f32, // TODO: this is kinda hard to implement right now, have to rework wrapping first
 }
 
 #[derive(Debug, Clone)]
@@ -149,6 +152,7 @@ fn run_clusters(
     run: usize,
     text: &str,
     glyphs: &inscribe::GlyphRun,
+    font_size: f32,
 ) -> Vec<Cluster> {
     let mut advances = BTreeMap::<usize, f32>::new();
     for (info, pos) in glyphs
@@ -158,7 +162,7 @@ fn run_clusters(
         .zip(glyphs.buffer.glyph_positions())
     {
         *advances.entry(info.cluster as usize).or_default() +=
-            pos.x_advance as f32 * FONT_SIZE / glyphs.units_per_em;
+            pos.x_advance as f32 * font_size / glyphs.units_per_em;
     }
     let mut starts: Vec<_> = advances.keys().copied().collect();
     starts.push(text.len());
@@ -184,6 +188,7 @@ fn wrapped_fragment(
     text: &TextType,
     run: &inscribe::GlyphRun,
     range: Range<usize>,
+    font_size: f32,
 ) -> WrappedText {
     let mut boundaries: Vec<_> = run
         .buffer
@@ -215,7 +220,7 @@ fn wrapped_fragment(
             )
         })
         .collect();
-    let width = glyphs.iter().map(|glyph| glyph.x_advance * FONT_SIZE).sum();
+    let width = glyphs.iter().map(|glyph| glyph.x_advance * font_size).sum();
     WrappedText {
         content: slice_text(text, range),
         glyphs,
@@ -231,6 +236,18 @@ pub fn wrap_lines(
     // Buffers are flattened across ALL TextOps, not indexed per paragraph.
     let mut runs = field.glyph_run.iter();
     for item in &field.content {
+        let font_size = match field.size {
+            Sizing::Sm => 10 as f32,
+            Sizing::Md => 11 as f32,
+            Sizing::Lg => 12 as f32,
+            Sizing::Xl => 20 as f32,
+        };
+        let font_spacing = match field.size {
+            Sizing::Sm => 10 as f32 + 2 as f32,
+            Sizing::Md => 12 as f32 + 4 as f32,
+            Sizing::Lg => 14 as f32 + 4 as f32,
+            Sizing::Xl => 24 as f32 + 6 as f32,
+        };
         let paragraph_runs: Vec<_> = item
             .content
             .iter()
@@ -245,7 +262,7 @@ pub fn wrap_lines(
             .iter()
             .enumerate()
             .flat_map(|(index, (text, run))| {
-                run_clusters(index, text_content(text), run)
+                run_clusters(index, text_content(text), run, font_size)
             })
             .collect();
         let mut row_style = match item.style {
@@ -305,6 +322,7 @@ pub fn wrap_lines(
                     text,
                     run,
                     first.range.start..clusters[end_index - 1].range.end,
+                    font_size,
                 ));
                 index = end_index;
             }
@@ -312,6 +330,8 @@ pub fn wrap_lines(
                 row,
                 row_style: row_style.clone(),
                 alignment: field.alignment.clone(),
+                size: field.size.clone(),
+                height: font_spacing,
             });
             if row_style == RowStyle::BulletRow {
                 row_style = RowStyle::TrailingBullet;
@@ -347,6 +367,13 @@ pub fn wrap_lines(
 
 // FIXME ?? bad code there should be function chaining 4 layers deep that is crazy
 fn field_width(field: &AllocatedField) -> f32 {
+    let font_size = match field.size {
+        Sizing::Sm => 10 as f32,
+        Sizing::Md => 12 as f32,
+        Sizing::Lg => 14 as f32,
+        Sizing::Xl => 24 as f32,
+    };
+
     let mut runs = field.glyph_run.iter();
     field
         .content
@@ -363,7 +390,7 @@ fn field_width(field: &AllocatedField) -> f32 {
                         .glyph_positions()
                         .iter()
                         .map(|pos| {
-                            pos.x_advance as f32 * FONT_SIZE / run.units_per_em
+                            pos.x_advance as f32 * font_size / run.units_per_em
                         })
                         .sum::<f32>()
                 })
@@ -387,8 +414,9 @@ pub fn layout(hir: &HIR) -> Result<Page, Diagnostic> {
     };
 
     let (page_width, _) = calculate_grid(&page_type, &orientation)?;
-    let width = (page_width - hir.config.left_margin - hir.config.right_margin)
-        .max(0.0);
+    let available_width =
+        (page_width - hir.config.left_margin - hir.config.right_margin)
+            .max(0.0);
 
     let mut page = Page {
         config: PageConfig {
@@ -409,16 +437,16 @@ pub fn layout(hir: &HIR) -> Result<Page, Diagnostic> {
     let mut split_line = Vec::new();
     for row in &rows {
         let width = match row {
-            ContentRow::Single(_) => width,
+            ContentRow::Single(_) => available_width,
             ContentRow::Split { left, right } => {
                 let left_width = field_width(left);
                 let right_width = field_width(right);
-                if left_width <= width / 2.0 {
+                if left_width <= available_width / 2.0 {
                     left_width
-                } else if right_width <= width / 2.0 {
-                    width - right_width
+                } else if right_width <= available_width / 2.0 {
+                    available_width - right_width
                 } else {
-                    width / 2.0
+                    available_width / 2.0
                 }
             }
         };
@@ -434,7 +462,8 @@ pub fn layout(hir: &HIR) -> Result<Page, Diagnostic> {
             }
             ContentRow::Split { left, right } => {
                 let left_content = wrap_lines(left, split_line[i]);
-                let right_content = wrap_lines(right, width - split_line[i]);
+                let right_content =
+                    wrap_lines(right, available_width - split_line[i]);
                 WrappedRow::Split {
                     left: left_content,
                     right: right_content,
@@ -449,29 +478,32 @@ pub fn layout(hir: &HIR) -> Result<Page, Diagnostic> {
     for (i, row) in wrapped_rows.iter().enumerate() {
         match row {
             WrappedRow::Single { content } => {
+                let total_height = content.iter().map(|h| h.height).sum();
                 text_boxes.push(ContentBox {
                     rows: content.clone(),
                     coord: (0.0, len),
                     width: split_line[i],
-                    height: content.len() as f32 * LINE_HEIGHT,
+                    height: total_height,
                 });
-                len += content.len() as f32 * LINE_HEIGHT;
+                len += total_height;
             }
             WrappedRow::Split { left, right } => {
+                let l_total_height = left.iter().map(|h| h.height).sum();
                 text_boxes.push(ContentBox {
                     rows: left.clone(),
                     coord: (0.0, len),
                     width: split_line[i],
-                    height: left.len() as f32 * LINE_HEIGHT,
+                    height: l_total_height,
                 });
-                let right_width = width - split_line[i];
+                let r_total_height = right.iter().map(|h| h.height).sum();
+                let right_width = available_width - split_line[i];
                 text_boxes.push(ContentBox {
                     rows: right.clone(),
                     coord: (split_line[i], len),
                     width: right_width,
-                    height: right.len() as f32 * LINE_HEIGHT,
+                    height: r_total_height,
                 });
-                len += left.len().max(right.len()) as f32 * LINE_HEIGHT;
+                len += l_total_height.max(r_total_height);
             }
         }
     }
@@ -531,12 +563,18 @@ mod tests {
         assert_eq!(lines.len(), 2);
         assert_eq!(line_text(&lines[0]), "iiiiiiii");
         assert_eq!(line_text(&lines[1]), "WWWW");
+        let font_size = match field.size {
+            Sizing::Sm => 10 as f32,
+            Sizing::Md => 12 as f32,
+            Sizing::Lg => 14 as f32,
+            Sizing::Xl => 24 as f32,
+        };
         let expected: f32 = field.glyph_run[2]
             .buffer
             .glyph_positions()
             .iter()
             .map(|pos| {
-                pos.x_advance as f32 * FONT_SIZE
+                pos.x_advance as f32 * font_size
                     / field.glyph_run[2].units_per_em
             })
             .sum();
@@ -574,7 +612,13 @@ mod tests {
         let source = "éofficee\u{301}officeé";
         let field =
             shaped_field(vec![paragraph(vec![TextType::Text(source.into())])]);
-        let clusters = run_clusters(0, source, &field.glyph_run[0]);
+        let font_size = match field.size {
+            Sizing::Sm => 10 as f32,
+            Sizing::Md => 12 as f32,
+            Sizing::Lg => 14 as f32,
+            Sizing::Xl => 24 as f32,
+        };
+        let clusters = run_clusters(0, source, &field.glyph_run[0], font_size);
         let width = clusters
             .iter()
             .map(|cluster| cluster.width)

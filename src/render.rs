@@ -7,9 +7,9 @@ use krilla::geom::{Point, Rect};
 use krilla::page::PageSettings;
 use krilla::text::{Font, TextDirection};
 
-use crate::hir::hir_types::TextType;
+use crate::hir::hir_types::{Sizing, TextType};
 use crate::layout::allocate::Alignment;
-use crate::layout::{BULLET_INDENT, FONT_SIZE, LINE_HEIGHT, Page, RowStyle};
+use crate::layout::{BULLET_INDENT, Page, RowStyle};
 
 pub struct Renderer {}
 
@@ -74,19 +74,25 @@ impl Renderer {
                     Alignment::Center => remaining / 2.0,
                     Alignment::Left => 0.0,
                 };
+                let font_size = match row.size {
+                    Sizing::Sm => 10 as f32,
+                    Sizing::Md => 12 as f32,
+                    Sizing::Lg => 14 as f32,
+                    Sizing::Xl => 24 as f32,
+                };
                 let mut render_x = page_layout.config.left_margin
                     + x
                     + row_format_padding
                     + alignment_padding;
                 let render_y = page_layout.config.top_margin
                     + y
-                    + row_count as f32 * LINE_HEIGHT
-                    + FONT_SIZE;
+                    + row_count as f32 * row.height
+                    + font_size;
                 if row.row_style == RowStyle::BulletRow {
                     surface.draw_text(
                         Point::from_xy(render_x - BULLET_INDENT, render_y),
                         nerd_font_reg.clone(),
-                        FONT_SIZE,
+                        font_size,
                         "•",
                         true,
                         TextDirection::Auto,
@@ -106,9 +112,9 @@ impl Renderer {
                                 let annotation = LinkAnnotation::new(
                                     Rect::from_xywh(
                                         render_x,
-                                        render_y - FONT_SIZE,
+                                        render_y - font_size,
                                         text.width,
-                                        FONT_SIZE,
+                                        font_size,
                                     )
                                     .unwrap(),
                                     target,
@@ -123,7 +129,7 @@ impl Renderer {
                         &text.glyphs,
                         font.to_owned(),
                         text_string,
-                        FONT_SIZE,
+                        font_size,
                         false,
                     );
                     render_x += text.width;
