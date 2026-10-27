@@ -79,30 +79,24 @@ pub fn allocate(
                 } => {
                     let l_elem = &invoke.elements.get(&left.text).unwrap();
                     let l_size = layout.sizing.get(&left.text).unwrap();
-                    let left_line = Some(AllocatedField {
+                    let l_line = AllocatedField {
                         glyph_run: Vec::new(),
                         content: l_elem.iter().map(|op| op.clone()).collect(),
                         size: l_size.clone(),
                         alignment: convert_layout(left_alignment),
-                    });
+                    };
                     let r_elem = &invoke.elements.get(&right.text).unwrap();
                     let r_size = layout.sizing.get(&right.text).unwrap();
-                    let right_line = Some(AllocatedField {
+                    let r_line = AllocatedField {
                         glyph_run: Vec::new(),
                         content: r_elem.iter().map(|op| op.clone()).collect(),
                         size: r_size.clone(),
                         alignment: convert_layout(right_alignment),
+                    };
+                    content_rows.push(ContentRow::Split {
+                        left: l_line,
+                        right: r_line,
                     });
-                    if let (Some(left_line), Some(right_line)) =
-                        (left_line, right_line)
-                    {
-                        content_rows.push(ContentRow::Split {
-                            left: left_line,
-                            right: right_line,
-                        });
-                    } else {
-                        // TODO Err here
-                    }
                 }
             }
         }
