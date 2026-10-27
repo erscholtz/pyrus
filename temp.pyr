@@ -5,7 +5,6 @@ document {
 
 elem header {
     name,
-    target_role,
     contact,
 }
 
@@ -43,19 +42,17 @@ elem education {
 }
 
 layout header {
-    name
-    target_role
-    contact
+    <> name
+    <> contact
 
     name: xl
-    target_role: md
     contact: sm
 }
 
 layout separator {
     title
 
-    title: lg
+    title: md
 }
 
 layout skills {
@@ -73,7 +70,7 @@ layout project {
     stack
     content
 
-    title: md
+    title: sm
     link: sm
     stack: sm
     content: sm
@@ -86,7 +83,7 @@ layout entry {
 
     company: sm
     date: sm
-    role: md
+    role: sm
     content: sm
 }
 
@@ -97,9 +94,9 @@ layout education {
     distinction
     content
 
-    institution: md
+    institution: sm
     location: sm
-    degree: md
+    degree: sm
     distinction: sm
     date: sm
     content: sm
@@ -107,12 +104,11 @@ layout education {
 
 @header {
     name: **Erik Scholtz**
-    target_role: *Systems and Infrastructure Engineer*
-    contact: erikscholtz23@gmail.com | https://linkedin.com/in/erikscholtz | https://github.com/erscholtz
+    contact: [erikscholtz23@gmail.com](mailto:erikscholtz23@gmail.com) | [linkedin](https://linkedin.com/in/erikscholtz) | [github](https://github.com/erscholtz)
 }
 
 @separator {
-    title: **-- SKILLS --------------------------------------------------------------------------------**
+    title: **SKILLS________________________________________________________________________________**
 }
 
 @skills {
@@ -122,7 +118,7 @@ layout education {
 }
 
 @separator {
-    title: **-- PROJECTS ------------------------------------------------------------------------------**
+    title: **PROJECTS______________________________________________________________________________**
 }
 
 @project {
@@ -165,11 +161,11 @@ layout education {
 }
 
 @separator {
-    title: **-- EXPERIENCE ----------------------------------------------------------------------------**
+    title: **EXPERIENCE____________________________________________________________________________**
 }
 
 @entry {
-    company: **Deloitte** · Toronto, ON
+    company: Deloitte · Toronto, ON
     role: **Infrastructure Engineer**
     date: *September 2025 - Present*
 
@@ -177,7 +173,7 @@ layout education {
 }
 
 @entry {
-    company: **Syncademia AI** · Waterloo, ON
+    company: Syncademia AI · Waterloo, ON
     role: **Infrastructure Engineer**
     date: *January 2025 - August 2025*
 
@@ -186,7 +182,7 @@ layout education {
 }
 
 @entry {
-    company: **Deloitte** · Toronto, ON
+    company: Deloitte · Toronto, ON
     role: **Software Engineering Co-op**
     date: *May 2024 - September 2024*
 
@@ -194,7 +190,7 @@ layout education {
 }
 
 @separator {
-    title: **-- EDUCATION -----------------------------------------------------------------------------**
+    title: **EDUCATION_____________________________________________________________________________**
 }
 
 @education {
@@ -204,7 +200,7 @@ layout education {
     distinction: *Honours with Distinction - 3.7 GPA*
     date: *September 2020 - December 2024*
 
-    - Mathematics Minor: Linear Programming Optimizations, Computational Numerical Methods
+    - Mathematics Minor: Mathematical Optimization, Numerical Analysis
     - Honours Project: UEFI CVE Replication and Firmware Hardening, co-authored with peers
     - Selected Coursework: Operating Systems, Distributed Systems, Trusted Computing, Programming Paradigms
 }
