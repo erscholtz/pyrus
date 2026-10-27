@@ -16,3 +16,5 @@ struct Content {
     nerd: Vec<Span>,
 }
 ```
+- [ ] all caps words need to be using smallcaps,
+- [ ] spacing between invokes?? will need to track these properly
