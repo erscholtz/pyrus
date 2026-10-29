@@ -6,3 +6,6 @@ edition = "2024"
 [dependencies]
 harfrust = "0.14.0"
 krilla = "0.8.2"
+
+[dev-dependencies]
+unicode-normalization = "0.1"

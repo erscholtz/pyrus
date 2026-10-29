@@ -114,7 +114,7 @@ impl Renderer {
                         nerd_font_reg.clone(),
                         font_size,
                         "•",
-                        true,
+                        false,
                         TextDirection::Auto,
                     );
                 }
