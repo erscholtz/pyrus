@@ -3,6 +3,7 @@ use std::fmt::Display;
 
 use crate::ast::LayoutAlignment;
 use crate::ast::LayoutRow;
+use crate::ast::LayoutRow::Seperator;
 use crate::diagnostic::Diagnostic;
 use crate::hir::hir_types::Invoke;
 use crate::hir::hir_types::Layout;
@@ -38,6 +39,7 @@ pub enum ContentRow {
         left: AllocatedField,
         right: AllocatedField,
     },
+    Seperator,
 }
 
 impl Display for ContentRow {
@@ -47,6 +49,7 @@ impl Display for ContentRow {
             ContentRow::Split { left, right } => {
                 write!(f, "{} / {}", left, right)
             }
+            ContentRow::Seperator => write!(f, "---Seperator---"),
         }
     }
 }
@@ -97,6 +100,9 @@ pub fn allocate(
                         left: l_line,
                         right: r_line,
                     });
+                }
+                LayoutRow::Seperator => {
+                    content_rows.push(ContentRow::Seperator);
                 }
             }
         }

@@ -51,6 +51,7 @@ layout header {
 
 layout separator {
     title
+    ---
 
     title: md
 }
@@ -108,7 +109,7 @@ layout education {
 }
 
 @separator {
-    title: **SKILLS________________________________________________________________________________**
+    title: **SKILLS**
 }
 
 @skills {
@@ -118,7 +119,7 @@ layout education {
 }
 
 @separator {
-    title: **PROJECTS______________________________________________________________________________**
+    title: **PROJECTS**
 }
 
 @project {
@@ -136,7 +137,7 @@ layout education {
     stack: `C · EDK-II · QEMU · UEFI Secure Boot`
     link: [github](https://github.com/erscholtz/uefi-cve-replication)
 
-    - Replicated CVE-2022-21894 (Baton Drop) using QEMU; demonstrated vulnerability by safely sandboxing exploit payload in QEMU to understand attack vector.
+    - Replicated `CVE-2022-21894` (Baton Drop) using QEMU; demonstrated vulnerability by safely sandboxing exploit payload in QEMU to understand attack vector.
     - Proposed proof-of-concept patch through monotonic counter in EDK-II using C on EFI file sign date timestamps preventing rollback attacks.
 }
 
@@ -161,7 +162,7 @@ layout education {
 }
 
 @separator {
-    title: **EXPERIENCE____________________________________________________________________________**
+    title: **EXPERIENCE**
 }
 
 @entry {
@@ -190,7 +191,7 @@ layout education {
 }
 
 @separator {
-    title: **EDUCATION_____________________________________________________________________________**
+    title: **EDUCATION**
 }
 
 @education {

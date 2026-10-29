@@ -52,6 +52,7 @@ pub fn inscribe(rows: &mut Vec<ContentRow>) -> Result<(), Diagnostic> {
         let fields = match row {
             ContentRow::Single(field) => vec![field],
             ContentRow::Split { left, right } => vec![left, right],
+            ContentRow::Seperator => vec![], // FIXME this is not really right??
         };
         for field in fields {
             let mut buffers = Vec::new();

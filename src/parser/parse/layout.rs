@@ -50,6 +50,11 @@ impl LayoutDecl {
                     let row = LayoutRow::parse(parser)?;
                     rows.push(row);
                 }
+            } else if parser.at(TokenKind::Dash)? {
+                for _ in 0..3 {
+                    parser.consume(TokenKind::Dash)?;
+                }
+                rows.push(LayoutRow::Seperator)
             } else {
                 return Err(Diagnostic {
                     severity: Severity::Error,

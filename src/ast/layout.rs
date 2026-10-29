@@ -26,6 +26,7 @@ pub enum LayoutRow {
         left_alignment: LayoutAlignment,
         right_alignment: LayoutAlignment,
     },
+    Seperator,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use pyrus::ast::Ast;
 use pyrus::hir::lower;
-use pyrus::layout::{Page, RowStyle, layout, text_content};
+use pyrus::layout::{ContentBoxContents, Page, RowStyle, layout, text_content};
 use pyrus::parser::Parser;
 use pyrus::render::Renderer;
 
@@ -43,9 +43,10 @@ fn styled_document_renders_to_pdf() {
         .content
         .iter()
         .map(|content| {
-            content
-                .rows
-                .iter()
+            let ContentBoxContents::Text(rows) = &content.content else {
+                panic!("styled fixture should contain only text boxes");
+            };
+            rows.iter()
                 .flat_map(|row| &row.row)
                 .map(|part| text_content(&part.content))
                 .collect()
@@ -57,10 +58,11 @@ fn styled_document_renders_to_pdf() {
     assert!(text[3].contains("Built with Rust"));
     assert!(text[3].contains("Read the documentation"));
     assert_eq!(text[4], "Second entry");
+    let ContentBoxContents::Text(rows) = &page.content[3].content else {
+        panic!("bullet content should be text");
+    };
     assert_eq!(
-        page.content[3]
-            .rows
-            .iter()
+        rows.iter()
             .filter(|row| row.row_style == RowStyle::BulletRow)
             .count(),
         2
@@ -90,10 +92,16 @@ fn wrapped_split_row_renders_to_pdf() {
     assert_eq!(left.coord, (0.0, 0.0));
     assert_eq!(right.coord.1, left.coord.1);
     assert!(right.coord.0 > 0.0 && right.coord.0 < available);
-    assert!(left.rows.len() > 1);
+    let ContentBoxContents::Text(left_rows) = &left.content else {
+        panic!("left column should be text");
+    };
+    assert!(left_rows.len() > 1);
     let widths = [right.coord.0, available - right.coord.0];
     for (content, width) in page.content.iter().zip(widths) {
-        for row in &content.rows {
+        let ContentBoxContents::Text(rows) = &content.content else {
+            panic!("split columns should be text");
+        };
+        for row in rows {
             let line_width: f32 = row.row.iter().map(|part| part.width).sum();
             assert!(line_width <= width + 0.001);
         }

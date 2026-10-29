@@ -91,14 +91,21 @@ pub enum WrappedRow {
         left: Vec<WrappedRowContents>,
         right: Vec<WrappedRowContents>,
     },
+    Seperator,
 }
 
 #[derive(Debug, Clone)]
 pub struct ContentBox {
-    pub rows: Vec<WrappedRowContents>, // cut down to size
+    pub content: ContentBoxContents, // cut down to size
     pub coord: (f32, f32),
     pub(crate) width: f32,
     height: f32,
+}
+
+#[derive(Debug, Clone)]
+pub enum ContentBoxContents {
+    Text(Vec<WrappedRowContents>),
+    Seperator(f32),
 }
 
 pub fn calculate_grid(
@@ -449,6 +456,7 @@ pub fn layout(hir: &HIR) -> Result<Page, Diagnostic> {
                     available_width / 2.0
                 }
             }
+            ContentRow::Seperator => available_width,
         };
         split_line.push(width);
     }
@@ -469,6 +477,7 @@ pub fn layout(hir: &HIR) -> Result<Page, Diagnostic> {
                     right: right_content,
                 }
             }
+            ContentRow::Seperator => WrappedRow::Seperator, // NOTE: confirm
         };
         wrapped_rows.push(row_content);
     }
@@ -480,7 +489,7 @@ pub fn layout(hir: &HIR) -> Result<Page, Diagnostic> {
             WrappedRow::Single { content } => {
                 let total_height = content.iter().map(|h| h.height).sum();
                 text_boxes.push(ContentBox {
-                    rows: content.clone(),
+                    content: ContentBoxContents::Text(content.clone()),
                     coord: (0.0, len),
                     width: split_line[i],
                     height: total_height,
@@ -490,7 +499,7 @@ pub fn layout(hir: &HIR) -> Result<Page, Diagnostic> {
             WrappedRow::Split { left, right } => {
                 let l_total_height = left.iter().map(|h| h.height).sum();
                 text_boxes.push(ContentBox {
-                    rows: left.clone(),
+                    content: ContentBoxContents::Text(left.clone()),
                     coord: (0.0, len),
                     width: split_line[i],
                     height: l_total_height,
@@ -498,12 +507,21 @@ pub fn layout(hir: &HIR) -> Result<Page, Diagnostic> {
                 let r_total_height = right.iter().map(|h| h.height).sum();
                 let right_width = available_width - split_line[i];
                 text_boxes.push(ContentBox {
-                    rows: right.clone(),
+                    content: ContentBoxContents::Text(right.clone()),
                     coord: (split_line[i], len),
                     width: right_width,
                     height: r_total_height,
                 });
                 len += l_total_height.max(r_total_height);
+            }
+            WrappedRow::Seperator => {
+                text_boxes.push(ContentBox {
+                    content: ContentBoxContents::Seperator(split_line[i]),
+                    coord: (0.0, len),
+                    width: split_line[i],
+                    height: 0.5,
+                });
+                len += 0.5;
             }
         }
     }
@@ -698,40 +716,6 @@ mod tests {
             assert!(lines.len() > 1);
             assert!(lines.iter().all(|line| line_width(line) <= 25.001));
         }
-    }
-
-    #[test]
-    fn layout_and_renderer_use_the_same_point_measurements() {
-        let source = "document {\n type: A4\n margin: 240\n}\n\
-            elem card { text, date }\n\
-            layout card {\n < text | > date\n}\n\
-            @card {\n text: Some **bold** and *italic* words with é and a [link](https://example.com).\n date: October 2026\n}";
-        let mut parser =
-            crate::parser::Parser::new("wrap-test.pyr".into(), source.into())
-                .unwrap();
-        let ast = parser.parse::<crate::ast::Ast>().unwrap();
-        let hir = crate::hir::lower(&ast).unwrap();
-        let page = layout(&hir).unwrap();
-        assert_eq!(page.content.len(), 2);
-        let available =
-            595.28 - page.config.left_margin - page.config.right_margin;
-        let left = &page.content[0];
-        let right = &page.content[1];
-        assert!((left.width + right.width - available).abs() < 0.001);
-        assert!((right.coord.0 - left.width).abs() < 0.001);
-        assert!(left.rows.len() > 1);
-        for content in &page.content {
-            assert!(
-                content
-                    .rows
-                    .iter()
-                    .all(|row| line_width(row) <= content.width + 0.001)
-            );
-        }
-        let output = "target/wrapping-smoke.pdf";
-        crate::render::Renderer::render_pdf(&page, output);
-        let pdf = std::fs::read(output).unwrap();
-        assert!(pdf.starts_with(b"%PDF-"));
     }
 
     #[test]

@@ -3,13 +3,13 @@ use std::path::PathBuf;
 use krilla::Document;
 use krilla::action::LinkAction;
 use krilla::annotation::{LinkAnnotation, Target};
-use krilla::geom::{Point, Rect};
+use krilla::geom::{PathBuilder, Point, Rect};
 use krilla::page::PageSettings;
 use krilla::text::{Font, TextDirection};
 
 use crate::hir::hir_types::{Sizing, TextType};
 use crate::layout::allocate::Alignment;
-use crate::layout::{BULLET_INDENT, Page, RowStyle};
+use crate::layout::{BULLET_INDENT, ContentBoxContents, Page, RowStyle};
 
 pub struct Renderer {}
 
@@ -58,7 +58,27 @@ impl Renderer {
 
         for content in &page_layout.content {
             let (x, y) = content.coord;
-            for (row_count, row) in content.rows.iter().enumerate() {
+            let rows = match &content.content {
+                ContentBoxContents::Text(rows) => rows,
+                ContentBoxContents::Seperator(width) => {
+                    // TEMP: full-width underline as a 0.5pt black rectangle.
+                    let left = page_layout.config.left_margin + x;
+                    let top = page_layout.config.top_margin + y;
+                    if *width > 0.0 {
+                        let mut path = PathBuilder::new();
+                        path.move_to(left, top);
+                        path.line_to(left + width, top);
+                        path.line_to(left + width, top + 0.5);
+                        path.line_to(left, top + 0.5);
+                        path.close();
+                        if let Some(path) = path.finish() {
+                            surface.draw_path(&path);
+                        }
+                    }
+                    continue;
+                }
+            };
+            for (row_count, row) in rows.iter().enumerate() {
                 let row_format_padding = match row.row_style {
                     RowStyle::BulletRow | RowStyle::TrailingBullet => {
                         BULLET_INDENT

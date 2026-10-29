@@ -36,6 +36,7 @@ pub enum TokenKind {
     Number,
     TextFragment, // catch for wierd text objects
     LineComment,
+    LineSeperator, // same as markdown line seperator (`---`)
 
     // End of file
     Eof,

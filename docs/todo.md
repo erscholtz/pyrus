@@ -18,3 +18,4 @@ struct Content {
 ```
 - [ ] all caps words need to be using smallcaps,
 - [ ] spacing between invokes?? will need to track these properly
+- [ ] --- syntax for divider lines, feels nice, put them in layout
