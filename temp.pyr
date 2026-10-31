@@ -5,6 +5,7 @@ document {
 
 elem header {
     name,
+    tagline,
     contact,
 }
 
@@ -36,16 +37,21 @@ elem education {
     institution,
     location,
     degree,
-    distinction,
     date,
     content,
 }
 
+elem colophon {
+    text,
+}
+
 layout header {
     <> name
+    <> tagline
     <> contact
 
     name: xl
+    tagline: sm
     contact: sm
 }
 
@@ -91,74 +97,25 @@ layout entry {
 layout education {
     < institution | > date
     degree
-    location
-    distinction
     content
 
     institution: sm
     location: sm
     degree: sm
-    distinction: sm
     date: sm
     content: sm
 }
 
+layout colophon {
+    <> text
+
+    text: sm
+}
+
 @header {
     name: **Erik Scholtz**
-    contact: [erikscholtz23@gmail.com](mailto:erikscholtz23@gmail.com) | [linkedin](https://linkedin.com/in/erikscholtz) | [github](https://github.com/erscholtz)
-}
-
-@separator {
-    title: **SKILLS**
-}
-
-@skills {
-    languages: **Languages:** `Rust, C, C++, Python`
-    systems: **Systems:** Linux kernel drivers, UEFI/EDK-II, QEMU, TPM2, IPC, JSON-RPC
-    tools: **Tools:** `Cargo, CMake, KBuild, Make, Meson, Git, Valgrind, SQLite`
-}
-
-@separator {
-    title: **PROJECTS**
-}
-
-@project {
-    title: **harnessd Autocomplete Daemon**
-    stack: `Rust · Tokio · tree-sitter · SQLite · JSON-RPC`
-    link: [github](https://github.com/erscholtz/harnessd)
-
-    - Engineered a Rust daemon with local IPC, lockfile-based single-instance control, and graceful shutdown to serve editor and CLI requests over JSON-RPC 2.0.
-    - Built a rusqlite proposal cache keyed by file path, byte range, and content hash, using indexed lookups and invalidation guards to keep completions fast, bounded, and coherent with source changes.
-    - Used tree-sitter to resolve cursor byte offsets to AST regions and precompute cached suggestions from TODO/FIXME anchors across multiple languages.
-}
-
-@project {
-    title: **UEFI CVE Replication and Firmware Patch**
-    stack: `C · EDK-II · QEMU · UEFI Secure Boot`
-    link: [github](https://github.com/erscholtz/uefi-cve-replication)
-
-    - Replicated `CVE-2022-21894` (Baton Drop) using QEMU; demonstrated vulnerability by safely sandboxing exploit payload in QEMU to understand attack vector.
-    - Proposed proof-of-concept patch through monotonic counter in EDK-II using C on EFI file sign date timestamps preventing rollback attacks.
-}
-
-@project {
-    title: **Pyrus - Typesetting language and compiler**
-    stack: `Rust · Recursive Descent Parsing · HIR · PDF Rendering`
-    link: [github](https://github.com/erscholtz/pyrus)
-
-    - Zero-dependency compiler pipeline from lexer to parser to HIR for a typesetting language. Created this resume.
-    - Implemented recursive descent parser with Pratt-style operator precedence and string interpolation support.
-}
-
-@project {
-    title: **Linux Character Device Driver**
-    stack: `C · KBuild · Make · Linux Kernel APIs`
-    link: [github](https://github.com/erscholtz/linux-character-device-driver)
-
-    - Implemented file operations using kernel APIs `register_chrdev`, `class_create`, and `device_create`.
-    - Enabled dynamic runtime configuration through write operations allowing users to change output byte values.
-    - Utilized kernel memory management functions `copy_from_user` and `put_user` for user-kernel space data transfer.
-    - Built and deployed using kernel build system KBuild with Makefile automation.
+    tagline: Systems engineer building compilers, firmware and developer tools
+    contact: [erikscholtz23@gmail.com](mailto:erikscholtz23@gmail.com) | [linkedin.com/in/erikscholtz](https://linkedin.com/in/erikscholtz) | [github.com/erscholtz](https://github.com/erscholtz)
 }
 
 @separator {
@@ -168,26 +125,69 @@ layout education {
 @entry {
     company: Deloitte · Toronto, ON
     role: **Infrastructure Engineer**
-    date: *September 2025 - Present*
+    date: *September 2025 – Present*
 
-    - Applied constraint-solving techniques to optimize CI resource scheduling, reducing queue times by 20% under shared compute constraints.
+    - Building an LLM agent tool to map client data onto existing apps: normalizes JSON, XLSX and SQLite sources into intermediate JSON schemas, proposes candidate mappings with casting options, and verifies them through a decision model, schema dry runs and synthetic data before human review.
+    - Applied constraint-solving techniques to CI resource scheduling, reducing queue times by 20% under shared compute constraints.
 }
 
 @entry {
     company: Syncademia AI · Waterloo, ON
     role: **Infrastructure Engineer**
-    date: *January 2025 - August 2025*
+    date: *January 2025 – August 2025*
 
-    - Reduced dependency surface area by 40% through targeted library audit and replacement, simplifying runtime behavior and eliminating classes of failure.
     - Built a streaming document ingestion pipeline with backpressure handling to process 1000+ page inputs without exceeding memory limits.
+    - Reduced dependency surface area by 40% through targeted library audit and replacement, simplifying runtime behavior and eliminating classes of failure.
 }
 
 @entry {
     company: Deloitte · Toronto, ON
     role: **Software Engineering Co-op**
-    date: *May 2024 - September 2024*
+    date: *May 2024 – September 2024*
 
     - Developed a telemetry tool to analyze system logs and visualize object dependencies, adopted by multiple enterprise teams for debugging.
+}
+
+@separator {
+    title: **PROJECTS**
+}
+
+@project {
+    title: **pyrus: Typesetting language and compiler**
+    stack: `Rust · Pratt Parsing · HIR · Text Shaping · PDF`
+    link: [github](https://github.com/erscholtz/pyrus)
+
+    - Built a compiler from lexer to parser, HIR, layout and PDF output, with shaping through harfrust and PDF generation through krilla. It compiled this page.
+    - Implemented a recursive descent parser with Pratt-style operator precedence and string interpolation.
+}
+
+@project {
+    title: **harnessd: Autocomplete daemon**
+    stack: `Rust · Tokio · tree-sitter · SQLite · JSON-RPC`
+    link: [github](https://github.com/erscholtz/harnessd)
+
+    - Built a daemon with local IPC, lockfile-based single-instance control and graceful shutdown, serving editor and CLI requests over JSON-RPC 2.0.
+    - Designed a rusqlite proposal cache keyed by file path, byte range and content hash, with invalidation guards keeping completions coherent with source changes.
+    - Used tree-sitter to map cursor offsets to AST regions and precompute suggestions from TODO/FIXME anchors across multiple languages.
+}
+
+@project {
+    title: **UEFI Secure Boot CVE Replication**
+    stack: `C · EDK-II · QEMU · UEFI Secure Boot`
+    link: [github](https://github.com/erscholtz/uefi-cve-replication)
+
+    - Replicated `CVE-2022-21894` (Baton Drop) in QEMU to analyze the Secure Boot bypass.
+    - Proposed an EDK-II proof-of-concept patch using a monotonic counter with EFI signing timestamps to prevent rollback attacks.
+}
+
+@separator {
+    title: **SKILLS**
+}
+
+@skills {
+    languages: **Languages:** `Rust, C, Python`
+    systems: **Systems:** `UEFI/EDK-II, QEMU, IPC, JSON-RPC, SQLite`
+    tools: **Tools:** `Cargo, Make, KBuild, Git`
 }
 
 @separator {
@@ -195,13 +195,14 @@ layout education {
 }
 
 @education {
-    institution: **Carleton University**
-    location: Ottawa, ON
-    degree: **Bachelor of Computer Science**
-    distinction: *Honours with Distinction - 3.7 GPA*
-    date: *September 2020 - December 2024*
+    institution: **Carleton University** · Ottawa, ON
+    degree: **Bachelor of Computer Science**, *Honours with Distinction · 3.7 GPA*
+    date: *September 2020 – December 2024*
 
     - Mathematics Minor: Mathematical Optimization, Numerical Analysis
-    - Honours Project: UEFI CVE Replication and Firmware Hardening, co-authored with peers
-    - Selected Coursework: Operating Systems, Distributed Systems, Trusted Computing, Programming Paradigms
+    - Coursework: Operating Systems, Distributed Systems, Trusted Computing
+}
+
+@colophon {
+    text: Typeset with [pyrus](https://github.com/erscholtz/pyrus)
 }
