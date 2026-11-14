@@ -6,6 +6,7 @@ mod wrap; // wrap rows to fit in margins
 
 use std::cmp::max;
 use std::collections::BTreeMap;
+use std::collections::HashSet;
 use std::ops::Range;
 
 use crate::diagnostic::Diagnostic;
@@ -28,7 +29,7 @@ pub const BULLET_INDENT: f32 = 10.0;
 #[derive(Debug, Clone)]
 pub struct Page {
     pub config: PageConfig,
-    pub content: Vec<ContentBox>,
+    pub content: Vec<Block>,
 }
 
 #[derive(Debug, Clone)]
@@ -66,45 +67,65 @@ pub enum RowStyle {
 }
 
 #[derive(Debug, Clone)]
-pub struct WrappedRowContents {
-    pub row: Vec<WrappedText>,
+pub struct Paragraph {
+    pub lines: Vec<Line>,
+    pub attributes: HashSet<ParagraphAttribute>,
     pub row_style: RowStyle,
     pub alignment: Alignment,
     pub size: Sizing,
     pub height: f32,
-    // pub width: f32, // TODO: this is kinda hard to implement right now, have to rework wrapping first
+    pub width: f32,
+}
+
+// NOTE this is somewhat implemented inside of the code for Line, I want
+// to rethink this because I dont want this data to be stored twice plus one
+// place to look for attributes for a given text row.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum ParagraphAttribute {
+    Title,
+    Subtitle,
+    Author,
+    Date,
+    Link,
 }
 
 #[derive(Debug, Clone)]
-pub struct WrappedText {
+pub struct Line {
     pub content: TextType,
     pub glyphs: Vec<KrillaGlyph>,
     pub width: f32,
+    pub height: f32,
 }
 
 #[derive(Debug, Clone)]
 pub enum WrappedRow {
     Single {
-        content: Vec<WrappedRowContents>,
+        content: Vec<Paragraph>,
     },
     Split {
-        left: Vec<WrappedRowContents>,
-        right: Vec<WrappedRowContents>,
+        left: Vec<Paragraph>,
+        right: Vec<Paragraph>,
     },
     Seperator,
 }
 
 #[derive(Debug, Clone)]
-pub struct ContentBox {
-    pub content: ContentBoxContents, // cut down to size
+pub struct Block {
+    pub content: BlockContentType,
     pub coord: (f32, f32),
-    pub(crate) width: f32,
-    height: f32,
+    pub width: f32,
+    pub height: f32,
 }
 
+// NOTE this is a bit of a hack, but I want to make sure that the content of a
+// block is either text or a seperator, and not both. This is because I want to
+// be able to render the content of a block in a single pass, and not have to
+// worry about rendering text and seperators separately. This is also because I
+// want to be able to render the content of a block in a single pass, and not
+// have to worry about rendering text and seperators separately.
 #[derive(Debug, Clone)]
-pub enum ContentBoxContents {
-    Text(Vec<WrappedRowContents>),
+pub enum BlockContentType {
+    Text(Vec<Paragraph>),
     Seperator(f32),
 }
 
@@ -196,7 +217,7 @@ fn wrapped_fragment(
     run: &inscribe::GlyphRun,
     range: Range<usize>,
     font_size: f32,
-) -> WrappedText {
+) -> Line {
     let mut boundaries: Vec<_> = run
         .buffer
         .glyph_infos()
@@ -228,26 +249,38 @@ fn wrapped_fragment(
         })
         .collect();
     let width = glyphs.iter().map(|glyph| glyph.x_advance * font_size).sum();
-    WrappedText {
+    Line {
         content: slice_text(text, range),
         glyphs,
         width,
+        height: font_size,
     }
 }
 
-pub fn wrap_lines(
-    field: &AllocatedField,
-    split: f32,
-) -> Vec<WrappedRowContents> {
+pub fn wrap_lines(field: &AllocatedField, split: f32) -> Vec<Paragraph> {
     let mut wrapped_contents = Vec::new();
     // Buffers are flattened across ALL TextOps, not indexed per paragraph.
     let mut runs = field.glyph_run.iter();
     for item in &field.content {
+        let mut attributes = HashSet::new();
+        if item
+            .content
+            .iter()
+            .any(|text| matches!(text, TextType::Link { .. }))
+        {
+            attributes.insert(ParagraphAttribute::Link);
+        }
         let font_size = match field.size {
             Sizing::Sm => 10 as f32,
             Sizing::Md => 11 as f32,
-            Sizing::Lg => 12 as f32,
-            Sizing::Xl => 20 as f32,
+            Sizing::Lg => {
+                attributes.insert(ParagraphAttribute::Subtitle);
+                12 as f32
+            }
+            Sizing::Xl => {
+                attributes.insert(ParagraphAttribute::Title); // NOTE double check this one 
+                20 as f32
+            }
         };
         let font_spacing = match field.size {
             Sizing::Sm => 10 as f32 + 2 as f32,
@@ -255,6 +288,7 @@ pub fn wrap_lines(
             Sizing::Lg => 14 as f32 + 4 as f32,
             Sizing::Xl => 24 as f32 + 6 as f32,
         };
+
         let paragraph_runs: Vec<_> = item
             .content
             .iter()
@@ -333,12 +367,27 @@ pub fn wrap_lines(
                 ));
                 index = end_index;
             }
-            wrapped_contents.push(WrappedRowContents {
-                row,
+
+            let mut height = 0 as f32;
+            for line in &mut row {
+                height += line.height;
+            }
+
+            let mut width = 0 as f32;
+            for line in &mut row {
+                if line.width > width {
+                    width = line.width;
+                }
+            }
+
+            wrapped_contents.push(Paragraph {
+                lines: row,
                 row_style: row_style.clone(),
                 alignment: field.alignment.clone(),
                 size: field.size.clone(),
-                height: font_spacing,
+                attributes: attributes.clone(),
+                height, // TODO: n_lines * (line_height + spacing)
+                width,  // TODO: max(row.iter.width)
             });
             if row_style == RowStyle::BulletRow {
                 row_style = RowStyle::TrailingBullet;
@@ -488,8 +537,8 @@ pub fn layout(hir: &HIR) -> Result<Page, Diagnostic> {
         match row {
             WrappedRow::Single { content } => {
                 let total_height = content.iter().map(|h| h.height).sum();
-                text_boxes.push(ContentBox {
-                    content: ContentBoxContents::Text(content.clone()),
+                text_boxes.push(Block {
+                    content: BlockContentType::Text(content.clone()),
                     coord: (0.0, len),
                     width: split_line[i],
                     height: total_height,
@@ -498,16 +547,16 @@ pub fn layout(hir: &HIR) -> Result<Page, Diagnostic> {
             }
             WrappedRow::Split { left, right } => {
                 let l_total_height = left.iter().map(|h| h.height).sum();
-                text_boxes.push(ContentBox {
-                    content: ContentBoxContents::Text(left.clone()),
+                text_boxes.push(Block {
+                    content: BlockContentType::Text(left.clone()),
                     coord: (0.0, len),
                     width: split_line[i],
                     height: l_total_height,
                 });
                 let r_total_height = right.iter().map(|h| h.height).sum();
                 let right_width = available_width - split_line[i];
-                text_boxes.push(ContentBox {
-                    content: ContentBoxContents::Text(right.clone()),
+                text_boxes.push(Block {
+                    content: BlockContentType::Text(right.clone()),
                     coord: (split_line[i], len),
                     width: right_width,
                     height: r_total_height,
@@ -515,8 +564,8 @@ pub fn layout(hir: &HIR) -> Result<Page, Diagnostic> {
                 len += l_total_height.max(r_total_height);
             }
             WrappedRow::Seperator => {
-                text_boxes.push(ContentBox {
-                    content: ContentBoxContents::Seperator(split_line[i]),
+                text_boxes.push(Block {
+                    content: BlockContentType::Seperator(split_line[i]),
                     coord: (0.0, len),
                     width: split_line[i],
                     height: 0.5,
@@ -557,15 +606,15 @@ mod tests {
         }
     }
 
-    fn line_text(row: &WrappedRowContents) -> String {
-        row.row
+    fn line_text(row: &Paragraph) -> String {
+        row.lines
             .iter()
             .map(|part| text_content(&part.content))
             .collect()
     }
 
-    fn line_width(row: &WrappedRowContents) -> f32 {
-        row.row.iter().map(|part| part.width).sum()
+    fn line_width(row: &Paragraph) -> f32 {
+        row.lines.iter().map(|part| part.width).sum()
     }
 
     #[test]
@@ -611,16 +660,16 @@ mod tests {
             },
         ])]);
         let all = wrap_lines(&field, 1000.0);
-        let width = all[0].row[0].width + all[0].row[1].width + 0.01;
+        let width = all[0].lines[0].width + all[0].lines[1].width + 0.01;
         let lines = wrap_lines(&field, width);
         assert_eq!(
             lines.iter().map(line_text).collect::<Vec<_>>(),
             ["one two", "three"]
         );
         assert!(
-            matches!(&lines[0].row[1].content, TextType::Bold(s) if s == "two")
+            matches!(&lines[0].lines[1].content, TextType::Bold(s) if s == "two")
         );
-        assert!(matches!(&lines[1].row[0].content,
+        assert!(matches!(&lines[1].lines[0].content,
             TextType::Link { label, href } if label == "three" && href == "https://example.com"));
         assert!(lines.iter().all(|line| line_width(line) <= width + 0.001));
     }
@@ -652,7 +701,7 @@ mod tests {
             end += line_text(line).len();
             assert!(boundaries.contains(&end));
             assert!(line_width(line) <= width + 0.001);
-            for part in &line.row {
+            for part in &line.lines {
                 let text = text_content(&part.content);
                 for glyph in &part.glyphs {
                     assert!(text.get(glyph.text_range.clone()).is_some());

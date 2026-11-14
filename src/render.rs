@@ -9,12 +9,13 @@ use krilla::text::{Font, TextDirection};
 
 use crate::hir::hir_types::{Sizing, TextType};
 use crate::layout::allocate::Alignment;
-use crate::layout::{BULLET_INDENT, ContentBoxContents, Page, RowStyle};
+use crate::layout::{BULLET_INDENT, BlockContentType, Page, RowStyle};
 
 pub struct Renderer {}
 
 impl Renderer {
     pub fn render_pdf(page_layout: &Page, output_path: &str) {
+        // TODO: add krilla::outline to specific items that are title attributes
         let mut document = Document::new();
         // FIXME super inefficient importing the fonts again, use the warm versions in shaping
         let serif_font_reg = {
@@ -59,8 +60,8 @@ impl Renderer {
         for content in &page_layout.content {
             let (x, y) = content.coord;
             let rows = match &content.content {
-                ContentBoxContents::Text(rows) => rows,
-                ContentBoxContents::Seperator(width) => {
+                BlockContentType::Text(rows) => rows,
+                BlockContentType::Seperator(width) => {
                     // TEMP: full-width underline as a 0.5pt black rectangle.
                     let left = page_layout.config.left_margin + x;
                     let top = page_layout.config.top_margin + y;
@@ -86,7 +87,7 @@ impl Renderer {
                     RowStyle::None => 0.0,
                 };
                 let text_width: f32 =
-                    row.row.iter().map(|text| text.width).sum();
+                    row.lines.iter().map(|text| text.width).sum();
                 let remaining =
                     (content.width - row_format_padding - text_width).max(0.0);
                 let alignment_padding = match row.alignment {
@@ -118,7 +119,7 @@ impl Renderer {
                         TextDirection::Auto,
                     );
                 }
-                for text in &row.row {
+                for text in &row.lines {
                     let (text_string, font) = match &text.content {
                         TextType::Text(s) => (s, &serif_font_reg),
                         TextType::Bold(s) => (s, &serif_font_bold),
@@ -161,6 +162,15 @@ impl Renderer {
             page.add_annotation(annotation);
         }
         page.finish();
+
+        let metadata = krilla::metadata::Metadata::new()
+            .title("todo".to_string()) // FIXME: add metadata to the AST and pass it through to the layout
+            .description("todo".to_string())
+            .authors(vec!["todo".to_string()])
+            .creator("Pyrus".to_string())
+            .producer("Pyrus".to_string());
+        document.set_metadata(metadata);
+
         let pdf_bytes = document.finish().unwrap();
         std::fs::write(output_path, pdf_bytes).unwrap();
     }
