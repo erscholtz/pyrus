@@ -10,9 +10,7 @@ use crate::parser::tokens::TokenKind;
 impl Parse for Content {
     fn parse(parser: &mut Parser) -> Result<Self, Diagnostic> {
         let mut blocks = Vec::new();
-        while !parser.at(TokenKind::RightBrace)?
-            && !parser.at(TokenKind::Eof)?
-        {
+        while !parser.at(TokenKind::RightBrace)? && !parser.at(TokenKind::Eof)? {
             parser.skip_trivia()?;
             blocks.push(ContentBlock::parse(parser)?);
             parser.skip_trivia()?;
@@ -37,9 +35,7 @@ impl Parse for ContentBlock {
 }
 
 impl ContentBlock {
-    fn consume_list(
-        parser: &mut Parser,
-    ) -> Result<Vec<InlineText>, Diagnostic> {
+    fn consume_list(parser: &mut Parser) -> Result<Vec<InlineText>, Diagnostic> {
         let mut list = Vec::new();
         while parser.at(TokenKind::Dash)? {
             parser.consume(TokenKind::Dash)?;
@@ -116,8 +112,7 @@ impl Parse for Inline {
             }
             (TokenKind::LeftBracket, _) => {
                 opener.push_str(&parser.expect_lexeme(TokenKind::LeftBracket)?);
-                let label_layer =
-                    Inline::concat_text(parser, TokenKind::RightBracket)?;
+                let label_layer = Inline::concat_text(parser, TokenKind::RightBracket)?;
                 let label_val = match label_layer {
                     InlineParseResult::Closed(text) => {
                         opener.push_str(&text);
@@ -128,8 +123,7 @@ impl Parse for Inline {
                         return Ok(Inline::Text(opener));
                     }
                 };
-                opener
-                    .push_str(&parser.expect_lexeme(TokenKind::RightBracket)?);
+                opener.push_str(&parser.expect_lexeme(TokenKind::RightBracket)?);
                 if !parser.at(TokenKind::LeftParen)? {
                     return Ok(Inline::Text(opener));
                 }
@@ -180,9 +174,7 @@ enum InlineParseResult {
 }
 
 impl Inline {
-    fn concat_bold_text(
-        parser: &mut Parser,
-    ) -> Result<InlineParseResult, Diagnostic> {
+    fn concat_bold_text(parser: &mut Parser) -> Result<InlineParseResult, Diagnostic> {
         let mut text = String::new();
 
         while !parser.at(TokenKind::RightBrace)?
@@ -253,8 +245,7 @@ mod tests {
 
     #[test]
     fn parses_adjacent_italic_and_bold_text() {
-        let parsed =
-            parse_inline("*one***two**").expect("inline text should parse");
+        let parsed = parse_inline("*one***two**").expect("inline text should parse");
 
         assert_eq!(
             parsed.parts,
@@ -267,8 +258,7 @@ mod tests {
 
     #[test]
     fn parses_formatting_without_surrounding_whitespace() {
-        let parsed = parse_inline("**bold**and*italic*")
-            .expect("inline text should parse");
+        let parsed = parse_inline("**bold**and*italic*").expect("inline text should parse");
 
         assert_eq!(
             parsed.parts,
@@ -282,8 +272,8 @@ mod tests {
 
     #[test]
     fn preserves_spaces_and_punctuation_inside_formatting() {
-        let parsed = parse_inline("*multiple words, with spaces!*")
-            .expect("inline text should parse");
+        let parsed =
+            parse_inline("*multiple words, with spaces!*").expect("inline text should parse");
 
         assert_eq!(
             parsed.parts,
@@ -293,10 +283,8 @@ mod tests {
 
     #[test]
     fn parses_link_between_plain_text() {
-        let parsed = parse_inline(
-            "see [the documentation](https://example.com/docs) now",
-        )
-        .expect("inline text should parse");
+        let parsed = parse_inline("see [the documentation](https://example.com/docs) now")
+            .expect("inline text should parse");
 
         assert_eq!(
             parsed.parts,
@@ -327,8 +315,7 @@ mod tests {
 
     #[test]
     fn parses_bulleted_list() {
-        let parsed =
-            parse_content("- item 1\n- item 2").expect("list should parse");
+        let parsed = parse_content("- item 1\n- item 2").expect("list should parse");
         assert_eq!(parsed.blocks.len(), 1);
         assert!(matches!(parsed.blocks[0], ContentBlock::BulletList(_)));
         let parts = match parsed.blocks[0].clone() {
@@ -344,8 +331,8 @@ mod tests {
 
     #[test]
     fn parses_bulleted_list_and_text() {
-        let parsed = parse_content("- one\n- two\n\ntext after")
-            .expect("list and text should parse");
+        let parsed =
+            parse_content("- one\n- two\n\ntext after").expect("list and text should parse");
         assert!(matches!(parsed.blocks[0], ContentBlock::BulletList(_)));
         let parts = match parsed.blocks[0].clone() {
             ContentBlock::BulletList(parts) => parts,
@@ -362,8 +349,7 @@ mod tests {
 
     #[test]
     fn parses_bulleted_list_and_more_text() {
-        let parsed = parse_content("- one\n- two\ntext after")
-            .expect("list and text should parse");
+        let parsed = parse_content("- one\n- two\ntext after").expect("list and text should parse");
         assert!(matches!(parsed.blocks[0], ContentBlock::BulletList(_)));
         let parts = match parsed.blocks[0].clone() {
             ContentBlock::BulletList(parts) => parts,
@@ -380,8 +366,8 @@ mod tests {
 
     #[test]
     fn parses_special_rightbrace() {
-        let parsed = parse_content("some text\\}")
-            .expect("special right brace should be parsed as text");
+        let parsed =
+            parse_content("some text\\}").expect("special right brace should be parsed as text");
         assert_eq!(parsed.blocks.len(), 1);
         let text = match parsed.blocks[0].clone() {
             ContentBlock::Paragraph(text) => text,
@@ -392,8 +378,8 @@ mod tests {
 
     #[test]
     fn treats_unclosed_italic_opener_as_text_at_eof() {
-        let parsed = parse_inline("*some text")
-            .expect("unclosed formatting should fall back to text");
+        let parsed =
+            parse_inline("*some text").expect("unclosed formatting should fall back to text");
 
         assert_eq!(parsed.parts, vec![Inline::Text("*some text".to_string())]);
     }
@@ -408,8 +394,8 @@ mod tests {
 
     #[test]
     fn treats_unclosed_bold_opener_as_text() {
-        let parsed = parse_inline("**unclosed bold")
-            .expect("unclosed formatting should fall back to text");
+        let parsed =
+            parse_inline("**unclosed bold").expect("unclosed formatting should fall back to text");
 
         assert_eq!(
             parsed.parts,

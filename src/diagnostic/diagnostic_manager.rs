@@ -38,9 +38,9 @@ impl DiagnosticManager {
     }
 
     pub fn has_errors(&self) -> bool {
-        self.diagnostics.iter().any(|diagnostic| {
-            matches!(diagnostic.severity, Severity::Error | Severity::Fatal)
-        })
+        self.diagnostics
+            .iter()
+            .any(|diagnostic| matches!(diagnostic.severity, Severity::Error | Severity::Fatal))
     }
 
     pub fn has_fatal(&self) -> bool {

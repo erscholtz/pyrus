@@ -14,8 +14,7 @@ impl HIRPass for CollectDecls {
             match item.node {
                 Item::ElemDecl(decl) => {
                     let name = decl.name.text.clone();
-                    let mut fields: Vec<String> =
-                        decl.fields.into_iter().map(|f| f.text).collect();
+                    let mut fields: Vec<String> = decl.fields.into_iter().map(|f| f.text).collect();
                     if decl.content {
                         fields.push("content".to_string());
                     }

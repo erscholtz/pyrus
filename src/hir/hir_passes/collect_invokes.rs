@@ -31,10 +31,7 @@ impl HIRPass for CollectInvokes {
                     let mut elements = HashMap::new();
                     for field in &invoke.fields {
                         let name = field.name.text.clone();
-                        let text = self.lower_inlines(
-                            field.value.clone(),
-                            TextStyle::Paragraph,
-                        );
+                        let text = self.lower_inlines(field.value.clone(), TextStyle::Paragraph);
 
                         elements.insert(name, vec![text]);
                     }
@@ -44,17 +41,15 @@ impl HIRPass for CollectInvokes {
                         for block in &content.blocks {
                             match block {
                                 ContentBlock::Paragraph(text) => {
-                                    content_parts.push(self.lower_inlines(
-                                        text.clone(),
-                                        TextStyle::Paragraph,
-                                    ));
+                                    content_parts.push(
+                                        self.lower_inlines(text.clone(), TextStyle::Paragraph),
+                                    );
                                 }
                                 ContentBlock::BulletList(items) => {
                                     for item in items {
-                                        content_parts.push(self.lower_inlines(
-                                            item.clone(),
-                                            TextStyle::BulletList,
-                                        ));
+                                        content_parts.push(
+                                            self.lower_inlines(item.clone(), TextStyle::BulletList),
+                                        );
                                     }
                                 }
                             }
@@ -86,18 +81,10 @@ impl CollectInvokes {
         let mut content = Vec::new();
         for part in &inline.parts {
             match part {
-                Inline::Text(text) => {
-                    content.push(TextType::Text(text.clone()))
-                }
-                Inline::Bold(text) => {
-                    content.push(TextType::Bold(text.clone()))
-                }
-                Inline::Italic(text) => {
-                    content.push(TextType::Italic(text.clone()))
-                }
-                Inline::NerdFont(text) => {
-                    content.push(TextType::Nerd(text.clone()))
-                }
+                Inline::Text(text) => content.push(TextType::Text(text.clone())),
+                Inline::Bold(text) => content.push(TextType::Bold(text.clone())),
+                Inline::Italic(text) => content.push(TextType::Italic(text.clone())),
+                Inline::NerdFont(text) => content.push(TextType::Nerd(text.clone())),
                 Inline::Link { label, href } => content.push(TextType::Link {
                     label: label.clone(),
                     href: href.clone(),

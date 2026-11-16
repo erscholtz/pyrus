@@ -129,9 +129,7 @@ impl Lexer {
         };
 
         match byte {
-            byte if byte.is_ascii_alphabetic() || byte == b'_' => {
-                self.lex_identifier(start)
-            }
+            byte if byte.is_ascii_alphabetic() || byte == b'_' => self.lex_identifier(start),
             byte if byte.is_ascii_digit() => self.lex_number(start),
             b' ' | b'\t' => self.lex_whitespace(start),
             b'\n' | b'\r' => {
@@ -166,9 +164,11 @@ impl Lexer {
 
     fn lex_identifier(&mut self, start: Mark) -> Result<Token, Diagnostic> {
         self.cursor.advance()?;
-        while self.cursor.peek().is_some_and(|byte| {
-            byte.is_ascii_alphabetic() || byte == b'_' || byte.is_ascii_digit()
-        }) {
+        while self
+            .cursor
+            .peek()
+            .is_some_and(|byte| byte.is_ascii_alphabetic() || byte == b'_' || byte.is_ascii_digit())
+        {
             self.cursor.advance()?;
         }
 

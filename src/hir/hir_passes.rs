@@ -38,11 +38,7 @@ impl PassManager {
         self
     }
 
-    pub fn run<P: HIRPass + Default>(
-        &mut self,
-        hir: &mut HIR,
-        ast: &Ast,
-    ) -> &mut Self {
+    pub fn run<P: HIRPass + Default>(&mut self, hir: &mut HIR, ast: &Ast) -> &mut Self {
         let mut pass = P::default();
         match pass.run(hir, ast) {
             Ok(()) => {}

@@ -14,9 +14,7 @@ impl Parse for DocumentConfig {
         parser.consume(TokenKind::LeftBrace)?;
         parser.skip_trivia()?;
         let mut entries = Vec::new();
-        while !parser.at(TokenKind::RightBrace)?
-            && !parser.at(TokenKind::Eof)?
-        {
+        while !parser.at(TokenKind::RightBrace)? && !parser.at(TokenKind::Eof)? {
             entries.push(DocumentEntry::parse(parser)?);
             parser.skip_trivia()?;
         }
@@ -57,8 +55,8 @@ mod tests {
 
     #[test]
     fn parses_compact_entries_and_trailing_newline() {
-        let document = parse_document("document {type:A4\nmargin:4\n}")
-            .expect("document config should parse");
+        let document =
+            parse_document("document {type:A4\nmargin:4\n}").expect("document config should parse");
 
         assert_eq!(document.entries.len(), 2);
         assert_eq!(document.entries[0].name.text, "type");
@@ -69,9 +67,8 @@ mod tests {
 
     #[test]
     fn parses_comments_between_entries() {
-        let document =
-            parse_document("document { type: A4 // page size\n margin: 4 }")
-                .expect("comments should be trivia");
+        let document = parse_document("document { type: A4 // page size\n margin: 4 }")
+            .expect("comments should be trivia");
 
         assert_eq!(document.entries.len(), 2);
     }

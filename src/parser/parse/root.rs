@@ -35,10 +35,7 @@ impl Parse for Ast {
                 // Item::ElemInvoke(ElemInvoke::free_content(parser)?)
                 return Err(Diagnostic {
                     severity: Severity::Error,
-                    message: format!(
-                        "unexpected token `{}`",
-                        parser.current_text()?
-                    ),
+                    message: format!("unexpected token `{}`", parser.current_text()?),
                     location,
                     span: None,
                     help: None,

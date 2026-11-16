@@ -19,23 +19,17 @@ impl Renderer {
         let mut document = Document::new();
         // FIXME super inefficient importing the fonts again, use the warm versions in shaping
         let serif_font_reg = {
-            let path = PathBuf::from(
-                "fonts/newsreader/static/Newsreader_9pt-Light.ttf",
-            );
+            let path = PathBuf::from("fonts/newsreader/static/Newsreader_9pt-Light.ttf");
             let data = std::fs::read(&path).unwrap();
             Font::new(data.into(), 0).unwrap()
         };
         let serif_font_bold = {
-            let path = PathBuf::from(
-                "fonts/newsreader/static/Newsreader_9pt-Medium.ttf",
-            );
+            let path = PathBuf::from("fonts/newsreader/static/Newsreader_9pt-Medium.ttf");
             let data = std::fs::read(&path).unwrap();
             Font::new(data.into(), 0).unwrap()
         };
         let serif_font_italic = {
-            let path = PathBuf::from(
-                "fonts/newsreader/static/Newsreader_9pt-LightItalic.ttf",
-            );
+            let path = PathBuf::from("fonts/newsreader/static/Newsreader_9pt-LightItalic.ttf");
             let data = std::fs::read(&path).unwrap();
             Font::new(data.into(), 0).unwrap()
         };
@@ -52,8 +46,7 @@ impl Renderer {
             &page_layout.config.orientation,
         )
         .unwrap();
-        let mut page = document
-            .start_page_with(PageSettings::from_wh(width, height).unwrap());
+        let mut page = document.start_page_with(PageSettings::from_wh(width, height).unwrap());
         let mut surface = page.surface();
         let mut annotations = Vec::new();
 
@@ -81,15 +74,11 @@ impl Renderer {
             };
             for (row_count, row) in rows.iter().enumerate() {
                 let row_format_padding = match row.row_style {
-                    RowStyle::BulletRow | RowStyle::TrailingBullet => {
-                        BULLET_INDENT
-                    }
+                    RowStyle::BulletRow | RowStyle::TrailingBullet => BULLET_INDENT,
                     RowStyle::None => 0.0,
                 };
-                let text_width: f32 =
-                    row.lines.iter().map(|text| text.width).sum();
-                let remaining =
-                    (content.width - row_format_padding - text_width).max(0.0);
+                let text_width: f32 = row.lines.iter().map(|text| text.width).sum();
+                let remaining = (content.width - row_format_padding - text_width).max(0.0);
                 let alignment_padding = match row.alignment {
                     Alignment::Right => remaining,
                     Alignment::Center => remaining / 2.0,
@@ -101,14 +90,10 @@ impl Renderer {
                     Sizing::Lg => 14 as f32,
                     Sizing::Xl => 24 as f32,
                 };
-                let mut render_x = page_layout.config.left_margin
-                    + x
-                    + row_format_padding
-                    + alignment_padding;
-                let render_y = page_layout.config.top_margin
-                    + y
-                    + row_count as f32 * row.height
-                    + font_size;
+                let mut render_x =
+                    page_layout.config.left_margin + x + row_format_padding + alignment_padding;
+                let render_y =
+                    page_layout.config.top_margin + y + row_count as f32 * row.height + font_size;
                 if row.row_style == RowStyle::BulletRow {
                     surface.draw_text(
                         Point::from_xy(render_x - BULLET_INDENT, render_y),
@@ -126,9 +111,7 @@ impl Renderer {
                         TextType::Italic(s) => (s, &serif_font_italic),
                         TextType::Nerd(s) => (s, &nerd_font_reg),
                         TextType::Link { label, href } => {
-                            let target = Target::Action(
-                                LinkAction::new(href.clone()).into(),
-                            );
+                            let target = Target::Action(LinkAction::new(href.clone()).into());
                             if text.width > 0.0 {
                                 let annotation = LinkAnnotation::new(
                                     Rect::from_xywh(

@@ -144,10 +144,7 @@ pub fn calculate_grid(
 
 pub fn text_content(text: &TextType) -> &str {
     match text {
-        TextType::Text(s)
-        | TextType::Bold(s)
-        | TextType::Italic(s)
-        | TextType::Nerd(s) => s,
+        TextType::Text(s) | TextType::Bold(s) | TextType::Italic(s) | TextType::Nerd(s) => s,
         TextType::Link { label, .. } => label,
     }
 }
@@ -203,9 +200,9 @@ fn run_clusters(
                 run,
                 width: advances[&range.start],
                 range,
-                whitespace: source.chars().all(|c| {
-                    c.is_whitespace() && c != '\u{00a0}' && c != '\u{202f}'
-                }),
+                whitespace: source
+                    .chars()
+                    .all(|c| c.is_whitespace() && c != '\u{00a0}' && c != '\u{202f}'),
                 newline: source.contains(['\n', '\r', '\u{2028}', '\u{2029}']),
             }
         })
@@ -353,9 +350,7 @@ pub fn wrap_lines(field: &AllocatedField, split: f32) -> Vec<Paragraph> {
             while index < visible_end {
                 let first = &clusters[index];
                 let mut end_index = index + 1;
-                while end_index < visible_end
-                    && clusters[end_index].run == first.run
-                {
+                while end_index < visible_end && clusters[end_index].run == first.run {
                     end_index += 1;
                 }
                 let (text, run) = paragraph_runs[first.run];
@@ -397,8 +392,7 @@ pub fn wrap_lines(field: &AllocatedField, split: f32) -> Vec<Paragraph> {
             if newline && start < clusters.len() {
                 let previous = &clusters[cut];
                 let next = &clusters[start];
-                let previous_text =
-                    text_content(paragraph_runs[previous.run].0);
+                let previous_text = text_content(paragraph_runs[previous.run].0);
                 let next_text = text_content(paragraph_runs[next.run].0);
                 if previous_text[previous.range.clone()].ends_with('\r')
                     && &next_text[next.range.clone()] == "\n"
@@ -407,10 +401,7 @@ pub fn wrap_lines(field: &AllocatedField, split: f32) -> Vec<Paragraph> {
                 }
             }
             // Do not carry separator whitespace onto continuation lines.
-            while start < clusters.len()
-                && clusters[start].whitespace
-                && !clusters[start].newline
-            {
+            while start < clusters.len() && clusters[start].whitespace && !clusters[start].newline {
                 start += 1;
             }
             if start >= clusters.len() && !newline {
@@ -439,15 +430,11 @@ fn field_width(field: &AllocatedField) -> f32 {
                 .content
                 .iter()
                 .map(|_| {
-                    let run = runs
-                        .next()
-                        .expect("text must have a matching glyph run");
+                    let run = runs.next().expect("text must have a matching glyph run");
                     run.buffer
                         .glyph_positions()
                         .iter()
-                        .map(|pos| {
-                            pos.x_advance as f32 * font_size / run.units_per_em
-                        })
+                        .map(|pos| pos.x_advance as f32 * font_size / run.units_per_em)
                         .sum::<f32>()
                 })
                 .sum();
@@ -470,9 +457,7 @@ pub fn layout(hir: &HIR) -> Result<Page, Diagnostic> {
     };
 
     let (page_width, _) = calculate_grid(&page_type, &orientation)?;
-    let available_width =
-        (page_width - hir.config.left_margin - hir.config.right_margin)
-            .max(0.0);
+    let available_width = (page_width - hir.config.left_margin - hir.config.right_margin).max(0.0);
 
     let mut page = Page {
         config: PageConfig {
@@ -519,8 +504,7 @@ pub fn layout(hir: &HIR) -> Result<Page, Diagnostic> {
             }
             ContentRow::Split { left, right } => {
                 let left_content = wrap_lines(left, split_line[i]);
-                let right_content =
-                    wrap_lines(right, available_width - split_line[i]);
+                let right_content = wrap_lines(right, available_width - split_line[i]);
                 WrappedRow::Split {
                     left: left_content,
                     right: right_content,
@@ -640,10 +624,7 @@ mod tests {
             .buffer
             .glyph_positions()
             .iter()
-            .map(|pos| {
-                pos.x_advance as f32 * font_size
-                    / field.glyph_run[2].units_per_em
-            })
+            .map(|pos| pos.x_advance as f32 * font_size / field.glyph_run[2].units_per_em)
             .sum();
         assert!((line_width(&lines[1]) - expected).abs() < 0.001);
         assert!(line_width(&lines[1]) > line_width(&lines[0]));
@@ -666,9 +647,7 @@ mod tests {
             lines.iter().map(line_text).collect::<Vec<_>>(),
             ["one two", "three"]
         );
-        assert!(
-            matches!(&lines[0].lines[1].content, TextType::Bold(s) if s == "two")
-        );
+        assert!(matches!(&lines[0].lines[1].content, TextType::Bold(s) if s == "two"));
         assert!(matches!(&lines[1].lines[0].content,
             TextType::Link { label, href } if label == "three" && href == "https://example.com"));
         assert!(lines.iter().all(|line| line_width(line) <= width + 0.001));
@@ -677,8 +656,7 @@ mod tests {
     #[test]
     fn long_unicode_words_keep_clusters_and_glyph_text_ranges_intact() {
         let source = "éofficee\u{301}officeé";
-        let field =
-            shaped_field(vec![paragraph(vec![TextType::Text(source.into())])]);
+        let field = shaped_field(vec![paragraph(vec![TextType::Text(source.into())])]);
         let font_size = match field.size {
             Sizing::Sm => 10 as f32,
             Sizing::Md => 12 as f32,
@@ -694,8 +672,7 @@ mod tests {
         let lines = wrap_lines(&field, width);
         assert!(lines.len() > 1);
         assert_eq!(lines.iter().map(line_text).collect::<String>(), source);
-        let boundaries: Vec<_> =
-            clusters.iter().map(|cluster| cluster.range.end).collect();
+        let boundaries: Vec<_> = clusters.iter().map(|cluster| cluster.range.end).collect();
         let mut end = 0;
         for line in &lines {
             end += line_text(line).len();
@@ -712,9 +689,7 @@ mod tests {
 
     #[test]
     fn empty_lines_newlines_and_zero_width_make_progress() {
-        let field = shaped_field(vec![paragraph(vec![TextType::Text(
-            "a\n\nb\n".into(),
-        )])]);
+        let field = shaped_field(vec![paragraph(vec![TextType::Text("a\n\nb\n".into())])]);
         let lines = wrap_lines(&field, 1000.0);
         assert_eq!(
             lines.iter().map(line_text).collect::<Vec<_>>(),
@@ -728,8 +703,7 @@ mod tests {
 
     #[test]
     fn bullets_keep_their_indent_on_continuation_lines() {
-        let mut item =
-            paragraph(vec![TextType::Text("one two three four".into())]);
+        let mut item = paragraph(vec![TextType::Text("one two three four".into())]);
         item.style = TextStyle::BulletList;
         let field = shaped_field(vec![item]);
         let lines = wrap_lines(&field, 35.0);
@@ -748,12 +722,8 @@ mod tests {
     #[test]
     fn split_fields_are_shaped_and_wrapped() {
         let mut rows = vec![ContentRow::Split {
-            left: shaped_field(vec![paragraph(vec![TextType::Text(
-                "left side".into(),
-            )])]),
-            right: shaped_field(vec![paragraph(vec![TextType::Italic(
-                "right side".into(),
-            )])]),
+            left: shaped_field(vec![paragraph(vec![TextType::Text("left side".into())])]),
+            right: shaped_field(vec![paragraph(vec![TextType::Italic("right side".into())])]),
         }];
         inscribe::inscribe(&mut rows).unwrap();
         let ContentRow::Split { left, right } = &rows[0] else {
@@ -769,9 +739,7 @@ mod tests {
 
     #[test]
     fn crlf_is_a_single_line_break() {
-        let field = shaped_field(vec![paragraph(vec![TextType::Text(
-            "a\r\nb".into(),
-        )])]);
+        let field = shaped_field(vec![paragraph(vec![TextType::Text("a\r\nb".into())])]);
         let lines = wrap_lines(&field, 1000.0);
         assert_eq!(lines.iter().map(line_text).collect::<Vec<_>>(), ["a", "b"]);
     }

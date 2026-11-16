@@ -24,19 +24,15 @@ pub struct GlyphRun {
 }
 
 pub fn inscribe(rows: &mut Vec<ContentRow>) -> Result<(), Diagnostic> {
-    let serif_bytes =
-        std::fs::read("fonts/newsreader/static/Newsreader_9pt-Light.ttf")
+    let serif_bytes = std::fs::read("fonts/newsreader/static/Newsreader_9pt-Light.ttf")
+        .expect("Failed to read font file"); // Replace with your diagnostic handling later.
+    let serif_bold_bytes = std::fs::read("fonts/newsreader/static/Newsreader_9pt-Medium.ttf")
+        .expect("Failed to read font file"); // Replace with your diagnostic handling later.
+    let italic_bytes = std::fs::read("fonts/newsreader/static/Newsreader_9pt-LightItalic.ttf")
+        .expect("Failed to read font file"); // Replace with your diagnostic handling later.
+    let nerd_bytes =
+        std::fs::read("fonts/inconsolata-nerd-font-mono/InconsolataNerdFontMono-Regular.ttf")
             .expect("Failed to read font file"); // Replace with your diagnostic handling later.
-    let serif_bold_bytes =
-        std::fs::read("fonts/newsreader/static/Newsreader_9pt-Medium.ttf")
-            .expect("Failed to read font file"); // Replace with your diagnostic handling later.
-    let italic_bytes =
-        std::fs::read("fonts/newsreader/static/Newsreader_9pt-LightItalic.ttf")
-            .expect("Failed to read font file"); // Replace with your diagnostic handling later.
-    let nerd_bytes = std::fs::read(
-        "fonts/inconsolata-nerd-font-mono/InconsolataNerdFontMono-Regular.ttf",
-    )
-    .expect("Failed to read font file"); // Replace with your diagnostic handling later.
 
     let serif_font = HarfFont::new(serif_bytes, 0).expect("valid font"); // Replace with your diagnostic handling later.
     let bold_font = HarfFont::new(serif_bold_bytes, 0).expect("valid font"); // Replace with your diagnostic handling later.
@@ -74,18 +70,15 @@ pub fn inscribe(rows: &mut Vec<ContentRow>) -> Result<(), Diagnostic> {
                         Font::Italic => &italic_shaping_font,
                         Font::Nerd => &nerd_shaping_font,
                     };
-                    harfrust::shape(
-                        shaping_font,
-                        &mut buffer,
-                        ShapeOptions::default(),
-                    )
-                    .map_err(|err| Diagnostic {
-                        severity: Severity::Fatal,
-                        message: format!("Failed to shape text: {err:?}"),
-                        location: SourceLocation::new(0, 0, ""),
-                        span: None,
-                        help: None,
-                    })?;
+                    harfrust::shape(shaping_font, &mut buffer, ShapeOptions::default()).map_err(
+                        |err| Diagnostic {
+                            severity: Severity::Fatal,
+                            message: format!("Failed to shape text: {err:?}"),
+                            location: SourceLocation::new(0, 0, ""),
+                            span: None,
+                            help: None,
+                        },
+                    )?;
                     buffers.push(GlyphRun {
                         buffer,
                         units_per_em: shaping_font.units_per_em() as f32,

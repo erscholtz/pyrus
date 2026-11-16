@@ -83,13 +83,9 @@ impl Parse for ElemInvoke {
 }
 
 impl ElemInvoke {
-    fn comsume_field_values(
-        parser: &mut Parser,
-    ) -> Result<Vec<FieldValue>, Diagnostic> {
+    fn comsume_field_values(parser: &mut Parser) -> Result<Vec<FieldValue>, Diagnostic> {
         let mut field_values = Vec::new();
-        while !parser.at(TokenKind::RightBrace)?
-            && !parser.at(TokenKind::Eof)?
-        {
+        while !parser.at(TokenKind::RightBrace)? && !parser.at(TokenKind::Eof)? {
             let field = Ident::parse(parser)?;
             parser.skip_inline_trivia()?;
             parser.consume(TokenKind::Colon)?;
@@ -137,8 +133,8 @@ mod tests {
 
     #[test]
     fn parses_declaration_fields_with_flexible_trivia() {
-        let declaration = parse_decl("elem card { title,\n body }")
-            .expect("element declaration should parse");
+        let declaration =
+            parse_decl("elem card { title,\n body }").expect("element declaration should parse");
 
         assert_eq!(declaration.name.text, "card");
         assert_eq!(
@@ -154,8 +150,8 @@ mod tests {
 
     #[test]
     fn parses_declaration_with_content_marker() {
-        let declaration = parse_decl("elem card { title, content }")
-            .expect("content marker should parse");
+        let declaration =
+            parse_decl("elem card { title, content }").expect("content marker should parse");
 
         assert_eq!(declaration.fields.len(), 1);
         assert!(declaration.content);
@@ -183,8 +179,7 @@ mod tests {
 
     #[test]
     fn parses_empty_invocation() {
-        let invocation =
-            parse_invoke("@card {}").expect("empty invocation should parse");
+        let invocation = parse_invoke("@card {}").expect("empty invocation should parse");
 
         assert_eq!(invocation.name.text, "card");
         assert!(invocation.fields.is_empty());
@@ -193,8 +188,8 @@ mod tests {
 
     #[test]
     fn parses_same_line_closing_brace() {
-        let invocation = parse_invoke("@card { name: hello }")
-            .expect("same line closing brace should parse");
+        let invocation =
+            parse_invoke("@card { name: hello }").expect("same line closing brace should parse");
 
         assert_eq!(invocation.name.text, "card");
         assert_eq!(invocation.fields.len(), 1);

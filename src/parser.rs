@@ -59,10 +59,7 @@ impl Parser {
     }
 
     /// Returns `true` if the current token is an identifier with the given text.
-    pub(crate) fn at_keyword(
-        &mut self,
-        keyword: &str,
-    ) -> Result<bool, Diagnostic> {
+    pub(crate) fn at_keyword(&mut self, keyword: &str) -> Result<bool, Diagnostic> {
         Ok(self.at(TokenKind::Identifier)? && self.current_text()? == keyword)
     }
 
@@ -78,9 +75,7 @@ impl Parser {
 
     /// wrapper over `Lexer::peek_next_significant`, peeks ahead to next non
     /// whitespace token
-    pub(crate) fn peek_next_significant(
-        &mut self,
-    ) -> Result<Token, Diagnostic> {
+    pub(crate) fn peek_next_significant(&mut self) -> Result<Token, Diagnostic> {
         self.lexer.peek_next_significant()
     }
 
@@ -90,10 +85,7 @@ impl Parser {
     }
 
     /// Consumes the current token if it is of the given kind, returning it.
-    pub(crate) fn consume(
-        &mut self,
-        kind: TokenKind,
-    ) -> Result<Token, Diagnostic> {
+    pub(crate) fn consume(&mut self, kind: TokenKind) -> Result<Token, Diagnostic> {
         if !self.at(kind)? {
             return Err(Diagnostic {
                 severity: Severity::Error,
@@ -110,18 +102,11 @@ impl Parser {
         self.next()
     }
 
-    pub(crate) fn expect_lexeme(
-        &mut self,
-        kind: TokenKind,
-    ) -> Result<String, Diagnostic> {
+    pub(crate) fn expect_lexeme(&mut self, kind: TokenKind) -> Result<String, Diagnostic> {
         if !self.at(kind)? {
             return Err(Diagnostic {
                 severity: Severity::Error,
-                message: format!(
-                    "unexpected token {}, expected {}",
-                    self.peek()?.kind,
-                    kind
-                ),
+                message: format!("unexpected token {}, expected {}", self.peek()?.kind, kind),
                 location: self.location()?,
                 span: None,
                 help: None,
@@ -140,10 +125,7 @@ impl Parser {
     }
 
     /// Consumes the current token if it is a keyword, returning it.
-    pub(crate) fn consume_keyword(
-        &mut self,
-        keyword: &str,
-    ) -> Result<Token, Diagnostic> {
+    pub(crate) fn consume_keyword(&mut self, keyword: &str) -> Result<Token, Diagnostic> {
         if self.at_keyword(keyword)? {
             return self.next();
         }

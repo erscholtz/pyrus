@@ -36,9 +36,7 @@ impl LayoutDecl {
         let mut rows = Vec::new();
         let mut props = Vec::new();
 
-        while !parser.at(TokenKind::RightBrace)?
-            && !parser.at(TokenKind::Eof)?
-        {
+        while !parser.at(TokenKind::RightBrace)? && !parser.at(TokenKind::Eof)? {
             if parser.at(TokenKind::Greater)? || parser.at(TokenKind::Less)? {
                 let row = LayoutRow::parse(parser)?;
                 rows.push(row);
@@ -58,25 +56,17 @@ impl LayoutDecl {
             } else {
                 return Err(Diagnostic {
                     severity: Severity::Error,
-                    message: format!(
-                        "unexpected token `{}`",
-                        parser.peek()?.kind
-                    ),
+                    message: format!("unexpected token `{}`", parser.peek()?.kind),
                     location: parser.location()?,
                     span: None,
                     help: None,
                 });
             }
             parser.skip_inline_trivia()?;
-            if !parser.at(TokenKind::Newline)?
-                && !parser.at(TokenKind::RightBrace)?
-            {
+            if !parser.at(TokenKind::Newline)? && !parser.at(TokenKind::RightBrace)? {
                 return Err(Diagnostic {
                     severity: Severity::Error,
-                    message: format!(
-                        "unexpected token `{}`",
-                        parser.peek()?.kind
-                    ),
+                    message: format!("unexpected token `{}`", parser.peek()?.kind),
                     location: parser.location()?,
                     span: None,
                     help: None,
@@ -100,8 +90,7 @@ impl Parse for LayoutRow {
         if parser.at(TokenKind::Pipe)? {
             parser.consume(TokenKind::Pipe)?;
             parser.skip_inline_trivia()?;
-            let (r_alignment, r_field) =
-                LayoutRow::parse_aligned_field(parser)?;
+            let (r_alignment, r_field) = LayoutRow::parse_aligned_field(parser)?;
             return Ok(LayoutRow::Split {
                 left: field,
                 right: r_field,
@@ -115,9 +104,7 @@ impl Parse for LayoutRow {
 }
 
 impl LayoutRow {
-    fn parse_aligned_field(
-        parser: &mut Parser,
-    ) -> Result<(LayoutAlignment, Ident), Diagnostic> {
+    fn parse_aligned_field(parser: &mut Parser) -> Result<(LayoutAlignment, Ident), Diagnostic> {
         let alignment = match (parser.peek()?.kind, parser.peek_next()?.kind) {
             (TokenKind::Less, TokenKind::Greater) => {
                 parser.consume(TokenKind::Less)?;
@@ -136,10 +123,7 @@ impl LayoutRow {
             _ => {
                 return Err(Diagnostic {
                     severity: Severity::Error,
-                    message: format!(
-                        "unexpected token `{}`",
-                        parser.peek()?.kind
-                    ),
+                    message: format!("unexpected token `{}`", parser.peek()?.kind),
                     location: parser.location()?,
                     span: None,
                     help: None,
@@ -185,8 +169,8 @@ mod tests {
 
     #[test]
     fn parses_empty_layout_with_internal_trivia() {
-        let layout = parse_layout("layout card {\n // empty for now\n}")
-            .expect("empty layout should parse");
+        let layout =
+            parse_layout("layout card {\n // empty for now\n}").expect("empty layout should parse");
 
         assert_eq!(layout.element.text, "card");
         assert!(layout.rows.is_empty());
@@ -195,8 +179,8 @@ mod tests {
 
     #[test]
     fn parses_odd_prop_formatting() {
-        let layout = parse_layout("layout card {\n item : xl\n}")
-            .expect("empty layout should parse");
+        let layout =
+            parse_layout("layout card {\n item : xl\n}").expect("empty layout should parse");
 
         assert_eq!(layout.element.text, "card");
         assert!(layout.rows.is_empty());
@@ -255,8 +239,7 @@ mod tests {
 
     #[test]
     fn parses_default_alignment() {
-        let layout = parse_layout("layout card { text }")
-            .expect("default alignment should parse");
+        let layout = parse_layout("layout card { text }").expect("default alignment should parse");
 
         assert_eq!(layout.element.text, "card");
         assert_eq!(layout.rows.len(), 1);

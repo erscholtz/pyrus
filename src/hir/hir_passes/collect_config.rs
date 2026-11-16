@@ -45,10 +45,7 @@ impl Default for CollectConfig {
 }
 
 impl CollectConfig {
-    fn find_config(
-        &mut self,
-        config: &DocumentConfig,
-    ) -> Result<Config, Diagnostic> {
+    fn find_config(&mut self, config: &DocumentConfig) -> Result<Config, Diagnostic> {
         // define default
         let mut doc_type = DocType::A4;
         let mut orientation = DocOrientation::Portrait;

@@ -16,8 +16,7 @@ fn main() {
         .get(1)
         .and_then(|arg| arg.to_str())
         .unwrap_or("temp.pyr");
-    let source = fs::read_to_string(filename)
-        .expect("source file should be readable UTF-8");
+    let source = fs::read_to_string(filename).expect("source file should be readable UTF-8");
     let read_time = std::time::Instant::now() - start_time;
     let mut parser = match Parser::new(filename.to_string(), source) {
         Ok(parser) => parser,
@@ -41,8 +40,7 @@ fn main() {
             return;
         }
     };
-    let lower_time =
-        std::time::Instant::now() - start_time - read_time - parse_time;
+    let lower_time = std::time::Instant::now() - start_time - read_time - parse_time;
     let layout = match layout(&hir) {
         Ok(layout) => layout,
         Err(err) => {
@@ -50,19 +48,11 @@ fn main() {
             return;
         }
     };
-    let layout_time = std::time::Instant::now()
-        - start_time
-        - read_time
-        - parse_time
-        - lower_time;
+    let layout_time = std::time::Instant::now() - start_time - read_time - parse_time - lower_time;
 
     Renderer::render_pdf(&layout, "test.pdf");
-    let render_time = std::time::Instant::now()
-        - start_time
-        - read_time
-        - parse_time
-        - lower_time
-        - layout_time;
+    let render_time =
+        std::time::Instant::now() - start_time - read_time - parse_time - lower_time - layout_time;
 
     println!(
         "{r:width$}{0:#?} \n{p:width$}{1:#?} \n{l:width$}{2:#?} \n{t:width$}{3:#?} \n{rd:width$}{4:#?}",

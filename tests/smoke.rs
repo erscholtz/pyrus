@@ -8,14 +8,12 @@ use pyrus::parser::Parser;
 use pyrus::render::Renderer;
 
 fn compile_pdf(name: &str, source: &str) -> (Page, Vec<u8>) {
-    let mut parser = Parser::new(format!("{name}.pyr"), source.into())
-        .expect("source should lex");
+    let mut parser = Parser::new(format!("{name}.pyr"), source.into()).expect("source should lex");
     let ast = parser.parse::<Ast>().expect("document should parse");
     let hir = lower(&ast).expect("document should lower");
     let page = layout(&hir).expect("document should lay out");
 
-    let output_dir =
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target/smoke-tests");
+    let output_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target/smoke-tests");
     fs::create_dir_all(&output_dir).unwrap();
     let output = output_dir.join(format!("{name}-{}.pdf", std::process::id()));
     Renderer::render_pdf(&page, output.to_str().unwrap());
@@ -34,10 +32,7 @@ fn empty_document_renders_to_pdf() {
 
 #[test]
 fn styled_document_renders_to_pdf() {
-    let (page, pdf) = compile_pdf(
-        "styled-document",
-        include_str!("input/styled-document.pyr"),
-    );
+    let (page, pdf) = compile_pdf("styled-document", include_str!("input/styled-document.pyr"));
     assert_eq!(page.content.len(), 5);
     let text: Vec<String> = page
         .content
