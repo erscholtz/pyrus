@@ -42,8 +42,8 @@ fn styled_document_renders_to_pdf() {
                 panic!("styled fixture should contain only text boxes");
             };
             rows.iter()
-                .flat_map(|row| &row.row)
-                .map(|part| text_content(&part.content))
+                .flat_map(|row| &row.lines)
+                .map(|line| text_content(&line.content))
                 .collect()
         })
         .collect();
@@ -53,6 +53,7 @@ fn styled_document_renders_to_pdf() {
     assert!(text[3].contains("Built with Rust"));
     assert!(text[3].contains("Read the documentation"));
     assert_eq!(text[4], "Second entry");
+
     let BlockContentType::Text(rows) = &page.content[3].content else {
         panic!("bullet content should be text");
     };
@@ -97,7 +98,7 @@ fn wrapped_split_row_renders_to_pdf() {
             panic!("split columns should be text");
         };
         for row in rows {
-            let line_width: f32 = row.row.iter().map(|part| part.width).sum();
+            let line_width: f32 = row.lines.iter().map(|part| part.width).sum();
             assert!(line_width <= width + 0.001);
         }
     }

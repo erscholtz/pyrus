@@ -1,7 +1,6 @@
 use std::env;
 use std::ffi::OsString;
 use std::fs;
-use std::path::PathBuf;
 
 use pyrus::ast::Ast;
 use pyrus::hir::lower;
