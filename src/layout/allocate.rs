@@ -3,12 +3,13 @@ use std::fmt::Display;
 
 use crate::ast::LayoutAlignment;
 use crate::ast::LayoutRow;
-use crate::ast::LayoutRow::Seperator;
 use crate::diagnostic::Diagnostic;
 use crate::hir::hir_types::Invoke;
 use crate::hir::hir_types::Layout;
 use crate::hir::hir_types::Sizing;
 use crate::hir::hir_types::TextOp;
+use crate::layout::ENTRY_GAP;
+use crate::layout::SECTION_GAP;
 use crate::layout::inscribe::GlyphRun;
 
 #[derive(Debug, Clone)]
@@ -40,6 +41,8 @@ pub enum ContentRow {
         right: AllocatedField,
     },
     Seperator,
+    // Vertical whitespace between invokes, in points.
+    Gap(f32),
 }
 
 impl Display for ContentRow {
@@ -50,6 +53,7 @@ impl Display for ContentRow {
                 write!(f, "{} / {}", left, right)
             }
             ContentRow::Seperator => write!(f, "---Seperator---"),
+            ContentRow::Gap(height) => write!(f, "---Gap {height}---"),
         }
     }
 }
@@ -59,8 +63,19 @@ pub fn allocate(
     layouts: &HashMap<String, Layout>,
 ) -> Result<Vec<ContentRow>, Diagnostic> {
     let mut content_rows = Vec::new();
-    for invoke in invokes {
+    for (index, invoke) in invokes.iter().enumerate() {
         let layout = layouts.get(&invoke.name.clone()).unwrap();
+        if index > 0 {
+            let starts_section = layout
+                .layouts
+                .iter()
+                .any(|row| matches!(row, LayoutRow::Seperator));
+            content_rows.push(ContentRow::Gap(if starts_section {
+                SECTION_GAP
+            } else {
+                ENTRY_GAP
+            }));
+        }
         for layout_row in &layout.layouts {
             match layout_row {
                 LayoutRow::Single { field, alignment } => {

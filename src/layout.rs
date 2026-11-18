@@ -4,29 +4,48 @@ mod inscribe; // make glyphs
 mod paginate; // add ResolvedRows to Pages
 mod wrap; // wrap rows to fit in margins
 
-use std::cmp::max;
-use std::collections::BTreeMap;
 use std::collections::HashSet;
-use std::ops::Range;
 
-use krilla::text::GlyphId;
 use krilla::text::KrillaGlyph;
 
 use crate::diagnostic::Diagnostic;
-use crate::hir::hir_passes::collect_invokes::TextStyle;
 use crate::hir::hir_types::DocOrientation;
 use crate::hir::hir_types::DocType;
 use crate::hir::hir_types::HIR;
 use crate::hir::hir_types::Sizing;
 use crate::hir::hir_types::TextType;
 use crate::layout::allocate::Alignment;
-use crate::layout::allocate::AllocatedField;
 use crate::layout::allocate::ContentRow;
 use crate::layout::wrap::field_width;
 pub use crate::layout::wrap::text_content;
 use crate::layout::wrap::wrap_lines;
 
 pub const BULLET_INDENT: f32 = 10.0;
+
+// Vertical space added before an invoke. Section headings (layouts containing a
+// `---` divider) get more room above them than ordinary entries.
+pub const ENTRY_GAP: f32 = 3.0;
+pub const SECTION_GAP: f32 = 6.0;
+// Space between a `---` divider and the content that follows it.
+pub const DIVIDER_GAP: f32 = 3.0;
+
+pub fn font_size(size: &Sizing) -> f32 {
+    match size {
+        Sizing::Sm => 9.0,
+        Sizing::Md => 10.0,
+        Sizing::Lg => 12.0,
+        Sizing::Xl => 20.0,
+    }
+}
+
+pub fn line_height(size: &Sizing) -> f32 {
+    match size {
+        Sizing::Sm => 10.5,
+        Sizing::Md => 12.5,
+        Sizing::Lg => 16.0,
+        Sizing::Xl => 24.0,
+    }
+}
 
 // spacing out what rows we have given the top down margins and remaing rows we
 // got on a page
@@ -112,6 +131,7 @@ pub enum WrappedRow {
         right: Vec<Paragraph>,
     },
     Seperator,
+    Gap(f32),
 }
 
 #[derive(Debug, Clone)]
@@ -189,7 +209,7 @@ pub fn layout(hir: &HIR) -> Result<Page, Diagnostic> {
                     available_width / 2.0
                 }
             }
-            ContentRow::Seperator => available_width,
+            ContentRow::Seperator | ContentRow::Gap(_) => available_width,
         };
         split_line.push(width);
     }
@@ -210,6 +230,7 @@ pub fn layout(hir: &HIR) -> Result<Page, Diagnostic> {
                 }
             }
             ContentRow::Seperator => WrappedRow::Seperator, // NOTE: confirm
+            ContentRow::Gap(height) => WrappedRow::Gap(*height),
         };
         wrapped_rows.push(row_content);
     }
@@ -253,7 +274,10 @@ pub fn layout(hir: &HIR) -> Result<Page, Diagnostic> {
                     width: split_line[i],
                     height: 0.5,
                 });
-                len += 0.5;
+                len += 0.5 + DIVIDER_GAP;
+            }
+            WrappedRow::Gap(height) => {
+                len += height;
             }
         }
     }

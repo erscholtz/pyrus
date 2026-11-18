@@ -10,6 +10,8 @@ use crate::hir::hir_types::Sizing;
 use crate::hir::hir_types::TextType;
 use crate::layout::BULLET_INDENT;
 use crate::layout::Line;
+use crate::layout::font_size;
+use crate::layout::line_height;
 use crate::layout::Paragraph;
 use crate::layout::ParagraphAttribute;
 use crate::layout::RowStyle;
@@ -141,24 +143,17 @@ pub fn wrap_lines(field: &AllocatedField, split: f32) -> Vec<Paragraph> {
         {
             attributes.insert(ParagraphAttribute::Link);
         }
-        let font_size = match field.size {
-            Sizing::Sm => 10 as f32,
-            Sizing::Md => 11 as f32,
+        match field.size {
             Sizing::Lg => {
                 attributes.insert(ParagraphAttribute::Subtitle);
-                12 as f32
             }
             Sizing::Xl => {
-                attributes.insert(ParagraphAttribute::Title); // NOTE double check this one 
-                20 as f32
+                attributes.insert(ParagraphAttribute::Title); // NOTE double check this one
             }
+            Sizing::Sm | Sizing::Md => {}
         };
-        let font_spacing = match field.size {
-            Sizing::Sm => 10 as f32 + 2 as f32,
-            Sizing::Md => 12 as f32 + 4 as f32,
-            Sizing::Lg => 14 as f32 + 4 as f32,
-            Sizing::Xl => 24 as f32 + 6 as f32,
-        };
+        let font_size = font_size(&field.size);
+        let font_spacing = line_height(&field.size);
 
         let paragraph_runs: Vec<_> = item
             .content
@@ -237,10 +232,9 @@ pub fn wrap_lines(field: &AllocatedField, split: f32) -> Vec<Paragraph> {
                 index = end_index;
             }
 
-            let mut height = 0 as f32;
-            for line in &mut row {
-                height += line.height;
-            }
+            // A paragraph here is one visual row; its fragments sit side by side,
+            // so the row is one line-height tall regardless of fragment count.
+            let height = font_spacing;
 
             let mut width = 0 as f32;
             for line in &mut row {
@@ -288,12 +282,7 @@ pub fn wrap_lines(field: &AllocatedField, split: f32) -> Vec<Paragraph> {
 
 // FIXME ?? bad code there should be function chaining 4 layers deep that is crazy
 pub(super) fn field_width(field: &AllocatedField) -> f32 {
-    let font_size = match field.size {
-        Sizing::Sm => 10 as f32,
-        Sizing::Md => 12 as f32,
-        Sizing::Lg => 14 as f32,
-        Sizing::Xl => 24 as f32,
-    };
+    let font_size = font_size(&field.size);
 
     let mut runs = field.glyph_run.iter();
     field
@@ -373,12 +362,7 @@ mod tests {
         assert_eq!(lines.len(), 2);
         assert_eq!(line_text(&lines[0]), "iiiiiiii");
         assert_eq!(line_text(&lines[1]), "WWWW");
-        let font_size = match field.size {
-            Sizing::Sm => 10 as f32,
-            Sizing::Md => 12 as f32,
-            Sizing::Lg => 14 as f32,
-            Sizing::Xl => 24 as f32,
-        };
+        let font_size = font_size(&field.size);
         let expected: f32 = field.glyph_run[2]
             .buffer
             .glyph_positions()
@@ -416,12 +400,7 @@ mod tests {
     fn long_unicode_words_keep_clusters_and_glyph_text_ranges_intact() {
         let source = "éofficee\u{301}officeé";
         let field = shaped_field(vec![paragraph(vec![TextType::Text(source.into())])]);
-        let font_size = match field.size {
-            Sizing::Sm => 10 as f32,
-            Sizing::Md => 12 as f32,
-            Sizing::Lg => 14 as f32,
-            Sizing::Xl => 24 as f32,
-        };
+        let font_size = font_size(&field.size);
         let clusters = run_clusters(0, source, &field.glyph_run[0], font_size);
         let width = clusters
             .iter()

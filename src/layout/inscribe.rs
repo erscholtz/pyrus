@@ -24,11 +24,11 @@ pub struct GlyphRun {
 }
 
 pub fn inscribe(rows: &mut Vec<ContentRow>) -> Result<(), Diagnostic> {
-    let serif_bytes = std::fs::read("fonts/newsreader/static/Newsreader_9pt-Light.ttf")
+    let serif_bytes = std::fs::read("fonts/newsreader/static/Newsreader_9pt-Regular.ttf")
         .expect("Failed to read font file"); // Replace with your diagnostic handling later.
-    let serif_bold_bytes = std::fs::read("fonts/newsreader/static/Newsreader_9pt-Medium.ttf")
+    let serif_bold_bytes = std::fs::read("fonts/newsreader/static/Newsreader_9pt-SemiBold.ttf")
         .expect("Failed to read font file"); // Replace with your diagnostic handling later.
-    let italic_bytes = std::fs::read("fonts/newsreader/static/Newsreader_9pt-LightItalic.ttf")
+    let italic_bytes = std::fs::read("fonts/newsreader/static/Newsreader_9pt-Italic.ttf")
         .expect("Failed to read font file"); // Replace with your diagnostic handling later.
     let nerd_bytes =
         std::fs::read("fonts/inconsolata-nerd-font-mono/InconsolataNerdFontMono-Regular.ttf")
@@ -49,6 +49,7 @@ pub fn inscribe(rows: &mut Vec<ContentRow>) -> Result<(), Diagnostic> {
             ContentRow::Single(field) => vec![field],
             ContentRow::Split { left, right } => vec![left, right],
             ContentRow::Seperator => vec![], // FIXME this is not really right??
+            ContentRow::Gap(_) => vec![],
         };
         for field in fields {
             let mut buffers = Vec::new();

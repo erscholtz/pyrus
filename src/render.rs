@@ -7,9 +7,9 @@ use krilla::geom::{PathBuilder, Point, Rect};
 use krilla::page::PageSettings;
 use krilla::text::{Font, TextDirection};
 
-use crate::hir::hir_types::{Sizing, TextType};
+use crate::hir::hir_types::TextType;
 use crate::layout::allocate::Alignment;
-use crate::layout::{BULLET_INDENT, BlockContentType, Page, RowStyle};
+use crate::layout::{BULLET_INDENT, BlockContentType, Page, RowStyle, font_size};
 
 pub struct Renderer {}
 
@@ -19,17 +19,17 @@ impl Renderer {
         let mut document = Document::new();
         // FIXME super inefficient importing the fonts again, use the warm versions in shaping
         let serif_font_reg = {
-            let path = PathBuf::from("fonts/newsreader/static/Newsreader_9pt-Light.ttf");
+            let path = PathBuf::from("fonts/newsreader/static/Newsreader_9pt-Regular.ttf");
             let data = std::fs::read(&path).unwrap();
             Font::new(data.into(), 0).unwrap()
         };
         let serif_font_bold = {
-            let path = PathBuf::from("fonts/newsreader/static/Newsreader_9pt-Medium.ttf");
+            let path = PathBuf::from("fonts/newsreader/static/Newsreader_9pt-SemiBold.ttf");
             let data = std::fs::read(&path).unwrap();
             Font::new(data.into(), 0).unwrap()
         };
         let serif_font_italic = {
-            let path = PathBuf::from("fonts/newsreader/static/Newsreader_9pt-LightItalic.ttf");
+            let path = PathBuf::from("fonts/newsreader/static/Newsreader_9pt-Italic.ttf");
             let data = std::fs::read(&path).unwrap();
             Font::new(data.into(), 0).unwrap()
         };
@@ -84,12 +84,7 @@ impl Renderer {
                     Alignment::Center => remaining / 2.0,
                     Alignment::Left => 0.0,
                 };
-                let font_size = match row.size {
-                    Sizing::Sm => 10 as f32,
-                    Sizing::Md => 12 as f32,
-                    Sizing::Lg => 14 as f32,
-                    Sizing::Xl => 24 as f32,
-                };
+                let font_size = font_size(&row.size);
                 let mut render_x =
                     page_layout.config.left_margin + x + row_format_padding + alignment_padding;
                 let render_y =
