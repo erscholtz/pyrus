@@ -10,13 +10,13 @@ use crate::hir::hir_types::Sizing;
 use crate::hir::hir_types::TextType;
 use crate::layout::BULLET_INDENT;
 use crate::layout::Line;
-use crate::layout::font_size;
-use crate::layout::line_height;
 use crate::layout::Paragraph;
 use crate::layout::ParagraphAttribute;
 use crate::layout::RowStyle;
 use crate::layout::allocate::AllocatedField;
+use crate::layout::font_size;
 use crate::layout::inscribe;
+use crate::layout::line_height;
 
 pub fn text_content(text: &TextType) -> &str {
     match text {
@@ -280,35 +280,30 @@ pub fn wrap_lines(field: &AllocatedField, split: f32) -> Vec<Paragraph> {
     wrapped_contents
 }
 
-// FIXME ?? bad code there should be function chaining 4 layers deep that is crazy
 pub(super) fn field_width(field: &AllocatedField) -> f32 {
     let font_size = font_size(&field.size);
-
     let mut runs = field.glyph_run.iter();
-    field
-        .content
-        .iter()
-        .map(|item| {
-            let width: f32 = item
-                .content
+    let mut width = 0.0;
+
+    // FIXME: see if this can be one loop, have a feeling it can somehow
+    for text_op in &field.content {
+        let mut run_width = 0.0;
+        for _ in &text_op.content {
+            let run = runs.next().expect("text must have a matching glyph run");
+            run_width += run
+                .buffer
+                .glyph_positions()
                 .iter()
-                .map(|_| {
-                    let run = runs.next().expect("text must have a matching glyph run");
-                    run.buffer
-                        .glyph_positions()
-                        .iter()
-                        .map(|pos| pos.x_advance as f32 * font_size / run.units_per_em)
-                        .sum::<f32>()
-                })
-                .sum();
-            width
-                + if item.style == TextStyle::BulletList {
-                    BULLET_INDENT
-                } else {
-                    0.0
-                }
-        })
-        .fold(0.0, f32::max)
+                .map(|pos| pos.x_advance as f32 * font_size / run.units_per_em)
+                .sum::<f32>();
+        }
+        width += run_width;
+        if text_op.style == TextStyle::BulletList {
+            width += BULLET_INDENT;
+        }
+    }
+
+    width
 }
 
 #[cfg(test)]
