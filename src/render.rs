@@ -3,6 +3,8 @@ use std::path::PathBuf;
 use krilla::Document;
 use krilla::action::LinkAction;
 use krilla::annotation::{LinkAnnotation, Target};
+use krilla::color::luma;
+use krilla::paint::Fill;
 use krilla::geom::{PathBuilder, Point, Rect};
 use krilla::page::PageSettings;
 use krilla::text::{Font, TextDirection};
@@ -10,6 +12,19 @@ use krilla::text::{Font, TextDirection};
 use crate::hir::hir_types::TextType;
 use crate::layout::allocate::Alignment;
 use crate::layout::{BULLET_INDENT, BlockContentType, Page, RowStyle, font_size};
+
+// Pure black text on white reads harsh; a near-black and a light grey rule
+// keep the hierarchy without the contrast shouting.
+const TEXT_GREY: u8 = 40;
+const RULE_GREY: u8 = 165;
+const RULE_THICKNESS: f32 = 0.4;
+
+fn fill(lightness: u8) -> Fill {
+    Fill {
+        paint: luma::Color::new(lightness).into(),
+        ..Fill::default()
+    }
+}
 
 pub struct Renderer {}
 
@@ -24,7 +39,7 @@ impl Renderer {
             Font::new(data.into(), 0).unwrap()
         };
         let serif_font_bold = {
-            let path = PathBuf::from("fonts/newsreader/static/Newsreader_9pt-SemiBold.ttf");
+            let path = PathBuf::from("fonts/newsreader/static/Newsreader_9pt-Medium.ttf");
             let data = std::fs::read(&path).unwrap();
             Font::new(data.into(), 0).unwrap()
         };
@@ -48,6 +63,7 @@ impl Renderer {
         .unwrap();
         let mut page = document.start_page_with(PageSettings::from_wh(width, height).unwrap());
         let mut surface = page.surface();
+        surface.set_fill(Some(fill(TEXT_GREY)));
         let mut annotations = Vec::new();
 
         for content in &page_layout.content {
@@ -55,18 +71,20 @@ impl Renderer {
             let rows = match &content.content {
                 BlockContentType::Text(rows) => rows,
                 BlockContentType::Seperator(width) => {
-                    // TEMP: full-width underline as a 0.5pt black rectangle.
+                    // TEMP: full-width hairline rule, drawn lighter than the text.
                     let left = page_layout.config.left_margin + x;
                     let top = page_layout.config.top_margin + y;
                     if *width > 0.0 {
                         let mut path = PathBuilder::new();
                         path.move_to(left, top);
                         path.line_to(left + width, top);
-                        path.line_to(left + width, top + 0.5);
-                        path.line_to(left, top + 0.5);
+                        path.line_to(left + width, top + RULE_THICKNESS);
+                        path.line_to(left, top + RULE_THICKNESS);
                         path.close();
                         if let Some(path) = path.finish() {
+                            surface.set_fill(Some(fill(RULE_GREY)));
                             surface.draw_path(&path);
+                            surface.set_fill(Some(fill(TEXT_GREY)));
                         }
                     }
                     continue;
