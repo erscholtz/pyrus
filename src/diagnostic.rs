@@ -1,17 +1,8 @@
 pub mod diagnostic;
 pub mod diagnostic_manager;
-// pub mod fatal;
-// pub mod note;
-pub mod semantic;
-pub mod syntax;
-// pub mod warning;
 
-pub use diagnostic::{
-    Diagnostic, Severity, SourceLocation, Span, format_diagnostic,
-};
-pub use diagnostic_manager::{CompilerDiagnostic, DiagnosticManager};
-// pub use fatal::FatalError;
-// pub use note::Note;
-pub use semantic::SemanticError;
-pub use syntax::SyntaxError;
-// pub use warning::Warning;
+pub use diagnostic::Diagnostic;
+pub use diagnostic::Severity;
+pub use diagnostic::SourceLocation;
+pub use diagnostic::Span;
+pub use diagnostic_manager::DiagnosticManager;

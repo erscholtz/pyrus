@@ -1,119 +1,146 @@
-use crate::{
-    ast::{
-        Ast, DocElem, DocumentBlock, Stmt, StyleBlock, StyleRule, TemplateBlock,
-    },
-    diagnostic::SyntaxError,
-    lexer::tokens::TokenKind,
-    parser::{Parser, parse::Parse},
-};
+use crate::ast::Ast;
+use crate::ast::DocumentConfig;
+use crate::ast::ElemDecl;
+use crate::ast::ElemInvoke;
+use crate::ast::Ident;
+use crate::ast::Item;
+use crate::ast::LayoutDecl;
+use crate::diagnostic::Diagnostic;
+use crate::diagnostic::Severity;
+use crate::diagnostic::Span;
+use crate::parser::Parse;
+use crate::parser::Parser;
+use crate::parser::tokens::TokenKind;
+use crate::util::Spanned;
 
 impl Parse for Ast {
-    /// Parse an AST.
-    fn parse(p: &mut Parser) -> Result<Self, SyntaxError> {
-        let file = p.file.clone();
-        let mut template = None;
-        let mut document = None;
-        let mut style = None;
+    fn parse(parser: &mut Parser) -> Result<Self, Diagnostic> {
+        let mut items = Vec::new();
+        parser.skip_trivia()?;
+        let mut document_created = false;
 
-        // Keep parsing blocks until we hit EOF
-        while !p.cursor.check(TokenKind::Eof) {
-            match p.cursor.cur_tok() {
-                TokenKind::Template => {
-                    if template.is_some() {
-                        return Err(SyntaxError::InvalidConstruct {
-                            location: p.cursor.location(),
-                            construct: "template".to_string(),
-                            reason: "duplicate template block".to_string(),
-                        });
-                    }
-                    template = Some(TemplateBlock::parse(p)?);
-                }
-                TokenKind::Document => {
-                    if document.is_some() {
-                        return Err(SyntaxError::InvalidConstruct {
-                            location: p.cursor.location(),
-                            construct: "document".to_string(),
-                            reason: "duplicate document block".to_string(),
-                        });
-                    }
-                    document = Some(DocumentBlock::parse(p)?);
-                }
-                TokenKind::Style => {
-                    if style.is_some() {
-                        return Err(SyntaxError::InvalidConstruct {
-                            location: p.cursor.location(),
-                            construct: "style".to_string(),
-                            reason: "duplicate style block".to_string(),
-                        });
-                    }
-                    style = Some(StyleBlock::parse(p)?);
-                }
-                _ => {
-                    return Err(SyntaxError::InvalidConstruct {
-                        location: p.cursor.location(),
-                        construct: "root".to_string(),
-                        reason: format!(
-                            "unexpected token {:?}, expected template, document, or style",
-                            p.cursor.cur_tok(),
-                        ),
-                    });
-                }
-            }
+        while !parser.at(TokenKind::Eof)? {
+            let location = parser.location()?;
+            let item = if parser.at_keyword("document")? && !document_created {
+                document_created = true;
+                Item::Document(DocumentConfig::parse(parser)?)
+            } else if parser.at_keyword("elem")? {
+                Item::ElemDecl(ElemDecl::parse(parser)?)
+            } else if parser.at_keyword("layout")? {
+                Item::LayoutDecl(LayoutDecl::parse(parser)?)
+            } else if parser.at(TokenKind::At)? {
+                Item::ElemInvoke(ElemInvoke::parse(parser)?)
+            } else {
+                // TODO just plain text on its own
+                // Item::ElemInvoke(ElemInvoke::free_content(parser)?)
+                return Err(Diagnostic {
+                    severity: Severity::Error,
+                    message: format!("unexpected token `{}`", parser.current_text()?),
+                    location,
+                    span: None,
+                    help: None,
+                });
+            };
+
+            items.push(Spanned::new(item, location));
+            parser.skip_trivia()?;
         }
 
         Ok(Ast {
-            file,
-            template,
-            document,
-            style,
+            file: parser.location()?.file,
+            items,
         })
     }
 }
 
-impl Parse for TemplateBlock {
-    /// Parse a template block.
-    fn parse(p: &mut Parser) -> Result<Self, SyntaxError> {
-        p.cursor.expect(TokenKind::Template)?;
-
-        p.cursor.expect(TokenKind::LeftBrace)?;
-        let stmts = match p.parse_until::<Stmt>(TokenKind::RightBrace) {
-            Ok(stmts) => stmts,
-            Err(errors) => return Err(errors.into_iter().next().unwrap()),
-        };
-        p.cursor.expect(TokenKind::RightBrace)?;
-
-        Ok(TemplateBlock { statements: stmts })
+impl Parse for Ident {
+    fn parse(parser: &mut Parser) -> Result<Self, Diagnostic> {
+        let span = Span::new(
+            parser.peek()?.range.start,
+            parser.peek()?.range.end,
+            parser.file.clone(),
+        );
+        let text = parser.expect_lexeme(TokenKind::Identifier)?;
+        Ok(Ident { text, span })
     }
 }
 
-impl Parse for DocumentBlock {
-    /// Parse a document block.
-    fn parse(p: &mut Parser) -> Result<Self, SyntaxError> {
-        p.cursor.expect(TokenKind::Document)?;
+///////////////////////////
+///                     ///
+/// ROOT PARSING TESTS  ///
+///                     ///
+///////////////////////////
 
-        p.cursor.expect(TokenKind::LeftBrace)?;
-        let elems = match p.parse_until::<DocElem>(TokenKind::RightBrace) {
-            Ok(elems) => elems,
-            Err(errors) => return Err(errors.into_iter().next().unwrap()),
-        };
-        p.cursor.expect(TokenKind::RightBrace)?;
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-        Ok(DocumentBlock { elements: elems })
+    fn parse_ast(source: &str) -> Result<Ast, Diagnostic> {
+        let file = "root-test.pyr".to_string();
+        let mut parser = Parser::new(file, source.to_string())?;
+        Ast::parse(&mut parser)
     }
-}
 
-impl Parse for StyleBlock {
-    /// Parse a style block.
-    fn parse(p: &mut Parser) -> Result<Self, SyntaxError> {
-        p.cursor.expect(TokenKind::Style)?;
+    #[test]
+    fn parses_empty_and_trivia_only_sources() {
+        assert!(
+            parse_ast("")
+                .expect("empty source should parse")
+                .items
+                .is_empty()
+        );
+        assert!(
+            parse_ast(" \n // only trivia\n")
+                .expect("trivia-only source should parse")
+                .items
+                .is_empty()
+        );
+    }
 
-        p.cursor.expect(TokenKind::LeftBrace)?;
-        let stmts = match p.parse_until::<StyleRule>(TokenKind::RightBrace) {
-            Ok(stmts) => stmts,
-            Err(errors) => return Err(errors.into_iter().next().unwrap()),
+    #[test]
+    fn parses_adjacent_top_level_items_without_whitespace() {
+        let ast = parse_ast("document{}elem marker{}layout marker{}@marker{}")
+            .expect("adjacent items should parse");
+
+        assert_eq!(ast.items.len(), 4);
+    }
+
+    #[test]
+    fn rejects_duplicate_document() {
+        assert!(parse_ast("document {} document {}").is_err());
+    }
+
+    #[test]
+    fn rejects_unknown_top_level_construct() {
+        assert!(parse_ast("unknown {}").is_err());
+    }
+
+    #[test]
+    fn treats_keywords_as_case_sensitive() {
+        assert!(parse_ast("Document {}").is_err());
+    }
+
+    #[test]
+    fn does_not_match_keyword_prefixes() {
+        assert!(parse_ast("documentary {}").is_err());
+    }
+
+    #[test]
+    fn rejects_stray_top_level_delimiters() {
+        for source in ["}", "{", "@"] {
+            assert!(parse_ast(source).is_err(), "source should fail: {source}");
+        }
+    }
+
+    #[test]
+    fn identifier_span_covers_the_consumed_identifier() {
+        let ast = parse_ast("elem marker {}").expect("element should parse");
+        let Item::ElemDecl(element) = &ast.items[0].node else {
+            panic!("expected element declaration");
         };
-        p.cursor.expect(TokenKind::RightBrace)?;
 
-        Ok(StyleBlock { statements: stmts })
+        assert_eq!(element.name.text, "marker");
+        assert_eq!(element.name.span.start, 5);
+        assert_eq!(element.name.span.end, 11);
     }
 }

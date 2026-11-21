@@ -1,0 +1,212 @@
+document {
+    type: A4
+    margin: 4
+    top: 30
+    bottom: 30
+    left: 32
+    right: 32
+}
+
+elem header {
+    name,
+    tagline,
+    contact,
+}
+
+elem separator {
+    title,
+}
+
+elem skills {
+    languages,
+    systems,
+    tools,
+}
+
+elem project {
+    title,
+    stack,
+    link,
+    content,
+}
+
+elem entry {
+    company,
+    role,
+    date,
+    content,
+}
+
+elem education {
+    institution,
+    location,
+    degree,
+    date,
+    content,
+}
+
+elem colophon {
+    text,
+}
+
+layout header {
+    <> name
+    <> tagline
+    <> contact
+
+    name: xl
+    tagline: sm
+    contact: sm
+}
+
+layout separator {
+    title
+    ---
+
+    title: md
+}
+
+layout skills {
+    languages
+    systems
+    tools
+
+    languages: sm
+    systems: sm
+    tools: sm
+}
+
+layout project {
+    < title | > link
+    stack
+    content
+
+    title: sm
+    link: sm
+    stack: sm
+    content: sm
+}
+
+layout entry {
+    < role | > date
+    company
+    content
+
+    company: sm
+    date: sm
+    role: sm
+    content: sm
+}
+
+layout education {
+    < institution | > date
+    degree
+    content
+
+    institution: sm
+    location: sm
+    degree: sm
+    date: sm
+    content: sm
+}
+
+layout colophon {
+    <> text
+
+    text: sm
+}
+
+@header {
+    name: **Erik Scholtz**
+    tagline: Systems engineer building compilers, firmware and developer tools
+    contact: [erikscholtz23@gmail.com](mailto:erikscholtz23@gmail.com) | [linkedin.com/in/erikscholtz](https://linkedin.com/in/erikscholtz) | [github.com/erscholtz](https://github.com/erscholtz)
+}
+
+@separator {
+    title: **EXPERIENCE**
+}
+
+@entry {
+    company: Deloitte · Toronto, ON
+    role: **Infrastructure Engineer**
+    date: *September 2025 – Present*
+
+    - Building an LLM agent tool to map client data onto existing apps: normalizes JSON, XLSX and SQLite sources into intermediate JSON schemas, proposes candidate mappings with casting options, and verifies them through a decision model, schema dry runs and synthetic data before human review.
+    - Applied constraint-solving techniques to CI resource scheduling, reducing queue times by 20% under shared compute constraints.
+}
+
+@entry {
+    company: Syncademia AI · Waterloo, ON
+    role: **Infrastructure Engineer**
+    date: *January 2025 – August 2025*
+
+    - Built a streaming document ingestion pipeline with backpressure handling to process 1000+ page inputs without exceeding memory limits.
+    - Reduced dependency surface area by 40% through targeted library audit and replacement, simplifying runtime behavior and eliminating classes of failure.
+}
+
+@entry {
+    company: Deloitte · Toronto, ON
+    role: **Software Engineering Co-op**
+    date: *May 2024 – September 2024*
+
+    - Developed a telemetry tool to analyze system logs and visualize object dependencies, adopted by multiple enterprise teams for debugging.
+}
+
+@separator {
+    title: **PROJECTS**
+}
+
+@project {
+    title: **pyrus: Typesetting language and compiler**
+    stack: `Rust · Pratt Parsing · HIR · Text Shaping · PDF`
+    link: [github](https://github.com/erscholtz/pyrus)
+
+    - Built a compiler from lexer to parser, HIR, layout and PDF output, with shaping through harfrust and PDF generation through krilla. It compiled this page.
+    - Implemented a recursive descent parser with Pratt-style operator precedence and string interpolation.
+}
+
+@project {
+    title: **harnessd: Autocomplete daemon**
+    stack: `Rust · Tokio · tree-sitter · SQLite · JSON-RPC`
+    link: [github](https://github.com/erscholtz/harnessd)
+
+    - Built a daemon with local IPC, lockfile-based single-instance control and graceful shutdown, serving editor and CLI requests over JSON-RPC 2.0.
+    - Designed a rusqlite proposal cache keyed by file path, byte range and content hash, with invalidation guards keeping completions coherent with source changes.
+    - Used tree-sitter to map cursor offsets to AST regions and precompute suggestions from TODO/FIXME anchors across multiple languages.
+}
+
+@project {
+    title: **UEFI Secure Boot CVE Replication**
+    stack: `C · EDK-II · QEMU · UEFI Secure Boot`
+    link: [github](https://github.com/erscholtz/uefi-cve-replication)
+
+    - Replicated `CVE-2022-21894` (Baton Drop) in QEMU to analyze the Secure Boot bypass.
+    - Proposed an EDK-II proof-of-concept patch using a monotonic counter with EFI signing timestamps to prevent rollback attacks.
+}
+
+@separator {
+    title: **SKILLS**
+}
+
+@skills {
+    languages: **Languages:** `Rust, C, Python`
+    systems: **Systems:** `UEFI/EDK-II, QEMU, IPC, JSON-RPC, SQLite`
+    tools: **Tools:** `Cargo, Make, KBuild, Git`
+}
+
+@separator {
+    title: **EDUCATION**
+}
+
+@education {
+    institution: **Carleton University** · Ottawa, ON
+    degree: **Bachelor of Computer Science**, *Honours with Distinction · 3.7 GPA*
+    date: *September 2020 – December 2024*
+
+    - Mathematics Minor: Mathematical Optimization, Numerical Analysis
+    - Coursework: Operating Systems, Distributed Systems, Trusted Computing
+}
+
+@colophon {
+    text: Typeset with [pyrus](https://github.com/erscholtz/pyrus)
+}

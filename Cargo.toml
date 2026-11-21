@@ -1,10 +1,11 @@
 [package]
 name = "pyrus"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 
 [dependencies]
-printpdf = "0.9.1"
-rust-fontconfig = "2.0.0"
-taffy = "0.9.2"
-phf = { version = "0.11", features = ["macros"] }
+harfrust = "0.14.0"
+krilla = "0.8.2"
+
+[dev-dependencies]
+unicode-normalization = "0.1"

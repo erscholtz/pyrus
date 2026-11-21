@@ -1,11 +1,16 @@
-use crate::ast::{IfStmt, ReturnStmt, Stmt, StmtKind};
+use crate::ast::IfStmt;
+use crate::ast::ReturnStmt;
+use crate::ast::Stmt;
+use crate::ast::StmtKind;
 use crate::diagnostic::SemanticError;
-use crate::hir::{
-    hir_types::{Block, HIRModule, LoweredBlock, Op, ReturnSummary, ValueId},
-    hir_util::{
-        handle_elem::lower_document_element, handle_expr::assign_local,
-    },
-};
+use crate::hir::hir_types::Block;
+use crate::hir::hir_types::HIRModule;
+use crate::hir::hir_types::LoweredBlock;
+use crate::hir::hir_types::Op;
+use crate::hir::hir_types::ReturnSummary;
+use crate::hir::hir_types::ValueId;
+use crate::hir::hir_util::handle_elem::lower_document_element;
+use crate::hir::hir_util::handle_expr::assign_local;
 
 pub fn lower_block(
     body: &[Stmt],

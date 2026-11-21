@@ -1,5 +1,12 @@
-use crate::ast::{BinaryExpr, Expr, ExprKind, InterpolatedStringExpr};
-use crate::hir::hir_types::{Global, Literal, Op, Type, ValueId};
+use crate::ast::BinaryExpr;
+use crate::ast::Expr;
+use crate::ast::ExprKind;
+use crate::ast::InterpolatedStringExpr;
+use crate::hir::hir_types::Global;
+use crate::hir::hir_types::Literal;
+use crate::hir::hir_types::Op;
+use crate::hir::hir_types::Type;
+use crate::hir::hir_types::ValueId;
 
 pub fn assign_global(name: &str, value: &Expr, mutable: bool) -> Global {
     let (literal, ty) = expr_to_literal(value);

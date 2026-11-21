@@ -1,0 +1,38 @@
+document {
+    doc_type: A4
+    left: 40
+    right: 40
+}
+
+elem heading { title }
+elem entry { title, date, content }
+
+layout heading {
+    <> title
+    title: xl
+}
+
+layout entry {
+    < title | > date
+    content
+
+    title: md
+    date: sm
+    content: sm
+}
+
+@heading {
+    title: **Pyrus résumé**
+}
+
+@entry {
+    title: **Document compiler**
+    date: *October 2026*
+
+    - Built with `Rust`
+    - Read the [documentation](https://example.com/docs)
+}
+
+@heading {
+    title: Second entry
+}

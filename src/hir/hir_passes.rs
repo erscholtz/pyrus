@@ -1,26 +1,18 @@
-pub mod document_pass;
-pub mod func_pass;
-pub mod global_pass;
-pub mod style_pass;
-pub mod validation_pass;
+pub mod collect_config;
+pub mod collect_decls;
+pub mod collect_invokes;
+pub mod collect_layouts;
+// pub mod validation_pass;
 
 use crate::ast::Ast;
-use crate::diagnostic::SemanticError;
-use crate::hir::HIRModule;
+use crate::diagnostic::Diagnostic;
+use crate::hir::HIR;
 
 /// Represents a pass to be executed on an HIR module.
 pub trait HIRPass {
-    fn run(
-        &mut self,
-        hir: &mut HIRModule,
-        ast: &Ast,
-    ) -> Result<(), Vec<SemanticError>>;
+    fn run(&mut self, hir: &mut HIR, ast: &Ast) -> Result<(), Vec<Diagnostic>>;
     fn name(&self) -> &'static str;
 }
-
-/// Type alias for pass functions (used in run_pipeline)
-type PassFn =
-    fn(&mut HIRModule, &mut PassManager) -> Result<(), Vec<SemanticError>>;
 
 /// Manages a pipeline of HIR passes to be executed on a module.
 pub struct PassManager {
@@ -28,7 +20,7 @@ pub struct PassManager {
     failed: bool,
     executed_passes: Vec<&'static str>,
     failed_passes: Vec<&'static str>,
-    errors: Vec<SemanticError>,
+    errors: Vec<Diagnostic>,
 }
 
 impl PassManager {
@@ -46,11 +38,7 @@ impl PassManager {
         self
     }
 
-    pub fn run<P: HIRPass + Default>(
-        &mut self,
-        hir: &mut HIRModule,
-        ast: &Ast,
-    ) -> &mut Self {
+    pub fn run<P: HIRPass + Default>(&mut self, hir: &mut HIR, ast: &Ast) -> &mut Self {
         let mut pass = P::default();
         match pass.run(hir, ast) {
             Ok(()) => {}
@@ -75,7 +63,7 @@ impl PassManager {
         &self.failed_passes
     }
 
-    pub fn finished(&self) -> Result<(), Vec<SemanticError>> {
+    pub fn finished(&self) -> Result<(), Vec<Diagnostic>> {
         if self.failed {
             Err(self.errors.clone())
         } else {
