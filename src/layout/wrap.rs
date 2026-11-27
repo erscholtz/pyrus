@@ -1,17 +1,14 @@
 use std::collections::BTreeMap;
-use std::collections::HashSet;
 use std::ops::Range;
 
 use krilla::text::GlyphId;
 use krilla::text::KrillaGlyph;
 
 use crate::hir::hir_passes::collect_invokes::TextStyle;
-use crate::hir::hir_types::Sizing;
 use crate::hir::hir_types::TextType;
 use crate::layout::BULLET_INDENT;
 use crate::layout::Line;
 use crate::layout::Paragraph;
-use crate::layout::ParagraphAttribute;
 use crate::layout::RowStyle;
 use crate::layout::allocate::AllocatedField;
 use crate::layout::font_size;
@@ -135,23 +132,6 @@ pub fn wrap_lines(field: &AllocatedField, split: f32) -> Vec<Paragraph> {
     // Buffers are flattened across ALL TextOps, not indexed per paragraph.
     let mut runs = field.glyph_run.iter();
     for item in &field.content {
-        let mut attributes = HashSet::new();
-        if item
-            .content
-            .iter()
-            .any(|text| matches!(text, TextType::Link { .. }))
-        {
-            attributes.insert(ParagraphAttribute::Link);
-        }
-        match field.size {
-            Sizing::Lg => {
-                attributes.insert(ParagraphAttribute::Subtitle);
-            }
-            Sizing::Xl => {
-                attributes.insert(ParagraphAttribute::Title); // NOTE double check this one
-            }
-            Sizing::Sm | Sizing::Md => {}
-        };
         let font_size = font_size(&field.size);
         let font_spacing = line_height(&field.size);
 
@@ -248,7 +228,6 @@ pub fn wrap_lines(field: &AllocatedField, split: f32) -> Vec<Paragraph> {
                 row_style: row_style.clone(),
                 alignment: field.alignment.clone(),
                 size: field.size.clone(),
-                attributes: attributes.clone(),
                 height, // TODO: n_lines * (line_height + spacing)
                 width,  // TODO: max(row.iter.width)
             });

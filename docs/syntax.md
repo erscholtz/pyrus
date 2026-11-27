@@ -22,22 +22,6 @@ document {
 omitted, Pyrus uses its default page format and margins. A
 source file may contain at most one `document` block.
 
-The same block sets the PDF's document properties. Values run to the end of
-the line:
-
-```pyrus
-document {
-    title: Erik Scholtz Resume
-    subtitle: Software Engineer
-    author: Erik Scholtz
-    keywords: rust, compilers
-    link: https://github.com/erscholtz
-    language: en
-}
-```
-
-Creator and Producer are always set to `Pyrus <sha-1 of commit>`.
-
 ## Element declarations
 
 An `elem` declaration names the fields accepted by an element:

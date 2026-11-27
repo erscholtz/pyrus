@@ -166,6 +166,15 @@ layout colophon {
 }
 
 @project {
+    title: **wild: Open-source contributions to a Rust ELF linker**
+    stack: `Rust · ELF · RISC-V · Linker Relaxation`
+    link: [github](https://github.com/wild-linker/wild)
+
+    - Fixed RISC-V `__global_pointer$` resolving to different addresses in the symbol table and in relocations by computing it once during layout, keeping static, PIE and shared outputs consistent.
+    - Placed `__global_pointer$` at `.sdata + 0x800` to match LLD's default script, adding `.sdata`/`.sbss` output sections across all ELF targets, as groundwork for RISC-V global pointer relaxation.
+}
+
+@project {
     title: **harnessd: Autocomplete daemon**
     stack: `Rust · Tokio · tree-sitter · SQLite · JSON-RPC`
     link: [github](https://github.com/erscholtz/harnessd)
@@ -190,7 +199,7 @@ layout colophon {
 
 @skills {
     languages: **Languages:** `Rust, C, Python`
-    systems: **Systems:** `UEFI/EDK-II, QEMU, IPC, JSON-RPC, SQLite`
+    systems: **Systems:** `ELF, RISC-V, UEFI/EDK-II, QEMU, IPC, JSON-RPC, SQLite`
     tools: **Tools:** `Cargo, Make, KBuild, Git`
 }
 

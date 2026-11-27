@@ -9,12 +9,10 @@ use krilla::geom::{PathBuilder, Point, Rect};
 use krilla::page::PageSettings;
 use krilla::text::{Font, TextDirection};
 
-use crate::hir::hir_types::TextType;
+use crate::hir::hir_types::{Sizing, TextType};
 use crate::layout::allocate::Alignment;
-use crate::layout::{BULLET_INDENT, BlockContentType, Page, RowStyle, font_size};
+use crate::layout::{BULLET_INDENT, BlockContentType, Page, RowStyle, font_size, text_content};
 
-// Pure black text on white reads harsh; a near-black and a light grey rule
-// keep the hierarchy without the contrast shouting.
 const TEXT_GREY: u8 = 40;
 const RULE_GREY: u8 = 165;
 const RULE_THICKNESS: f32 = 0.4;
@@ -71,7 +69,6 @@ impl Renderer {
             let rows = match &content.content {
                 BlockContentType::Text(rows) => rows,
                 BlockContentType::Seperator(width) => {
-                    // TEMP: full-width hairline rule, drawn lighter than the text.
                     let left = page_layout.config.left_margin + x;
                     let top = page_layout.config.top_margin + y;
                     if *width > 0.0 {
@@ -159,34 +156,32 @@ impl Renderer {
         }
         page.finish();
 
-        let meta = &page_layout.config.metadata;
-        let tool = format!(
-            "Pyrus {} ({})",
-            env!("CARGO_PKG_VERSION"),
-            env!("PYRUS_GIT_SHA")
-        );
-        let mut metadata = krilla::metadata::Metadata::new()
-            .creator(tool.clone())
-            .producer(tool);
-        if let Some(title) = &meta.title {
-            metadata = metadata.title(title.clone());
+        let mut title = None;
+        let mut subtitle = None;
+        for content in &page_layout.content {
+            let BlockContentType::Text(rows) = &content.content else {
+                continue;
+            };
+            for row in rows {
+                let text: String = row
+                    .lines
+                    .iter()
+                    .map(|line| text_content(&line.content))
+                    .collect();
+                match row.size {
+                    Sizing::Xl if title.is_none() => title = Some(text),
+                    Sizing::Lg if subtitle.is_none() => subtitle = Some(text),
+                    _ => {}
+                }
+            }
         }
-        // PDF has no subtitle field, the description (shown as "Subject") is the
-        // closest match
-        if let Some(subtitle) = &meta.subtitle {
-            metadata = metadata.description(subtitle.clone());
-        }
-        if !meta.authors.is_empty() {
-            metadata = metadata.authors(meta.authors.clone());
-        }
-        // PDF has no field for urls either, so links ride along as keywords
-        let keywords: Vec<String> = meta.keywords.iter().chain(&meta.links).cloned().collect();
-        if !keywords.is_empty() {
-            metadata = metadata.keywords(keywords);
-        }
-        if let Some(language) = &meta.language {
-            metadata = metadata.language(language.clone());
-        }
+
+        let metadata = krilla::metadata::Metadata::new()
+            .title(title.unwrap_or_else(|| "todo".to_string())) // FIXME: add metadata to the AST and pass it through to the layout
+            .description(subtitle.unwrap_or_else(|| "todo".to_string()))
+            .authors(vec!["todo".to_string()])
+            .creator("Pyrus".to_string())
+            .producer("Pyrus".to_string());
         document.set_metadata(metadata);
 
         let pdf_bytes = document.finish().unwrap();

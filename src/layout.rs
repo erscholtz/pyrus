@@ -4,15 +4,12 @@ mod inscribe; // make glyphs
 mod paginate; // add ResolvedRows to Pages
 mod wrap; // wrap rows to fit in margins
 
-use std::collections::HashSet;
-
 use krilla::text::KrillaGlyph;
 
 use crate::diagnostic::Diagnostic;
 use crate::hir::hir_types::DocOrientation;
 use crate::hir::hir_types::DocType;
 use crate::hir::hir_types::HIR;
-use crate::hir::hir_types::Metadata;
 use crate::hir::hir_types::Sizing;
 use crate::hir::hir_types::TextType;
 use crate::layout::allocate::Alignment;
@@ -65,7 +62,6 @@ pub struct PageConfig {
     pub right_margin: f32,
     pub(crate) orientation: Orientation,
     pub(crate) page_type: PageType,
-    pub metadata: Metadata,
 }
 
 #[derive(Debug, Clone)]
@@ -96,24 +92,11 @@ pub enum RowStyle {
 #[derive(Debug, Clone)]
 pub struct Paragraph {
     pub lines: Vec<Line>,
-    pub attributes: HashSet<ParagraphAttribute>,
     pub row_style: RowStyle,
     pub alignment: Alignment,
     pub size: Sizing,
     pub height: f32,
     pub width: f32,
-}
-
-// NOTE this is somewhat implemented inside of the code for Line, I want
-// to rethink this because I dont want this data to be stored twice plus one
-// place to look for attributes for a given text row.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum ParagraphAttribute {
-    Title,
-    Subtitle,
-    Author,
-    Date,
-    Link,
 }
 
 #[derive(Debug, Clone)]
@@ -192,7 +175,6 @@ pub fn layout(hir: &HIR) -> Result<Page, Diagnostic> {
             right_margin: hir.config.right_margin,
             orientation: orientation,
             page_type: page_type,
-            metadata: hir.config.metadata.clone(),
         },
         content: Vec::new(),
     };
