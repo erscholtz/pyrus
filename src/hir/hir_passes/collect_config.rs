@@ -8,6 +8,7 @@ use crate::hir::hir_passes::HIRPass;
 use crate::hir::hir_types::Config;
 use crate::hir::hir_types::DocOrientation;
 use crate::hir::hir_types::DocType;
+use crate::hir::hir_types::Metadata;
 
 pub struct CollectConfig;
 
@@ -47,19 +48,23 @@ impl Default for CollectConfig {
 impl CollectConfig {
     fn find_config(&mut self, config: &DocumentConfig) -> Result<Config, Diagnostic> {
         // define default
-        let mut doc_type = DocType::A4;
+        let mut doc_type = DocType::Letter;
         let mut orientation = DocOrientation::Portrait;
         let mut top_margin = 40 as f32;
         let mut bottom_margin = 40 as f32;
         let mut left_margin = 40 as f32;
         let mut right_margin = 40 as f32;
         let mut padding = 0;
+        let mut metadata = Metadata::default();
 
         for entry in &config.entries {
             match entry.name.text.as_str() {
                 "doc_type" => match entry.value.node.as_str() {
                     "A4" => {
                         doc_type = DocType::A4;
+                    }
+                    "Letter" => {
+                        doc_type = DocType::Letter;
                     }
                     _ => {
                         // TODO proper error handling here
@@ -102,6 +107,14 @@ impl CollectConfig {
                 "padding" => {
                     padding = entry.value.node.parse().unwrap();
                 }
+                "title" => metadata.title = Some(entry.value.node.clone()),
+                "subtitle" => metadata.subtitle = Some(entry.value.node.clone()),
+                "language" => metadata.language = Some(entry.value.node.clone()),
+                // comma separated lists, e.g. `author: Ada Lovelace, Alan Turing`
+                "author" => metadata.authors.extend(split_list(&entry.value.node)),
+                "keywords" => metadata.keywords.extend(split_list(&entry.value.node)),
+                // repeatable: one `link:` entry per url
+                "link" => metadata.links.push(entry.value.node.clone()),
                 _ => {
                     // TODO proper error handling here
                 }
@@ -115,6 +128,15 @@ impl CollectConfig {
             left_margin,
             right_margin,
             padding,
+            metadata,
         })
     }
+}
+
+fn split_list(value: &str) -> impl Iterator<Item = String> + '_ {
+    value
+        .split(',')
+        .map(str::trim)
+        .filter(|item| !item.is_empty())
+        .map(str::to_string)
 }

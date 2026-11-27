@@ -2,6 +2,7 @@ use crate::ast::DocumentConfig;
 use crate::ast::DocumentEntry;
 use crate::ast::Ident;
 use crate::diagnostic::Diagnostic;
+use crate::diagnostic::Severity;
 use crate::parser::Parse;
 use crate::parser::Parser;
 use crate::parser::tokens::TokenKind;
@@ -29,9 +30,28 @@ impl Parse for DocumentEntry {
         let name = Ident::parse(parser)?;
         parser.skip_trivia()?;
         parser.consume(TokenKind::Colon)?;
-        parser.skip_trivia()?;
-        let node = parser.consume_lexeme()?; // NOTE see if you need number support here
-        let value = Spanned::new(node.to_owned(), parser.location()?);
+        parser.skip_inline_trivia()?;
+        let location = parser.location()?;
+        // values run to the end of the line so metadata like
+        // title: Erik Scholtz Resume or link: https://x.com stays intact
+        let mut node = String::new();
+        while !matches!(
+            parser.peek()?.kind,
+            TokenKind::Newline | TokenKind::RightBrace | TokenKind::LineComment | TokenKind::Eof
+        ) {
+            node.push_str(&parser.consume_lexeme()?);
+        }
+        let node = node.trim_end().to_string();
+        if node.is_empty() {
+            return Err(Diagnostic {
+                severity: Severity::Error,
+                message: format!("missing value for document entry `{}`", name.text),
+                location,
+                span: None,
+                help: None,
+            });
+        }
+        let value = Spanned::new(node, location);
 
         Ok(Self { name, value })
     }
@@ -71,6 +91,17 @@ mod tests {
             .expect("comments should be trivia");
 
         assert_eq!(document.entries.len(), 2);
+    }
+
+    #[test]
+    fn parses_multi_word_and_url_values() {
+        let document = parse_document(
+            "document {\n title: Erik Scholtz Resume // pdf title\n link: https://github.com/erik\n}",
+        )
+        .expect("metadata entries should parse");
+
+        assert_eq!(document.entries[0].value.node, "Erik Scholtz Resume");
+        assert_eq!(document.entries[1].value.node, "https://github.com/erik");
     }
 
     // NOTE are these parser's responsibility?

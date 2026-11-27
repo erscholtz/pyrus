@@ -12,6 +12,7 @@ use crate::diagnostic::Diagnostic;
 use crate::hir::hir_types::DocOrientation;
 use crate::hir::hir_types::DocType;
 use crate::hir::hir_types::HIR;
+use crate::hir::hir_types::Metadata;
 use crate::hir::hir_types::Sizing;
 use crate::hir::hir_types::TextType;
 use crate::layout::allocate::Alignment;
@@ -64,6 +65,7 @@ pub struct PageConfig {
     pub right_margin: f32,
     pub(crate) orientation: Orientation,
     pub(crate) page_type: PageType,
+    pub metadata: Metadata,
 }
 
 #[derive(Debug, Clone)]
@@ -75,6 +77,7 @@ pub enum Orientation {
 #[derive(Debug, Clone)]
 pub enum PageType {
     A4,
+    Letter,
 }
 
 pub enum FieldType {
@@ -160,6 +163,8 @@ pub fn calculate_grid(
 ) -> Result<(f32, f32), Diagnostic> {
     let (x, y) = match page_type {
         PageType::A4 => (595.28, 841.89),
+        // US Letter, 8.5 x 11 in
+        PageType::Letter => (612.0, 792.0),
     };
     match orientation {
         Orientation::Portrait => Ok((x, y)),
@@ -170,6 +175,7 @@ pub fn calculate_grid(
 pub fn layout(hir: &HIR) -> Result<Page, Diagnostic> {
     let page_type = match hir.config.doc_type {
         DocType::A4 => PageType::A4,
+        DocType::Letter => PageType::Letter,
     };
     let orientation = match hir.config.orientation {
         DocOrientation::Portrait => Orientation::Portrait,
@@ -186,6 +192,7 @@ pub fn layout(hir: &HIR) -> Result<Page, Diagnostic> {
             right_margin: hir.config.right_margin,
             orientation: orientation,
             page_type: page_type,
+            metadata: hir.config.metadata.clone(),
         },
         content: Vec::new(),
     };

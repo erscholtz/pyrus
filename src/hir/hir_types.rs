@@ -26,6 +26,7 @@ impl HIR {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DocType {
     A4,
+    Letter,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -42,6 +43,19 @@ pub struct Config {
     pub left_margin: f32,
     pub right_margin: f32,
     pub padding: usize,
+    pub metadata: Metadata,
+}
+
+/// PDF document properties collected from the `document` block. Everything is
+/// optional; the renderer only writes what was provided.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct Metadata {
+    pub title: Option<String>,
+    pub subtitle: Option<String>,
+    pub authors: Vec<String>,
+    pub keywords: Vec<String>,
+    pub links: Vec<String>,
+    pub language: Option<String>,
 }
 
 impl Config {
@@ -62,6 +76,7 @@ impl Config {
             left_margin: left,
             right_margin: right,
             padding: padding,
+            metadata: Metadata::default(),
         }
     }
 }
@@ -69,13 +84,14 @@ impl Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            doc_type: DocType::A4,
+            doc_type: DocType::Letter,
             orientation: DocOrientation::Portrait,
             top_margin: 40 as f32,
             bottom_margin: 40 as f32,
             left_margin: 40 as f32,
             right_margin: 40 as f32,
             padding: 1,
+            metadata: Metadata::default(),
         }
     }
 }

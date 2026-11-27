@@ -13,13 +13,30 @@ An optional `document` block configures compiler-defined page settings:
 
 ```pyrus
 document {
-    type: A4
+    doc_type: A4
     margin: 4
 }
 ```
 
-If the block is omitted, Pyrus uses its default page format and margins. A
+`doc_type` is `Letter` (8.5 × 11 in, the default) or `A4`. If the block is
+omitted, Pyrus uses its default page format and margins. A
 source file may contain at most one `document` block.
+
+The same block sets the PDF's document properties. Values run to the end of
+the line:
+
+```pyrus
+document {
+    title: Erik Scholtz Resume
+    subtitle: Software Engineer
+    author: Erik Scholtz
+    keywords: rust, compilers
+    link: https://github.com/erscholtz
+    language: en
+}
+```
+
+Creator and Producer are always set to `Pyrus <sha-1 of commit>`.
 
 ## Element declarations
 
